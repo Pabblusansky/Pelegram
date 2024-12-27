@@ -15,7 +15,7 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    const existingUser = await User.findOne({ username });
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
     }
@@ -33,12 +33,12 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     console.log('Login request body:', req.body); // Log the request body
-    const { username, password } = req.body;
-    if (!username || !password) {
-      console.error('Username and password are required');
-      return res.status(400).json({ error: 'Username and password are required' });
+    const { usernameOrEmail, password } = req.body;
+    if (!usernameOrEmail || !password) {
+      console.error('Username/Email and password are required');
+      return res.status(400).json({ error: 'Username/Email and password are required' });
     }
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }] });
     if (!user) {
       console.error('User not found');
       return res.status(400).json({ error: 'Invalid credentials' });

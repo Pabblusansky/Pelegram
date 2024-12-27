@@ -15,7 +15,7 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/register`, user);
   }
 
-  login(credentials: { username: string; password: string }) {
+  login(credentials: { usernameOrEmail: string; password: string }) {
     return this.http.post<{ token: string }>(`${this.apiUrl}/login`, credentials).pipe(
       tap(response => {
         if (response && response.token) {

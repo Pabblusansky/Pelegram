@@ -12,7 +12,7 @@ import { Router } from '@angular/router';
   imports: [CommonModule, FormsModule]
 })
 export class LoginComponent {
-  credentials = { username: '', password: '' };
+  credentials = { usernameOrEmail: '', password: '' };
 
   constructor(private authService: AuthService, private router: Router) {}
 
