@@ -12,6 +12,7 @@ import { AuthService } from '../auth.service';
 })
 export class RegisterComponent {
   formData = { username: '', email: '', password: '' };
+  passwordFieldType: string = 'password';
 
   constructor(private authService: AuthService) {}
 
@@ -20,5 +21,9 @@ export class RegisterComponent {
       next: (response) => console.log('User registered:', response),
       error: (err) => console.error('Error:', err),
     });
+  }
+
+  togglePasswordVisibility() {
+    this.passwordFieldType = this.passwordFieldType === 'password' ? 'text' : 'password';
   }
 }

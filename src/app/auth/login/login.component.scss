@@ -112,3 +112,36 @@
   .auth-footer a:hover {
     color: #1d64e6;
   }
+
+  .toggle-password img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    display: block;
+  }
+  .password-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .password-container input {
+    padding-right: 40px;
+  }
+  
+  .toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+  
+  .toggle-password img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+  }

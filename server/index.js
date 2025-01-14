@@ -4,6 +4,8 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import User from './models/User.js';
 import { authRoutes } from './routes/auth.js'; // Import named export
+import dotenv from 'dotenv';
+dotenv.config();
 
 const app = express();
 
@@ -31,5 +33,5 @@ app.get('/users', async (_req, res) => {
 // Mount auth routes
 app.use('/api/auth', authRoutes);
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

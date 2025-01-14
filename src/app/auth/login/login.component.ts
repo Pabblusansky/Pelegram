@@ -13,6 +13,7 @@ import { Router } from '@angular/router';
 })
 export class LoginComponent {
   credentials = { usernameOrEmail: '', password: '' };
+  passwordFieldType: string = 'password';
 
   constructor(private authService: AuthService, private router: Router) {}
 
@@ -24,5 +25,9 @@ export class LoginComponent {
       },
       error: (err) => console.error('Error:', err),
     });
+  }
+
+  togglePasswordVisibility() {
+    this.passwordFieldType = this.passwordFieldType === 'password' ? 'text' : 'password';
   }
 }
