@@ -69,8 +69,9 @@
         </div>
       </div>
 
-      <button type="submit" class="auth-button" [disabled]="hasErrors()">
-        Register
+      <button type="submit" class="auth-button" [disabled]="isSubmitting || hasErrors()">
+        <span *ngIf="!isSubmitting">Register</span>
+        <span *ngIf="isSubmitting" class="spinner"></span>
       </button>
       <p class="auth-footer">
         Already have an account? <a href="/login">Log in</a>

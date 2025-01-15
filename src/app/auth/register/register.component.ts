@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
-
+import { Router } from '@angular/router';
 @Component({
   selector: 'app-register',
   templateUrl: './register.component.html',
@@ -17,9 +17,10 @@ export class RegisterComponent {
     password: '',
   };
   passwordFieldType: string = 'password';
+  isSubmitting: boolean = false
   errors: Record<string, string> = {};
 
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService, private router: Router) {}
 
   hasErrors(): boolean {
     return Object.values(this.errors).some((error) => !!error);
@@ -41,18 +42,26 @@ export class RegisterComponent {
   validateForm() {
     Object.keys(this.formData).forEach((field) => this.validateField(field));
   }
-
+  
   onSubmit() {
     this.validateForm();
     if (this.hasErrors()) {
       return; // Если есть ошибки, не отправляем запрос
     }
+    this.isSubmitting = true; 
 
     this.authService.register(this.formData).subscribe({
-      next: (response) => console.log('User registered:', response),
-      error: (err) => console.error('Error:', err),
+      next: () => {
+        this.isSubmitting = false; // Скрываем спиннер
+        this.router.navigate(['/registration-success']); // Перенаправляем на страницу успеха
+      },
+      error: (err) => {
+        console.error('Error:', err);
+        this.isSubmitting = false; // Скрываем спиннер
+      },
     });
   }
+
 
   togglePasswordVisibility() {
     this.passwordFieldType =

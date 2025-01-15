@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Routes, RouterModule } from '@angular/router';
 import { AuthComponent } from './auth.component';
-
+import { AppRoutingModule } from '../app-routing.module';
 
 const routes: Routes = [
   { path: '', component: AuthComponent }
