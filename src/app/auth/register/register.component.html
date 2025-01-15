@@ -1,29 +1,80 @@
 <div class="auth-container">
   <div class="auth-card">
     <div class="auth-header">
-      <img src="assets/Pelegram.svg" alt="Pelegram Logo" class="auth-logo">
+      <img src="assets/Pelegram.svg" alt="Pelegram Logo" class="auth-logo" />
       <h2>Welcome to Pelegram</h2>
     </div>
-    <form (ngSubmit)="onSubmit()" #registerForm="ngForm" novalidate>
+    <form (ngSubmit)="onSubmit()" novalidate>
+      <!-- Username -->
       <div class="form-group">
         <label for="username">Username:</label>
-        <input type="text" id="username" name="username" [(ngModel)]="formData.username" required />
+        <input
+          type="text"
+          id="username"
+          name="username"
+          [(ngModel)]="formData['username']"
+          (ngModelChange)="validateField('username')"
+          required
+        />
+        <div *ngIf="errors['username']" class="error-message">
+          {{ errors['username'] }}
+        </div>
       </div>
+
+      <!-- Email -->
       <div class="form-group">
         <label for="email">Email:</label>
-        <input type="email" id="email" name="email" [(ngModel)]="formData.email" required />
+        <input
+          type="email"
+          id="email"
+          name="email"
+          [(ngModel)]="formData['email']"
+          (ngModelChange)="validateField('email')"
+          required
+        />
+        <div *ngIf="errors['email']" class="error-message">
+          {{ errors['email'] }}
+        </div>
       </div>
+
+      <!-- Password -->
       <div class="form-group password-group">
         <label for="password">Password:</label>
         <div class="password-container">
-        <input [type]="passwordFieldType" id="password" name="password" [(ngModel)]="formData.password" required />
-        <button type="button" class="toggle-password" (click)="togglePasswordVisibility()">
-          <img [src]="passwordFieldType === 'password' ? 'assets/eye.svg' : 'assets/eye-slash.svg'" alt="Toggle Password Visibility">
-        </button>
+          <input
+            [type]="passwordFieldType"
+            id="password"
+            name="password"
+            [(ngModel)]="formData['password']"
+            (ngModelChange)="validateField('password')"
+            required
+          />
+          <button
+            type="button"
+            class="toggle-password"
+            (click)="togglePasswordVisibility()"
+          >
+            <img
+              [src]="
+                passwordFieldType === 'password'
+                  ? 'assets/eye.svg'
+                  : 'assets/eye-slash.svg'
+              "
+              alt="Toggle Password Visibility"
+            />
+          </button>
+        </div>
+        <div *ngIf="errors['password']" class="error-message">
+          {{ errors['password'] }}
         </div>
       </div>
-      <button type="submit" class="auth-button">Register</button>
-      <p class="auth-footer">Already have an account? <a href="/login">Log in</a></p>
+
+      <button type="submit" class="auth-button" [disabled]="hasErrors()">
+        Register
+      </button>
+      <p class="auth-footer">
+        Already have an account? <a href="/login">Log in</a>
+      </p>
     </form>
   </div>
 </div>
