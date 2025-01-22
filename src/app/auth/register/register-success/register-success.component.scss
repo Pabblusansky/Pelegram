@@ -1,19 +1,41 @@
+.success-container a {
+  color: #007bff;
+  text-decoration: none;
+}
+  
+.success-container a:hover {
+  text-decoration: underline;
+}
+
 .success-container {
-    text-align: center;
-    margin-top: 50px;
-    font-family: Arial, sans-serif;
-  }
+  text-align: center;
+  margin-top: 50px;
+  font-family: Arial, sans-serif;
   
-  .success-container h1 {
+  h1 {
     color: #4caf50;
+    font-size: 2rem;
+    margin-bottom: 1rem;
   }
   
-  .success-container a {
-    color: #007bff;
-    text-decoration: none;
-  }
+  p {
+    font-size: 1.2rem;
+    color: #555;
   
-  .success-container a:hover {
-    text-decoration: underline;
+    span {
+      font-weight: bold;
+      color: #e91e63;
+      animation: pulse 1s infinite; // Анимация мигания
+    }
   }
+}
+  
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
   

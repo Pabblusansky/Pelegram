@@ -5,9 +5,12 @@ import bodyParser from 'body-parser';
 import User from './models/User.js';
 import { authRoutes } from './routes/auth.js'; // Import named export
 import dotenv from 'dotenv';
+import chatRoutes from './routes/chatRoutes.js';
 dotenv.config();
 
 const app = express();
+// Mount chat routes
+app.use('/api/chats', chatRoutes);
 
 // Middleware
 app.use(cors());
