@@ -1,7 +1,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import bodyParser from 'body-parser';
+
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -10,12 +10,17 @@ import chatRoutes from './routes/chatRoutes.js';
 import Message from './models/Message.js';
 import Chat from './models/Chat.js';
 import User from './models/User.js';
+import messageRoutes from './routes/messages.js';
+import authenticateToken from './middleware/authenticateToken.js';
+import jwt from 'jsonwebtoken';
+
+const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
 
 dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
-app.options('*', cors()); // Enable pre-flight
+
 const io = new Server(httpServer, {
   cors: {
     origin: 'http://localhost:4200',
@@ -29,7 +34,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow these methods
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.use(bodyParser.json());
+
 
 // Conectare MongoDB
 mongoose.connect('mongodb://localhost:27017/Pelegram', {
@@ -39,27 +44,44 @@ mongoose.connect('mongodb://localhost:27017/Pelegram', {
 
 // Websocket events
 io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
+  console.log('Connection attempt registered');
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    console.log('No token provided during socket connection');
+    return socket.disconnect(true);
+  }
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY); // Decode token
+    socket.user = decoded; // Save user data to socket
+    console.log(`User connected: ${socket.user.id}`);
+  } catch (err) {
+    console.error('Error verifying token:', err.message);
+    return socket.disconnect(true);
+  }
 
   socket.on('send_message', async (data) => {
-      const { chatId, senderId, content } = data;
-
+    const { chatId, content } = data;
+    const senderId = socket.user.id;
       // Save message to database
-      const message = new Message({
-          chatId,
-          senderId,
-          content,
-      });
-      await message.save();
+      try {
+        const message = new Message({
+            chatId,
+            senderId,
+            content,
+        });
+        await message.save();
 
-      // Update chat with last message
-      await Chat.findByIdAndUpdate(chatId, {
-          lastMessage: message._id,
-          updatedAt: Date.now(),
-      });
+        // Update chat with last message
+        await Chat.findByIdAndUpdate(chatId, {
+            lastMessage: message._id,
+            updatedAt: Date.now(),
+        });
 
-      // Sending message to all users in chat
-      io.to(chatId).emit('receive_message', message);
+        // Sending message to all users in chat
+        io.to(chatId).emit('receive_message', message);
+    } catch (err) {
+        console.error('Error sending message:', err);
+    }
   });
 
   socket.on('join_chat', (chatId) => {
@@ -81,9 +103,12 @@ app.get('/users', async (_req, res) => {
   }
 });
 
-// Mount auth routes
+// Mount routes
+app.use(express.json());
 app.use('/api/auth', authRoutes);
-app.use('/api/chats', chatRoutes);
+app.use(authenticateToken);
+app.use('/chats', chatRoutes);
+app.use('/messages', messageRoutes);
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

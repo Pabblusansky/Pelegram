@@ -1,1 +1,19 @@
-<p>chat-room works!</p>
+<div class="chat-room">
+    <!-- Секция для отображения сообщений -->
+    <div class="messages">
+      <div *ngIf="messages.length === 0" class="no-messages">
+        No messages yet. Start the conversation!
+      </div>
+      <div *ngFor="let message of messages" class="message">
+        <span class="sender">{{ message.senderId }}</span>: 
+        <span class="content">{{ message.content }}</span>
+      </div>
+    </div>
+  
+    <!-- Бокс для ввода сообщения -->
+    <app-message-input 
+      [chatId]="chatId" 
+      (messageSent)="sendMessage($event)">
+    </app-message-input>
+  </div>
+  

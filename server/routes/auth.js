@@ -36,7 +36,7 @@ router.post('/register', async (req, res) => {
 // Вход
 router.post('/login', async (req, res) => {
   try {
-    console.log('Received login request:', req.body);  // Логируем полученные данные
+    console.log('Received login request:', req.body);  // Log the request body
     const { usernameOrEmail, password } = req.body;
     if (!usernameOrEmail || !password) {
       return res.status(400).json({ error: 'Username/Email and password are required' });

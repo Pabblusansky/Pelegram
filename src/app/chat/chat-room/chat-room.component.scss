@@ -1,0 +1,28 @@
+.chat-room {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+      background-color: #f9f9f9;
+  
+      .message {
+        margin-bottom: 5px;
+      }
+  
+      .no-messages {
+        text-align: center;
+        color: #999;
+      }
+    }
+  
+    app-message-input {
+      margin-top: auto;
+    }
+  }
+  
