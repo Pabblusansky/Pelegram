@@ -20,14 +20,16 @@ export class AuthService {
       tap(response => {
         if (response && response.token) {
           localStorage.setItem('token', response.token);
-          const tokenExpiration = new Date().getTime() + 3600 * 1000; // 1 hour in milliseconds
+          const tokenExpiration = new Date().getTime() + 3600 * 1000; // 1 час в миллисекундах
           localStorage.setItem('tokenExpiration', tokenExpiration.toString());
         } else {
           console.error('Token is missing in the response');
+          throw new Error('Authentication failed. No token received.');
         }
       })
     );
   }
+  
 
   logout(): void {
     localStorage.removeItem('token');
@@ -46,4 +48,7 @@ export class AuthService {
   isAuthenticated(): boolean {
     return !this.isTokenExpired();
   }
+  getToken(): string | null {
+    return localStorage.getItem('token');
+  }  
 }

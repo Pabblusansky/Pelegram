@@ -3,6 +3,9 @@ import jwt from 'jsonwebtoken';
 const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
 
 export const authenticateToken = (req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    return next(); // Allow preflight requests to pass
+  }
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 

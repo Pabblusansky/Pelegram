@@ -1,0 +1,20 @@
+<div class="chat-list-container">
+    <div *ngFor="let chat of chats" class="chat-item">
+      <a [routerLink]="['/chats', chat._id]" class="chat-link">
+        <div class="chat-info">
+          <div class="chat-avatar">
+            <!-- Можно вставить аватарку, если она есть, например, из данных чата -->
+            <img src="https://placecats.com/50/50" alt="avatar" class="avatar" />
+          </div>
+          <div class="chat-details">
+            <span class="chat-participants">
+              {{ chat.participants | json }}
+            </span>
+            <!-- Можно добавить последнее сообщение чата или другие данные -->
+            <span class="chat-preview">Последнее сообщение...</span>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+  

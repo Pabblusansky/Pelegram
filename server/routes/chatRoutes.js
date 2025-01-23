@@ -1,13 +1,26 @@
 import express from 'express';
 import Chat from '../models/Chat.js';
+import Message from '../models/Message.js';
 import { authenticateToken } from '../middleware/authenticateToken.js';
 const router = express.Router();
 
-
+router.get('/search', authenticateToken, async (req, res) => {
+    try {
+        const searchQuery = req.query.query || '';
+        const users = await User.find({
+            username: { $regex: searchQuery, $options: 'i' },
+            _id: { $ne: req.user.id },
+        }).limit(10);
+        res.json(users);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Error searching users' });
+    }
+});
 router.post('/', authenticateToken, async (req, res) => {
     const { recipientId } = req.body;
-
-    const existinghChat = await Chat.findOne({
+    console.log('User ID from token:', req.user.id);
+    const existingChat = await Chat.findOne({
         participants: { $all: [req.user.id, recipientId] },
     });
 

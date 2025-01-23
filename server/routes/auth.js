@@ -38,10 +38,6 @@ router.post('/login', async (req, res) => {
   try {
     console.log('Received login request:', req.body);  // Логируем полученные данные
     const { usernameOrEmail, password } = req.body;
-    console.log('Password received from client:', password);
-    const isPassword = await bcrypt.compare('123123', '$2a$10$C92TkfTMGvYvIwU1vK3VPeboywcy9Xe/Ny.tMJ.dHwtRqe5qcvknO');
-    console.log('Password comparison result:', isPassword);
-
     if (!usernameOrEmail || !password) {
       return res.status(400).json({ error: 'Username/Email and password are required' });
     }
@@ -52,7 +48,6 @@ router.post('/login', async (req, res) => {
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    console.log('Password stored in DB:', user.password);
     if (!isPasswordValid) {
       return res.status(400).json({ error: 'Invalid password credentials' });
     }
