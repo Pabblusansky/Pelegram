@@ -18,6 +18,7 @@ export class LoginComponent {
   constructor(private authService: AuthService, private router: Router) {}
 
   onSubmit() {
+    console.log('Submitting login with data:', this.credentials); // Логируем данные перед отправкой
     this.authService.login(this.credentials).subscribe({
       next: () => {
         console.log('User logged in');

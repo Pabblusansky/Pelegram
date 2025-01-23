@@ -10,7 +10,7 @@ const UserSchema = new mongoose.Schema({
 // Хэширование пароля перед сохранением
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
+  this.password = await bcrypt.hash(this.password, 10)
   next();
 });
 
