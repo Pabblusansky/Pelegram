@@ -1,28 +1,104 @@
 .chat-room {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #f0f2f5;
+  padding: 15px;
+
+  .messages {
+    flex: 1;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
     display: flex;
     flex-direction: column;
-    height: 100%;
-  
-    .messages {
+    gap: 10px;
+    max-height: 80vh;
+    overflow-y: auto;
+
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background-color: rgba(0, 0, 0, 0.1);
+    }
+    
+    .message {
       flex: 1;
-      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      padding: 11px;
+      border-radius: 10px;
+      max-width: 70%;
+      word-wrap: break-word;
+    }
+
+    .my-message {
+      align-self: flex-end;
+      background-color: #dcf8c6;
+    }
+
+    .their-message {
+      align-self: flex-start;
+      background-color: #ebebeb;
+    }
+
+    .sender {
+      font-weight: bold;
+      font-size: 0.9rem;
+      color: #555;
+      margin-bottom: 5px;
+    }
+
+    .content {
+      font-size: 1rem;
+      color: #333;
+    }
+
+    .no-messages {
+      text-align: center;
+      color: #999;
+    }
+
+  }
+
+  app-message-input {
+    margin-top: auto;
+    display: flex;
+    padding: 10px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    width: 100%;
+
+    input {
+      flex: 1;
       padding: 10px;
       border: 1px solid #ccc;
-      margin-bottom: 10px;
-      background-color: #f9f9f9;
-  
-      .message {
-        margin-bottom: 5px;
-      }
-  
-      .no-messages {
-        text-align: center;
-        color: #999;
+      border-radius: 5px;
+      margin-right: 10px;
+      outline: none;
+      transition: border-color 0.2s;
+
+      &:focus {
+        border-color: #007bff;
       }
     }
-  
-    app-message-input {
-      margin-top: auto;
+
+    button {
+      padding: 10px 20px;
+      background-color: #007bff;
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.2s;
+
+      &:hover {
+        background-color: #0056b3;
+      }
     }
   }
-  
+}

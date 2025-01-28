@@ -6,6 +6,7 @@ export interface User {
 export interface Chat {
   _id: string;
   participants: User[];
+  messages: string[];
   lastMessage?: string;
 }
 

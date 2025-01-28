@@ -79,6 +79,7 @@ io.on('connection', (socket) => {
         await message.save();
         // Update chat with last message
         await Chat.findByIdAndUpdate(chatId, {
+            $push: { messages: message._id },
             lastMessage: message._id,
             updatedAt: Date.now(),
         });

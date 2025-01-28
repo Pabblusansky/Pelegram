@@ -16,10 +16,12 @@ export class AuthService {
   }
 
   login(credentials: { usernameOrEmail: string; password: string }) {
-    return this.http.post<{ token: string }>(`${this.apiUrl}/login`, credentials).pipe(
+    return this.http.post<{ token: string, userId: string }>(`${this.apiUrl}/login`, credentials).pipe(
       tap(response => {
         if (response && response.token) {
+          console.log('Received response:', response);
           localStorage.setItem('token', response.token);
+          localStorage.setItem('userId', response.userId);
           const tokenExpiration = new Date().getTime() + 3600 * 1000; // 1 час в миллисекундах
           localStorage.setItem('tokenExpiration', tokenExpiration.toString());
         } else {
