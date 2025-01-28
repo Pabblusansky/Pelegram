@@ -5,7 +5,7 @@
         No messages yet. Start the conversation!
       </div>
       <div *ngFor="let message of messages" class="message">
-        <span class="sender">{{ message.senderId }}</span>: 
+        <span class="sender">{{ message.senderName }}</span>: 
         <span class="content">{{ message.content }}</span>
       </div>
     </div>

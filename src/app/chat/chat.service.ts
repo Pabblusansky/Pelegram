@@ -37,7 +37,10 @@ export class ChatService {
     if (!headers) return;
     return this.http.get(`${this.apiUrl}/messages/${chatId}`, { headers });
   }
-
+  joinChat(chatId: string) {
+    this.socket.emit('join_chat', chatId);
+    console.log(`Joined chat room: ${chatId}`);
+  }  
   sendMessage(chatId: string, content: string) {
     if (!this.socket.connected) {
       console.error('Socket is not connected. Cannot send message.');

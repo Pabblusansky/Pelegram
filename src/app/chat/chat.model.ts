@@ -13,6 +13,7 @@ export interface Message {
   _id: string;
   chatId: string;
   senderId: string;
+  senderName: string;
   content: string;
   createdAt: Date;
 }

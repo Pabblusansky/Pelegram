@@ -14,6 +14,7 @@ router.post('/', authenticateToken, async (req, res) => {
         const newMessage = new Message({ 
             chatId,
             senderId: req.user.id,
+            senderName: req.user.name,
             content,
         });
         console.log('User from token:', req.user);

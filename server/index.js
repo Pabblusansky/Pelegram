@@ -53,7 +53,7 @@ io.on('connection', (socket) => {
   try {
     const decoded = jwt.verify(token, SECRET_KEY); // Decode token
     socket.user = decoded; // Save user data to socket
-    console.log(`User connected: ${socket.user.id}`);
+    console.log(`User connected: ${socket.id}`);
   } catch (err) {
     console.error('Error verifying token:', err.message);
     return socket.disconnect(true);
@@ -64,13 +64,19 @@ io.on('connection', (socket) => {
     const senderId = socket.user.id;
       // Save message to database
       try {
+        const sender = await User.findById(senderId);
+        if (!sender) {
+          console.log('Sender not found');
+          return;
+        }
+        const senderName = sender.username;
         const message = new Message({
             chatId,
             senderId,
+            senderName,
             content,
         });
         await message.save();
-
         // Update chat with last message
         await Chat.findByIdAndUpdate(chatId, {
             lastMessage: message._id,
@@ -78,6 +84,7 @@ io.on('connection', (socket) => {
         });
 
         // Sending message to all users in chat
+        console.log('Message received by server:', message);
         io.to(chatId).emit('receive_message', message);
     } catch (err) {
         console.error('Error sending message:', err);
