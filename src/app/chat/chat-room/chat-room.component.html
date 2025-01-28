@@ -1,25 +1,27 @@
-<div class="chat-room">
-  <!-- Messages -->
-  <div class="messages">
-    <div *ngIf="messages.length === 0" class="no-messages">
-      No messages yet. Start the conversation!
+<body>
+  <div class="chat-room">
+    <!-- Messages -->
+    <div class="messages">
+      <div *ngIf="messages.length === 0" class="no-messages">
+        No messages yet. Start the conversation!
+      </div>
+      <div
+        *ngFor="let message of messages"
+        [ngClass]="{
+          'my-message': message.senderId === userId,
+          'their-message': message.senderId !== userId
+        }"
+        class="message"
+      >
+        <span class="sender">{{ message.senderName }}</span>
+        <span class="content">{{ message.content }}</span>
+      </div>
     </div>
-    <div
-      *ngFor="let message of messages"
-      [ngClass]="{
-        'my-message': message.senderId === userId,
-        'their-message': message.senderId !== userId
-      }"
-      class="message"
-    >
-      <span class="sender">{{ message.senderName }}</span>
-      <span class="content">{{ message.content }}</span>
-    </div>
-  </div>
 
-  <!-- Input -->
-  <app-message-input 
-    [chatId]="chatId" 
-    (messageSent)="sendMessage($event)">
-  </app-message-input>
-</div>
+    <!-- Input -->
+    <app-message-input
+      [chatId]="chatId"
+      (messageSent)="sendMessage($event)"
+    ></app-message-input>
+  </div>
+</body>
