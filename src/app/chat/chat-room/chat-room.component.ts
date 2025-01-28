@@ -5,12 +5,13 @@ import { Message } from '../chat.model';
 import { MessageInputComponent } from "../message-input/message-input.component";
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 @Component({
   selector: 'app-chat-room',
   templateUrl: './chat-room.component.html',
   styleUrls: ['./chat-room.component.scss'],
   standalone: true,
-  imports: [MessageInputComponent, CommonModule]
+  imports: [MessageInputComponent, CommonModule, FormsModule]
 })
 export class ChatRoomComponent implements OnInit {
   chatId: string | null = null;
