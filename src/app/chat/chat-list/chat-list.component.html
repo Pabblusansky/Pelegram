@@ -1,33 +1,45 @@
 <div class="chat-list-container">
-    <!-- Поиск пользователей -->
+    <!-- Searching for users -->
     <div class="search-container">
-      <input type="text" [(ngModel)]="searchQuery" (input)="searchUsers()" placeholder="Поиск пользователя..." />
-      <ul *ngIf="searchResults.length > 0">
+      <input 
+      type="text" 
+      [(ngModel)]="searchQuery" 
+      (input)="searchUsers(searchQuery)" 
+      placeholder="Search for a user..." 
+      aria-label="User Search"
+      />
+      <ul *ngIf="searchResults.length > 0" class="search-results">
         <li *ngFor="let user of searchResults" (click)="selectedUserId = user._id">
           {{ user.username }}
         </li>
       </ul>
-      <button (click)="createChat()" [disabled]="!selectedUserId">Создать чат</button>
+      <button class="create-chat-btn"
+      (click)="createChat()" 
+      [disabled]="!selectedUserId">
+      Create chat
+      </button>
     </div>
   
-    <!-- Список чатов -->
-    <div *ngFor="let chat of chats" class="chat-item">
-      <a [routerLink]="['/chats', chat._id]" class="chat-link">
-        <div class="chat-info">
-          <div class="chat-avatar">
-            <img src="https://placekitten.com/50/50" alt="avatar" class="avatar" />
+    <!-- Chat list -->
+     <div *ngIf = "loading" class="loading-indicator">Loading chats..</div>
+     <div *ngIf="!loading && chats.length === 0" class="no-chats">No chats.</div>
+     <div *ngIf="!loading && chats.length > 0">
+      <div *ngFor="let chat of chats" class="chat-item">
+        <a [routerLink]="['/chats', chat._id]" class="chat-link">
+          <div class="chat-info">
+            <!-- Avatar -->
+            <div class="chat-avatar">
+              <img src="https://placekitten.com/50/50" alt="avatar" class="avatar" />
+            </div>
+            <div class="chat-details">
+              <span class="chat-participants">
+                {{ chat.participantsString }}
+              </span>
+              <span class="chat-preview">
+                {{ chat.lastMessage ? chat.lastMessage.content : 'No messages' }}
+              </span>
+            </div>
           </div>
-          <div class="chat-details">
-            <span class="chat-participants">
-              <!-- Используем форматированную строку участников -->
-              {{ chat.participantsString }}
-            </span>
-            <span class="chat-preview">
-              <!-- Показываем последнее сообщение или "Нет сообщений" -->
-              {{ chat.lastMessage ? chat.lastMessage.text : 'Нет сообщений' }}
-            </span>
-          </div>
-        </div>
-      </a>
-    </div>
+        </a>
+      </div>
   </div>
