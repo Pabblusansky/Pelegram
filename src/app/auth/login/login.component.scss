@@ -80,6 +80,9 @@
     border-color: #2575fc;
     outline: none;
   }
+  input.invalid {
+    border-color: red;
+  }
   
   .auth-button {
     background: linear-gradient(135deg, #6a11cb, #2575fc);
@@ -96,7 +99,11 @@
   .auth-button:hover {
     background: linear-gradient(135deg, #5a0fb8, #1d64e6);
   }
-  
+  .auth-button:disabled {
+    background: #ccc;
+    color: #666;
+    cursor: not-allowed;
+  }
   .auth-footer {
     margin-top: 1rem;
     font-size: 0.9rem;
@@ -145,3 +152,44 @@
     height: 20px;
     object-fit: contain;
   }
+
+  .error {
+    color: red;
+    font-size: 0.85rem;
+    opacity: 1;
+    transition: opacity 1s ease-in-out;
+  }
+
+  .error-message {
+    color: red;
+    margin-top: 1rem;
+    font-weight: bold;
+  }
+  
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid white;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    display: inline-block;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
+    100% { transform: translateX(0); }
+  }
+  
+  .auth-card.error-shake {
+    animation: shake 0.3s ease-in-out;
+  }
+  

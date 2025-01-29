@@ -4,21 +4,58 @@
       <img src="assets/Pelegram.svg" alt="Pelegram Logo" class="auth-logo">
       <h2>Pelegram Login</h2>
     </div>
+    
     <form (ngSubmit)="onSubmit()" #loginForm="ngForm" novalidate>
       <div class="form-group">
         <label for="usernameOrEmail">Username/email:</label>
-        <input type="text" id="usernameOrEmail" name="usernameOrEmail" [(ngModel)]="credentials.usernameOrEmail" required />
+        <input 
+          type="text" 
+          id="usernameOrEmail" 
+          name="usernameOrEmail" 
+          [(ngModel)]="credentials.usernameOrEmail" 
+          required
+          #usernameOrEmail="ngModel"
+          [class.invalid]="usernameOrEmail.invalid && usernameOrEmail.touched"
+        />
+        <small *ngIf="usernameOrEmail.invalid && usernameOrEmail.touched" class="error">
+          This field is required.
+        </small>
       </div>
+      
       <div class="form-group password-group">
         <label for="password">Password:</label>
         <div class="password-container">
-        <input [type]="passwordFieldType" id="password" name="password" [(ngModel)]="credentials.password" required />
-        <button type="button" class="toggle-password" (click)="togglePasswordVisibility()">
-          <img [src]="passwordFieldType === 'password' ? 'assets/eye.svg' : 'assets/eye-slash.svg'" alt="Toggle Password Visibility">
-        </button>
+          <input 
+            [type]="passwordFieldType" 
+            id="password" 
+            name="password" 
+            [(ngModel)]="credentials.password" 
+            required
+            minlength="6"
+            #password="ngModel"
+            [class.invalid]="password.invalid && password.touched"
+          />
+          <button type="button" class="toggle-password" (click)="togglePasswordVisibility()">
+            <img [src]="passwordFieldType === 'password' ? 'assets/eye.svg' : 'assets/eye-slash.svg'" alt="Toggle Password Visibility">
+          </button>
         </div>
+
+        <small *ngIf="password.errors?.['required'] && password.touched" class="error">
+          Password is required.
+        </small>
+
+        <small *ngIf="password.errors?.['minlength'] && password.touched" class="error">
+          Password must be at least 6 characters.
+        </small>
       </div>
-      <button type="submit" class="auth-button">Login</button>
+
+      <button type="submit" class="auth-button" [disabled]="loginForm.invalid || isLoading">
+        <span *ngIf="!isLoading">Login</span>
+        <span *ngIf="isLoading" class="spinner"></span>
+      </button>
+
+      <p *ngIf="errorMessage" class="error-message">{{ errorMessage }}</p>
+
       <p class="auth-footer">Don't have an account? <a href="/register">Sign Up</a></p>
     </form>
   </div>
