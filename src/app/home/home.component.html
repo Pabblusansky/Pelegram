@@ -1,1 +1,11 @@
-<p>home works!</p>
+<div class="dashboard">
+  <!-- Chat List -->
+  <div class="chat-list">
+    <app-chat-list (chatSelected)="onChatSelect($event)"></app-chat-list>
+  </div>
+
+  <!-- Chat room -->
+  <div class="chat-room" [class.disabled]="!isChatSelected()">
+    <app-chat-room *ngIf="isChatSelected()"></app-chat-room>
+  </div>
+</div>

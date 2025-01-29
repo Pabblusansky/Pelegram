@@ -36,7 +36,7 @@ app.use(cors({
 }));
 
 
-// Conectare MongoDB
+// MongoDB connection
 mongoose.connect('mongodb://localhost:27017/Pelegram', {
 
 }).then(() => console.log('MongoDB connected'))

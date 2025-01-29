@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ChatService } from '../chat.service';
 import { Router, RouterModule } from '@angular/router';
@@ -15,6 +15,7 @@ import { CommonModule } from '@angular/common';
   imports: [FormsModule, CommonModule, RouterModule]
 })
 export class ChatListComponent implements OnInit {
+  @Output() chatSelected = new EventEmitter<string>();
   chats: any[] = [];
   searchQuery: string = '';
   searchResults: User[] = [];
@@ -89,5 +90,9 @@ export class ChatListComponent implements OnInit {
     this.chats.forEach(chat => {
       chat.participantsString = chat.participants.map((participant: any) => participant.username).join(', ');
     });
+  }
+  
+  onChatClick(chatId: string) {
+    this.chatSelected.emit(chatId)
   }
 }
