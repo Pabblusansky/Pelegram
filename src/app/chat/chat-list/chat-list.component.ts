@@ -62,10 +62,10 @@ export class ChatListComponent implements OnInit {
     if (query.trim()) {
       this.http.get<User[]>(`http://localhost:3000/chats/search?query=${query}`, {
         headers: { 'Authorization': `Bearer ${token}` }
-      }).subscribe(
-        users => this.searchResults = users,
-        error => this.searchResults = []
-      );
+      }).subscribe({
+        next: users => this.searchResults = users,
+        error: () => this.searchResults = []
+      });
     } else {
       this.searchResults = [];
     }
@@ -93,6 +93,7 @@ export class ChatListComponent implements OnInit {
   }
   
   onChatClick(chatId: string) {
-    this.chatSelected.emit(chatId)
+    this.chatSelected.emit(chatId);
+    this.router.navigate([`/chats/${chatId}`]);
   }
 }

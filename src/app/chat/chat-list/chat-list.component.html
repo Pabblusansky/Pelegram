@@ -25,7 +25,7 @@
      <div *ngIf="!loading && chats.length === 0" class="no-chats">No chats.</div>
      <div *ngIf="!loading && chats.length > 0">
       <div *ngFor="let chat of chats" class="chat-item">
-        <a [routerLink]="['/chats', chat._id]" class="chat-link">
+        <a (click)="onChatClick(chat._id)" class="chat-link">
           <div class="chat-info">
             <!-- Avatar -->
             <div class="chat-avatar">

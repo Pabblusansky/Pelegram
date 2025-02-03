@@ -10,7 +10,7 @@ import { ChatRoomComponent } from './chat/chat-room/chat-room.component';
 export const routes: Routes = [
   { path: '', component: HomeComponent, canActivate: [AuthGuard] }, 
   { path:'chats', component: ChatListComponent, canActivate: [AuthGuard] },
-  { path:'chats/:chatId', component: ChatRoomComponent, canActivate: [AuthGuard] },
+  { path:'chats/:chatId', component: HomeComponent, canActivate: [AuthGuard] },
   { path: 'register', component: RegisterComponent }, 
   { path: 'login', component: LoginComponent }, 
   { path: 'registration-success', loadComponent: () => import('./auth/register/register-success/register-success.component').then(m => m.RegisterSuccessComponent) },

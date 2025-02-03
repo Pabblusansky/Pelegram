@@ -6,6 +6,7 @@ import { MessageInputComponent } from "../message-input/message-input.component"
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+
 @Component({
   selector: 'app-chat-room',
   templateUrl: './chat-room.component.html',
@@ -26,21 +27,23 @@ export class ChatRoomComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.chatId = this.route.snapshot.paramMap.get('chatId');
-    console.log('Chat ID:', this.chatId);
-    this.userId = localStorage.getItem('userId');
-    console.log("userId:", this.userId);
+    this.route.paramMap.subscribe(params => {
+      this.chatId = params.get('chatId');
+      this.loadMessages();
+    });
 
+    this.userId = localStorage.getItem('userId');
+  }
+
+  loadMessages(): void {
     if (this.chatId) {
-      this.chatService.joinChat(this.chatId); // Join the chat
+      this.chatService.joinChat(this.chatId);
       this.chatService.getMessages(this.chatId)!.subscribe({
         next: (messages: Message[]) => {
-          console.log('Messages loaded:', messages);
           this.messages = messages.map((msg) => ({
             ...msg,
             isMyMessage: msg.senderId === this.userId
           }));
-          // this.checkScroll();
           this.scrollToBottom();
         },
         error: (error) => {
@@ -49,13 +52,11 @@ export class ChatRoomComponent implements OnInit {
       });
     }
 
-    // Subscribe to new messages
     this.chatService.receiveMessages((message) => {
       if (this.chatId === message.chatId) {
         message.isMyMessage = message.senderId === this.userId;
-        this.messages.push(message); // Add message to the list
-        this.cdr.detectChanges(); // Trigger change detection
-        // this.checkScroll();
+        this.messages.push(message);
+        this.cdr.detectChanges();
         this.scrollToBottom();
       }
     });
@@ -67,22 +68,12 @@ export class ChatRoomComponent implements OnInit {
     }
   }
 
-  checkScroll() {
-    const messageContainer = document.querySelector('.messages');
-    if (messageContainer) {
-      const isAtBottom = messageContainer.scrollHeight === messageContainer.scrollTop + messageContainer.clientHeight;
-      this.isAtBottom = isAtBottom;
-    }
-  }
-
   scrollToBottom(): void {
     const messageContainer = document.querySelector('.messages');
     if (messageContainer) {
-      if (this.isAtBottom) {
-        setTimeout(() => {
-          messageContainer.scrollTop = messageContainer.scrollHeight;
-        }, 100);
-      }
+      setTimeout(() => {
+        messageContainer.scrollTop = messageContainer.scrollHeight;
+      }, 100);
     }
   }
 }
