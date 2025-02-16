@@ -1,25 +1,39 @@
 .dashboard {
   display: flex;
   height: 100vh;
-  overflow: hidden;
+  width: 100%;
+  min-height: 100vh;
+  min-width: 100%;
 }
 
 .chat-list {
   width: 300px;
+  flex-shrink: 0;
+  height: 100vh;
   background-color: #f4f6f9;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
   padding: 1rem;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  height: 100vh;
 }
 
 .chat-room-container {
   flex: 1;
   background-color: #ffffff;
-  padding: 1rem;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  position: relative;
+  min-width: 0;
+}
+
+.empty-chat-room {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f9f9f9;
+  color: #888;
+  font-size: 1.2rem;
+  min-width: 0;
 }

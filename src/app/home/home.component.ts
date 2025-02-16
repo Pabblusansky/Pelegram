@@ -7,10 +7,12 @@ import { CommonModule } from '@angular/common';
 @Component({
   selector: 'app-home',
   templateUrl: './home.component.html',
+  styleUrls: ['./home.component.scss'],
   standalone: true,
   imports: [ChatListComponent, ChatRoomComponent, CommonModule],
 })
-export class HomeComponent implements OnInit{
+export class HomeComponent implements OnInit {
+  
   selectedChatId: string | null = null;
 
   constructor(private router: Router, private route: ActivatedRoute) {}
@@ -22,6 +24,7 @@ export class HomeComponent implements OnInit{
   }
 
   onChatSelect(chatId: string) {
+    console.log('Chat selected:', chatId);
     this.selectedChatId = chatId;
     this.router.navigate([`/chats/${chatId}`], { onSameUrlNavigation: 'reload' });
   }

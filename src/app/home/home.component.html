@@ -4,8 +4,13 @@
     <app-chat-list (chatSelected)="onChatSelect($event)"></app-chat-list>
   </div>
 
-  <!-- Chat room -->
+  <!-- Chat room or empty state -->
   <div class="chat-room-container">
-    <app-chat-room *ngIf="selectedChatId"></app-chat-room>
+    <app-chat-room *ngIf="selectedChatId; else emptyChat"></app-chat-room>
+    <ng-template #emptyChat>
+      <div class="empty-chat-room">
+        <p>Select a chat room to start chatting</p>
+      </div>
+    </ng-template>
   </div>
 </div>
