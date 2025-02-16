@@ -22,10 +22,12 @@ export class ChatListComponent implements OnInit {
   selectedUserId: string | null = null;
   loading: boolean = false;
   private searchSubject = new Subject<string>();
+  private currentUserId: string | null = null;
 
   constructor(private chatService: ChatService, private http: HttpClient, private router: Router) {}
 
   ngOnInit(): void {
+    this.currentUserId = localStorage.getItem('userId');
     this.loadChats();
     this.setupSearch();
   }
@@ -88,7 +90,14 @@ export class ChatListComponent implements OnInit {
 
   formatParticipants() {
     this.chats.forEach(chat => {
-      chat.participantsString = chat.participants.map((participant: any) => participant.username).join(', ');
+      const otherParticipants = chat.participants.filter(
+        (participant: any) => participant._id !== this.currentUserId
+      );
+      if (otherParticipants.length > 1) {
+        chat.participantsString = otherParticipants.map((participant: any) => participant.username).join(', ');
+      } else {     
+        chat.participantsString = otherParticipants[0]?.username || 'Unknown'; 
+      }
     });
   }
   
