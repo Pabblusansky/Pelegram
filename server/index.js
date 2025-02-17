@@ -70,14 +70,18 @@ io.on('connection', (socket) => {
           return;
         }
         const senderName = sender.username;
+
         const message = new Message({
             chatId,
             senderId,
             senderName,
             content,
+            status: 'sent',
         });
         await message.save();
+
         // Update chat with last message
+
         await Chat.findByIdAndUpdate(chatId, {
             $push: { messages: message._id },
             lastMessage: message._id,
@@ -85,8 +89,14 @@ io.on('connection', (socket) => {
         });
 
         // Sending message to all users in chat
-        console.log('Message received by server:', message);
         io.to(chatId).emit('receive_message', message);
+        
+        setTimeout(async () => {
+          message.status = 'delivered';
+          await message.save();
+          console.log(`Message ${message._id} status updated to delivered`); 
+          io.to(chatId).emit('messageStatusUpdated', { messageId: message._id, status: 'delivered' });
+        }, 1000); 
     } catch (err) {
         console.error('Error sending message:', err);
     }
@@ -116,7 +126,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use(authenticateToken);
 app.use('/chats', chatRoutes);
-app.use('/messages', messageRoutes);
+app.use('/messages', messageRoutes(io));
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

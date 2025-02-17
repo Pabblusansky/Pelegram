@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common'; // Import CommonModule
 import { AuthService } from './auth/auth.service';
+import { ChatService } from './chat/chat.service';
 
 @Component({
   selector: 'app-root',
@@ -13,7 +14,7 @@ import { AuthService } from './auth/auth.service';
 export class AppComponent implements OnInit {
   title = 'Pelegram';
 
-  constructor(public authService: AuthService) {}
+  constructor(public authService: AuthService, private chatService: ChatService) {}
 
   ngOnInit(): void {
     // Remove this check to prevent automatic logout
@@ -24,5 +25,6 @@ export class AppComponent implements OnInit {
 
   logout(): void {
     this.authService.logout();
+    this.chatService.logoutAndReconnectSocket();
   }
 }

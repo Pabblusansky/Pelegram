@@ -11,7 +11,7 @@ body {
   background-color: #f0f2f5;
   padding: 0;
   margin: 0;
-  overflow:hidden;
+  overflow: hidden;
    
 
   .messages {
@@ -81,7 +81,42 @@ body {
       font-size: 1rem;
       color: #333;
     }
+    .message-footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: #777;
+      margin-top: 5px;
+    }
+  
+    .timestamp {
+      color: #aaa;
+    }
+  
+    .status {
+      display: flex;
+      align-items: center;
+      color: #4CAF50; /* Default status color for "Sent" */
+      font-weight: bold;
+    }
 
+    .status-icon {
+      width: 16px; 
+      height: 16px;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+    .status.sent .status-icon {
+      background-image: url('/assets/sent.svg');
+    }
+
+    .status.delivered .status-icon {
+      background-image: url('/assets/delivered.svg');
+    }
+
+    .status.read .status-icon {
+      background-image: url('/assets/read.svg');
+    }
     .no-messages {
       text-align: center;
       color: #999;

@@ -30,11 +30,41 @@ export class ChatRoomComponent implements OnInit {
     this.route.paramMap.subscribe(params => {
       this.chatId = params.get('chatId');
       this.loadMessages();
+      this.markMessagesAsRead();
     });
-
+  
     this.userId = localStorage.getItem('userId');
-  }
 
+    this.chatService.onMessageStatusUpdated().subscribe((data: any) => {
+      const message = this.messages.find(msg => msg._id === data.messageId);
+      if (message) {
+        message.status = data.status;
+        this.cdr.detectChanges(); 
+        console.log(`Message status updated: ${data.messageId} -> ${data.status}`); 
+      }
+    });
+  }
+  markMessagesAsRead(): void {
+    if (this.chatId) {
+      console.log('Marking messages as read for chat:', this.chatId);
+  
+      this.chatService.markMessagesAsRead(this.chatId).subscribe({
+        next: () => {
+          this.messages.forEach(msg => {
+            if (msg.senderId !== this.userId && msg.status !== 'read') {
+              msg.status = 'read';
+            }
+          });
+          this.cdr.detectChanges();
+          console.log('All messages in chat marked as read.');
+        },
+        error: (err) => {
+          console.error('Failed to mark messages as read:', err);
+        }
+      });
+    }
+  }
+  
   loadMessages(): void {
     if (this.chatId) {
       this.chatService.joinChat(this.chatId);
@@ -42,7 +72,8 @@ export class ChatRoomComponent implements OnInit {
         next: (messages: Message[]) => {
           this.messages = messages.map((msg) => ({
             ...msg,
-            isMyMessage: msg.senderId === this.userId
+            isMyMessage: msg.senderId === this.userId,
+            status: msg.status || 'sent' // Add the Sent status
           }));
           this.scrollToBottom();
         },
@@ -64,16 +95,54 @@ export class ChatRoomComponent implements OnInit {
 
   sendMessage(messageContent: string): void {
     if (this.chatId) {
-      this.chatService.sendMessage(this.chatId, messageContent);
+      const newMessage: Message = {
+        chatId: this.chatId,
+        content: messageContent,
+        senderId: this.userId!,
+        senderName: 'You',
+        timestamp: new Date().toISOString(),
+        status: 'Sent'
+      };
+
+      // this.messages.push(newMessage); 
+      this.scrollToBottom();
+
+      this.chatService.sendMessage(this.chatId, messageContent).subscribe({
+        next: () => {
+          newMessage.status = 'Delivered'; 
+        },
+        error: () => {
+          newMessage.status = 'Failed'; 
+        }
+      });
     }
   }
 
   scrollToBottom(): void {
     const messageContainer = document.querySelector('.messages');
-    if (messageContainer) {
+    if (messageContainer && this.isAtBottom) {
       setTimeout(() => {
         messageContainer.scrollTop = messageContainer.scrollHeight;
       }, 100);
     }
   }
+  formatTimestamp(timestamp: string): string {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  getMessageStatusIcon(status: string): string {
+    switch (status) {
+      case 'Sent':
+        return 'assets/sent.svg'; 
+      case 'Delivered':
+        return 'assets/delivered.svg'; 
+      case 'Read':
+        return 'assets/read.svg'; 
+      default:
+        return 'assets/sent.svg';
+    }
+  }
+  
+  
 }

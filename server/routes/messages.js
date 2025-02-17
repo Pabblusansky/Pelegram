@@ -2,6 +2,8 @@ import express from 'express';
 import Message from '../models/Message.js';
 import authenticateToken from '../middleware/authenticateToken.js';
 import Chat from '../models/Chat.js';
+
+export default (io) => {
 const router = express.Router();
 
 router.post('/', authenticateToken, async (req, res) => {
@@ -16,9 +18,13 @@ router.post('/', authenticateToken, async (req, res) => {
             senderId: req.user.id,
             senderName: req.user.name,
             content,
+            status: 'sent',
         });
+
         console.log('User from token:', req.user);
+
         await newMessage.save();
+
         await Chat.findByIdAndUpdate(chatId, {
             lastMessage: newMessage._id,
             updatedAt: Date.now(),
@@ -42,4 +48,40 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
   }
 });
 
-export default router;
+router.post('/markAsRead', authenticateToken, async (req, res) => {
+  const { chatId } = req.body;
+  console.log('Received request to mark messages as read for chat:', chatId);
+
+  try {
+    // Finding messages to update
+    const messagesToUpdate = await Message.find({
+      chatId,
+      status: 'delivered',
+      senderId: { $ne: req.user.id }
+    });
+
+    if (messagesToUpdate.length === 0) {
+      return res.status(200).json({ message: 'Нет сообщений для обновления' });
+    }
+
+    // Update messages
+    await Message.updateMany(
+      { _id: { $in: messagesToUpdate.map(msg => msg._id) } },
+      { $set: { status: 'read' } }
+    );
+
+    console.log(`Обновлено ${messagesToUpdate.length} сообщений в чате ${chatId}`);
+
+    // Sending updated messages to all clients in the chat
+    messagesToUpdate.forEach(msg => {
+      io.to(chatId).emit('messageStatusUpdated', { messageId: msg._id, status: 'read' });
+    });
+
+    res.status(200).json({ message: 'All messages are marked as read' });
+  } catch (error) {
+    console.error('Error when marking the messages:', error);
+    res.status(500).json({ error: 'Error when marking the messages!!!' });
+  }
+});
+  return router
+};

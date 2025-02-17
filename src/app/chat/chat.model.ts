@@ -11,10 +11,12 @@ export interface Chat {
 }
 
 export interface Message {
-  _id: string;
+  _id?: string;
   chatId: string;
   senderId: string;
   senderName: string;
   content: string;
-  createdAt: Date;
+  timestamp: string;
+  createdAt?: Date;
+  status?: string;
 }

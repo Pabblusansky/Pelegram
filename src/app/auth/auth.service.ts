@@ -22,7 +22,7 @@ export class AuthService {
           console.log('Received response:', response);
           localStorage.setItem('token', response.token);
           localStorage.setItem('userId', response.userId);
-          const tokenExpiration = new Date().getTime() + 3600 * 1000; // 1 час в миллисекундах
+          const tokenExpiration = new Date().getTime() + 3600 * 1000; // 1 hour 
           localStorage.setItem('tokenExpiration', tokenExpiration.toString());
         } else {
           console.error('Token is missing in the response');
@@ -52,5 +52,5 @@ export class AuthService {
   }
   getToken(): string | null {
     return localStorage.getItem('token');
-  }  
+  }
 }

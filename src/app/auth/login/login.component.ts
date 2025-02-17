@@ -3,6 +3,7 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
 import { Router } from '@angular/router';
+import { ChatService } from '../../chat/chat.service';
 
 @Component({
   selector: 'app-login',
@@ -18,7 +19,7 @@ export class LoginComponent {
   isLoading: boolean = false;
   errorMessage: string = '';
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(private authService: AuthService, private router: Router, private chatService: ChatService) {}
   ngOnViewInit() {
     setTimeout(() => {
       this.loginForm.form.updateValueAndValidity();
@@ -36,6 +37,7 @@ export class LoginComponent {
         this.isLoading = false;
         console.log('User logged in');
         this.router.navigate(['/']);
+        this.chatService.logoutAndReconnectSocket();
       },
       error: (err) => {
         this.isLoading = false;

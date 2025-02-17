@@ -14,6 +14,18 @@
     >
       <span class="sender">{{ message.senderName }}</span>
       <span class="content">{{ message.content }}</span>
+      
+      <div class="message-footer">
+        <span class="timestamp">{{ formatTimestamp(message.timestamp) }}</span>
+        <span *ngIf="message.senderId === userId" class="status">
+          <img
+            [src]="getMessageStatusIcon(message.status ?? 'sent')"
+            [alt]="message.status || 'Sent'"
+            class="status-icon"
+          />          
+          {{ message.status || 'Sent' }}
+        </span>
+      </div>
     </div>
   </div>
 
