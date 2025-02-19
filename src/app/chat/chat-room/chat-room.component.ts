@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ChatService } from '../chat.service';
 import { Message } from '../chat.model';
@@ -6,7 +6,9 @@ import { MessageInputComponent } from "../message-input/message-input.component"
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Subscription
 
+ } from 'rxjs';
 @Component({
   selector: 'app-chat-room',
   templateUrl: './chat-room.component.html',
@@ -15,12 +17,16 @@ import { FormsModule } from '@angular/forms';
   imports: [MessageInputComponent, CommonModule, FormsModule],
 })
 
-export class ChatRoomComponent implements OnInit {
+export class ChatRoomComponent implements OnInit, OnDestroy {
+  isTyping: boolean = false;
+  typingUsers: Set<string> = new Set();
   chatId: string | null = null;
   messages: Message[] = [];
   messagesWithDividers: any = [];
   userId: string | null = null;
   private isAtBottom: boolean = true;
+  users: any[] = [];
+  typingSubscription: Subscription | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -29,6 +35,22 @@ export class ChatRoomComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.chatService.onTyping().subscribe((data: any) => {
+      console.log('Typing event received:', data);
+      if (data.chatId === this.chatId) {
+        this.isTyping = data.isTyping;
+        if (data.isTyping) {
+          this.typingUsers.add(data.senderId);
+        } else {
+          this.typingUsers.delete(data.senderId);
+        }
+        this.cdr.detectChanges();
+        if (this.isTyping) {
+          setTimeout(() => this.scrollToBottom(), 100);
+        }
+      }
+    });
+
     this.route.paramMap.subscribe(params => {
       this.chatId = params.get('chatId');
       this.loadMessages();
@@ -36,6 +58,15 @@ export class ChatRoomComponent implements OnInit {
     });
   
     this.userId = localStorage.getItem('userId');
+    
+    this.chatService.getUsers().subscribe({
+      next: (users: any[]) => {
+        this.users = users;
+      },
+      error: (err) => {
+        console.error('Failed to load users:', err);
+      },
+    });
 
     this.chatService.onMessageStatusUpdated().subscribe((data: any) => {
       const message = this.messages.find(msg => msg._id === data.messageId);
@@ -47,6 +78,25 @@ export class ChatRoomComponent implements OnInit {
       }
     });
   }
+  
+  ngOnDestroy(): void {
+    if (this.typingSubscription) {
+      this.typingSubscription.unsubscribe();
+    }
+  }
+  getTypingUserName(userId: string): string {
+    const user = this.users.find(u => u._id === userId);
+    return user ? user.username : 'Unknown User';
+  }
+
+  onInputChange(isTyping: boolean): void {
+    console.log("onInputChange triggered:", isTyping);
+    if (this.chatId) {
+      this.chatService.sendTyping(this.chatId, isTyping);
+      this.isTyping = isTyping;
+    }
+  }
+  
   formatDate(date: Date): string {
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -54,6 +104,7 @@ export class ChatRoomComponent implements OnInit {
       day: 'numeric',
     });
   }
+  
   updateMessagesWithDividers(): void {
     this.messagesWithDividers = [];
     let lastDate = null;

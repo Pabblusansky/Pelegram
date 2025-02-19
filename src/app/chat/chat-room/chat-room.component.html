@@ -4,7 +4,7 @@
     <div *ngIf="messagesWithDividers.length === 0" class="no-messages">
       No messages yet. Start the conversation!
     </div>
-    
+
     <ng-container *ngFor="let item of messagesWithDividers; trackBy: trackByMessageId">
       <!-- Date Divider -->
       <div *ngIf="item.type === 'divider'" class="date-divider">
@@ -36,13 +36,19 @@
         </div>
       </div>
     </ng-container>
+    <div *ngIf="typingUsers.size > 0" class="typing-indicator">
+      <span *ngFor="let userId of typingUsers">
+        {{ getTypingUserName(userId) }} is typing...
+      </span>
+    </div>
   </div>
-
+  
   <!-- Input -->
   <div class="message-input-container">
     <app-message-input
       [chatId]="chatId"
       (messageSent)="sendMessage($event)"
+      (inputChange)="onInputChange($event)"
     ></app-message-input>
   </div>
 </div>

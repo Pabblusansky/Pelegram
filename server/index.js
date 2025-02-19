@@ -101,6 +101,14 @@ io.on('connection', (socket) => {
         console.error('Error sending message:', err);
     }
   });
+  socket.on('typing', (data) => {
+    const { chatId, isTyping } = data;
+    const senderId = socket.user.id;
+    socket.to(chatId).emit('typing', { 
+      chatId, 
+      senderId,
+      isTyping });
+  })
 
   socket.on('join_chat', (chatId) => {
       socket.join(chatId);

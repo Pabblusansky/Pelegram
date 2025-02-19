@@ -1,6 +1,7 @@
 <div class="message-input">
   <input
     type="text"
+    (input) = "onInputChange()"
     [(ngModel)]="message"
     placeholder="Type a message..."
     (keyup.enter)="sendMessage()"
