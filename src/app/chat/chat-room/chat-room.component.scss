@@ -1,9 +1,20 @@
-html, 
-body {
+html, body {
   height: 100%;
   margin: 0;
   padding: 0;
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+  
 .chat-room {
   display: flex;
   flex-direction: column;
@@ -12,9 +23,9 @@ body {
   padding: 0;
   margin: 0;
   overflow: hidden;
-   
 
   .messages {
+    scroll-behavior: smooth;
     flex: 1;
     padding: 15px;
     background-color: #fff;
@@ -27,27 +38,27 @@ body {
     margin-bottom: 0;
     overflow-y: auto;
     overflow-x: hidden;
-
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
       width: 8px;
     }
-
-    ::-webkit-scrollbar-thumb {
-      background: #888; 
+  
+    &::-webkit-scrollbar-thumb {
+      background: #888;
       border-radius: 4px;
       transition: background 0.3s ease;
+  
+      &:hover {
+        background: #555;
+      }
     }
-
+  
     &::-webkit-scrollbar-track {
       background: #f1f1f1;
       border-radius: 4px;
     }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #555;
-    }
-
+  
     scrollbar-width: thin;
-    scrollbar-color: #888 #f1f1f1; 
+    scrollbar-color: #888 #f1f1f1;
 
     .message {
       margin-bottom: 7px;
@@ -58,16 +69,17 @@ body {
       max-width: 60%;
       word-wrap: break-word;
       box-sizing: border-box;
-    }
+      animation: fadeIn 0.3s ease-out;
 
-    .my-message {
-      align-self: flex-end;
-      background-color: #dcf8c6;
-    }
+      &.my-message {
+        align-self: flex-end;
+        background-color: #dcf8c6;
+      }
 
-    .their-message {
-      align-self: flex-start;
-      background-color: #ebebeb;
+      &.their-message {
+        align-self: flex-start;
+        background-color: #ebebeb;
+      }
     }
 
     .sender {
@@ -81,93 +93,81 @@ body {
       font-size: 1rem;
       color: #333;
     }
+
     .message-footer {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
+      align-items: center;
       font-size: 0.85rem;
       color: #777;
       margin-top: 5px;
+      max-width: 100%;
     }
-  
+
     .timestamp {
       color: #aaa;
+      white-space: nowrap;
     }
-  
+
     .status {
       display: flex;
       align-items: center;
-      color: #4CAF50; /* Default status color for "Sent" */
+      color: #4CAF50;
       font-weight: bold;
+      transition: opacity 0.3s ease;
+      white-space: nowrap;
+
+      .status-icon {
+        padding-left: 2px;
+        margin-right: 5px;
+        font-size: 14px;
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        background-size: contain;
+        background-repeat: no-repeat;
+      }
     }
 
-    .status-icon {
-      width: 16px; 
-      height: 16px;
-      margin-right: 5px;
-      vertical-align: middle;
-    }
-    .status.sent .status-icon {
-      background-image: url('/assets/sent.svg');
+    .status.sent {
+      opacity: 0.8;
     }
 
-    .status.delivered .status-icon {
-      background-image: url('/assets/delivered.svg');
+    .status.delivered {
+      opacity: 1;
     }
 
-    .status.read .status-icon {
-      background-image: url('/assets/read.svg');
-    }
-    .no-messages {
-      text-align: center;
-      color: #999;
-      margin-top: auto;
-    }
-  }
-  .message-input-container {
-    padding: 10px;
-    background-color: #fff;
-    border-top: 1px solid #ddd;
-    margin-top: auto;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  // app-message-input {
-  //   display: flex;
-  //   bottom: 0;
-  //   left: 0;
-  //   right: 0;
-  //   padding: 10px;
-  //   background-color: #fff;
-  //   box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
-  // }
-
-  app-message-input input {
-    flex: 1;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    margin-right: 10px;
-    outline: none;
-    transition: border-color 0.2s;
-
-    &:focus {
-      border-color: #007bff;
+    .status.read {
+      opacity: 1;
+      color: #4CAF50;
     }
   }
 
-  app-message-input button {
-    padding: 10px 20px;
-    background-color: #007bff;
-    border: none;
-    border-radius: 5px;
-    color: #fff;
-    cursor: pointer;
-    transition: background-color 0.2s;
+  .date-divider {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 15px 0;
+    position: relative;
 
-    &:hover {
-      background-color: #0056b3;
+    span {
+      background-color: #f0f2f5;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: #777;
+      z-index: 1;
+    }
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background-color: #ddd;
+      z-index: 0;
     }
   }
 }
-

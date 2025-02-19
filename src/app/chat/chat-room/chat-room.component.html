@@ -1,32 +1,41 @@
 <div class="chat-room">
   <!-- Messages -->
   <div class="messages">
-    <div *ngIf="messages.length === 0" class="no-messages">
+    <div *ngIf="messagesWithDividers.length === 0" class="no-messages">
       No messages yet. Start the conversation!
     </div>
-    <div
-      *ngFor="let message of messages"
-      [ngClass]="{
-        'my-message': message.senderId === userId,
-        'their-message': message.senderId !== userId
-      }"
-      class="message"
-    >
-      <span class="sender">{{ message.senderName }}</span>
-      <span class="content">{{ message.content }}</span>
-      
-      <div class="message-footer">
-        <span class="timestamp">{{ formatTimestamp(message.timestamp) }}</span>
-        <span *ngIf="message.senderId === userId" class="status">
-          <img
-            [src]="getMessageStatusIcon(message.status ?? 'sent')"
-            [alt]="message.status || 'Sent'"
-            class="status-icon"
-          />          
-          {{ message.status || 'Sent' }}
-        </span>
+
+    <ng-container *ngFor="let item of messagesWithDividers">
+      <!-- Date Divider -->
+      <div *ngIf="item.type === 'divider'" class="date-divider">
+        <span>{{ item.date }}</span>
       </div>
-    </div>
+
+      <!-- Message -->
+      <div
+        *ngIf="item.type === 'message'"
+        [ngClass]="{
+          'message': true,
+          'my-message': item.senderId === userId,
+          'their-message': item.senderId !== userId
+        }"
+      >
+        <span class="sender">{{ item.senderName }}</span>
+        <span class="content">{{ item.content }}</span>
+
+        <div class="message-footer">
+          <span class="timestamp">{{ formatTimestamp(item.timestamp) }}</span>
+          <span *ngIf="item.senderId === userId" class="status">
+            <img
+              [src]="getMessageStatusIcon(item.status ?? 'sent')"
+              [alt]="item.status || 'Sent'"
+              class="status-icon"
+            />
+            {{ item.status || 'Sent' }}
+          </span>
+        </div>
+      </div>
+    </ng-container>
   </div>
 
   <!-- Input -->

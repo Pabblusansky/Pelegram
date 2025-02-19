@@ -12,11 +12,13 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './chat-room.component.html',
   styleUrls: ['./chat-room.component.scss'],
   standalone: true,
-  imports: [MessageInputComponent, CommonModule, FormsModule]
+  imports: [MessageInputComponent, CommonModule, FormsModule],
 })
+
 export class ChatRoomComponent implements OnInit {
   chatId: string | null = null;
   messages: Message[] = [];
+  messagesWithDividers: any = [];
   userId: string | null = null;
   private isAtBottom: boolean = true;
 
@@ -39,10 +41,39 @@ export class ChatRoomComponent implements OnInit {
       const message = this.messages.find(msg => msg._id === data.messageId);
       if (message) {
         message.status = data.status;
+        this.updateMessagesWithDividers();
         this.cdr.detectChanges(); 
         console.log(`Message status updated: ${data.messageId} -> ${data.status}`); 
       }
     });
+  }
+  formatDate(date: Date): string {
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
+  updateMessagesWithDividers(): void {
+    this.messagesWithDividers = [];
+    let lastDate = null;
+
+    for (const message of this.messages) {
+      const messageDate = this.formatDate(new Date(message.timestamp));
+
+      if (messageDate !== lastDate) {
+        this.messagesWithDividers.push({
+          type: 'divider',
+          date: messageDate,
+        });
+        lastDate = messageDate;
+      }
+
+      this.messagesWithDividers.push({
+        ...message,
+        type: 'message',
+      });
+    }
   }
   markMessagesAsRead(): void {
     if (this.chatId) {
@@ -56,7 +87,6 @@ export class ChatRoomComponent implements OnInit {
             }
           });
           this.cdr.detectChanges();
-          console.log('All messages in chat marked as read.');
         },
         error: (err) => {
           console.error('Failed to mark messages as read:', err);
@@ -75,6 +105,7 @@ export class ChatRoomComponent implements OnInit {
             isMyMessage: msg.senderId === this.userId,
             status: msg.status || 'sent' // Add the Sent status
           }));
+          this.updateMessagesWithDividers();
           this.scrollToBottom();
         },
         error: (error) => {
@@ -87,6 +118,7 @@ export class ChatRoomComponent implements OnInit {
       if (this.chatId === message.chatId) {
         message.isMyMessage = message.senderId === this.userId;
         this.messages.push(message);
+        this.updateMessagesWithDividers();
         this.cdr.detectChanges();
         this.scrollToBottom();
       }
@@ -133,14 +165,14 @@ export class ChatRoomComponent implements OnInit {
 
   getMessageStatusIcon(status: string): string {
     switch (status) {
-      case 'Sent':
+      case 'sent':
         return 'assets/sent.svg'; 
-      case 'Delivered':
+      case 'delivered':
         return 'assets/delivered.svg'; 
-      case 'Read':
+      case 'read':
         return 'assets/read.svg'; 
-      default:
-        return 'assets/sent.svg';
+        default:
+          return 'assets/delivered.svg';
     }
   }
   
