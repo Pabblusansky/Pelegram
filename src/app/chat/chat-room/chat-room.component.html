@@ -4,8 +4,8 @@
     <div *ngIf="messagesWithDividers.length === 0" class="no-messages">
       No messages yet. Start the conversation!
     </div>
-
-    <ng-container *ngFor="let item of messagesWithDividers">
+    
+    <ng-container *ngFor="let item of messagesWithDividers; trackBy: trackByMessageId">
       <!-- Date Divider -->
       <div *ngIf="item.type === 'divider'" class="date-divider">
         <span>{{ item.date }}</span>

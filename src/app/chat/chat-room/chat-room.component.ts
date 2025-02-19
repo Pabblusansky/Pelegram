@@ -94,7 +94,9 @@ export class ChatRoomComponent implements OnInit {
       });
     }
   }
-  
+  trackByMessageId(index: number, item: Message): string {
+    return item._id ?? index.toString();
+  }
   loadMessages(): void {
     if (this.chatId) {
       this.chatService.joinChat(this.chatId);
