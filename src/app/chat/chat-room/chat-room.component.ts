@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, Host, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ChatService } from '../chat.service';
 import { Message } from '../chat.model';
@@ -6,9 +6,10 @@ import { MessageInputComponent } from "../message-input/message-input.component"
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Subscription
+import { Subscription } from 'rxjs';
+import { debounceTime, Subject} from 'rxjs';
+import { HostListener } from '@angular/core';
 
- } from 'rxjs';
 @Component({
   selector: 'app-chat-room',
   templateUrl: './chat-room.component.html',
@@ -18,6 +19,12 @@ import { Subscription
 })
 
 export class ChatRoomComponent implements OnInit, OnDestroy {
+  @HostListener('window:focus')
+  onWindowFocus() {
+    if (this.chatId) {
+      this.markMessagesAsRead();
+    }
+  }
   isTyping: boolean = false;
   typingUsers: Set<string> = new Set();
   chatId: string | null = null;
@@ -26,13 +33,18 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   userId: string | null = null;
   private isAtBottom: boolean = true;
   users: any[] = [];
+  private markAsReadDebounce = new Subject<void>();
   typingSubscription: Subscription | null = null;
 
   constructor(
     private route: ActivatedRoute,
     private chatService: ChatService,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) {
+    this.markAsReadDebounce.pipe(debounceTime(500)).subscribe(() => {
+      this.markMessagesAsRead();
+    });
+  }
 
   ngOnInit(): void {
     this.chatService.onTyping().subscribe((data: any) => {
@@ -78,7 +90,21 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       }
     });
   }
-  
+  triggerMarkAsRead(): void {
+    this.markAsReadDebounce.next();
+  }
+
+  onScroll(): void {
+    const messageContainer = document.querySelector('.messages');
+    if (messageContainer) {
+      const isNearBottom = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.clientHeight + 50;
+      this.isAtBottom = isNearBottom;
+      if (isNearBottom) {
+        this.triggerMarkAsRead();
+      }
+    }
+  }
+
   ngOnDestroy(): void {
     if (this.typingSubscription) {
       this.typingSubscription.unsubscribe();
@@ -128,8 +154,14 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   }
   markMessagesAsRead(): void {
     if (this.chatId) {
-      console.log('Marking messages as read for chat:', this.chatId);
+      const unreadMessages = this.messages.filter(msg => 
+        msg.senderId !== this.userId && msg.status === 'delivered'
+      );
+      
+      if (unreadMessages.length === 0) return;
   
+      console.log('Marking messages as read for chat:', this.chatId);
+      
       this.chatService.markMessagesAsRead(this.chatId).subscribe({
         next: () => {
           this.messages.forEach(msg => {
@@ -137,6 +169,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
               msg.status = 'read';
             }
           });
+          this.updateMessagesWithDividers();
           this.cdr.detectChanges();
         },
         error: (err) => {
@@ -160,6 +193,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
           }));
           this.updateMessagesWithDividers();
           this.scrollToBottom();
+          this.triggerMarkAsRead();
         },
         error: (error) => {
           console.error('Error loading messages:', error); 
@@ -174,6 +208,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
         this.updateMessagesWithDividers();
         this.cdr.detectChanges();
         this.scrollToBottom();
+        this.triggerMarkAsRead();
       }
     });
   }

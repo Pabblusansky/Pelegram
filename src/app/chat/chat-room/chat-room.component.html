@@ -1,6 +1,6 @@
 <div class="chat-room">
   <!-- Messages -->
-  <div class="messages">
+  <div class="messages" (scroll)="onScroll()">
     <div *ngIf="messagesWithDividers.length === 0" class="no-messages">
       No messages yet. Start the conversation!
     </div>
