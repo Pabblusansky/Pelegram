@@ -47,6 +47,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+
     this.chatService.onTyping().subscribe((data: any) => {
       console.log('Typing event received:', data);
       if (data.chatId === this.chatId) {
@@ -263,6 +264,56 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
           return 'assets/delivered.svg';
     }
   }
+
+  startEdit(message: any): void {
+    message.isEditing = true;
+    message.editedContent = message.content;
+  }
   
+  cancelEdit(message: any): void {
+    message.isEditing = false;
+    delete message.editedContent;
+  }
+
+  saveMessageEdit(message: any): void {
+    if (!message.editedContent?.trim()) return;
+    
+    const originalContent = message.content;
+    const originalEditingState = message.isEditing;
+    
+    message.content = message.editedContent;
+    message.isEditing = false;
   
+    this.chatService.editMessage(message._id, message.editedContent).subscribe({
+      next: () => {
+        this.messages = this.messages.map(m => 
+          m._id === message._id ? {...m, content: message.editedContent} : m
+        );
+        this.updateMessagesWithDividers();
+      },
+      error: (err) => {
+        console.error('Failed to edit message:', err);
+        message.content = originalContent;
+        message.isEditing = originalEditingState;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  deleteMessage(messageId: string): void {
+    if (confirm('Are you sure you want to delete this message?')) {
+      this.chatService.deleteMessage(messageId).subscribe({
+        next: () => {
+          this.messages = this.messages.filter(msg => msg._id !== messageId);
+          this.updateMessagesWithDividers();
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          console.error('Failed to delete message:', err);
+          this.cdr.detectChanges();
+        }
+      });
+    }
+  }
+
 }

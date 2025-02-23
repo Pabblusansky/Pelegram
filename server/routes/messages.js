@@ -48,6 +48,40 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
   }
 });
 
+router.route('/:id')
+  .patch(authenticateToken, async (req, res) => {
+    try {
+      const message = await Message.findByIdAndUpdate(
+        req.params.id,
+        { content: req.body.content, edited: true },
+        { new: true }
+      );
+      
+      if (!message) return res.status(404).json({ error: 'Message not found' });
+      
+      io.to(message.chatId).emit('message_edited', message);
+      res.json(message);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  })
+  .delete(authenticateToken, async (req, res) => {
+    try {
+      const message = await Message.findByIdAndDelete(req.params.id);
+      if (!message) return res.status(404).json({ error: 'Message not found' });
+
+      await Chat.findByIdAndUpdate(message.chatId, {
+        $pull: { messages: message._id }
+      });
+
+      io.to(message.chatId).emit('message_deleted', message._id);
+      res.sendStatus(204);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+
 router.post('/markAsRead', authenticateToken, async (req, res) => {
   const { chatId } = req.body;
   console.log('Received request to mark messages as read for chat:', chatId);
@@ -61,7 +95,7 @@ router.post('/markAsRead', authenticateToken, async (req, res) => {
     });
 
     if (messagesToUpdate.length === 0) {
-      return res.status(200).json({ message: 'Нет сообщений для обновления' });
+      return res.status(200).json({ message: 'No messages for update' });
     }
 
     // Update messages
@@ -70,7 +104,7 @@ router.post('/markAsRead', authenticateToken, async (req, res) => {
       { $set: { status: 'read' } }
     );
 
-    console.log(`Обновлено ${messagesToUpdate.length} сообщений в чате ${chatId}`);
+    console.log(`Updated  ${messagesToUpdate.length} messages in chat: ${chatId}`);
 
     // Sending updated messages to all clients in the chat
     messagesToUpdate.forEach(msg => {

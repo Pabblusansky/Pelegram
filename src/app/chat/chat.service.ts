@@ -122,4 +122,19 @@
     receiveMessages(callback: (message: any) => void) {
       this.socket.on('receive_message', callback);
     }
+
+    editMessage(messageId: string, newContent: string): Observable<any> {
+      const headers = this.getHeaders();
+      return headers ? 
+        this.http.patch(`${this.apiUrl}/messages/${messageId}`, { content: newContent }, { headers }) 
+        : throwError(() => new Error('Not authorized'));
+    }
+    
+    deleteMessage(messageId: string): Observable<any> {
+      const headers = this.getHeaders();
+      return headers ? 
+        this.http.delete(`${this.apiUrl}/messages/${messageId}`, { headers }) 
+        : throwError(() => new Error('Not authorized'));
+    }
+
   }

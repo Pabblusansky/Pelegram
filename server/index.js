@@ -24,17 +24,39 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
     origin: 'http://localhost:4200',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders:['Content-Type', 'Authorization'],
   },
 });
+
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:4200');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:4200', // Allow requests from this origin
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow these methods
+  origin: 'http://localhost:4200',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 
+mongoose.connection.on('error', err => {
+  console.error('MongoDB connection error:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 // MongoDB connection
 mongoose.connect('mongodb://localhost:27017/Pelegram', {
@@ -89,7 +111,11 @@ io.on('connection', (socket) => {
         });
 
         // Sending message to all users in chat
-        io.to(chatId).emit('receive_message', message);
+        io.to(chatId).emit('receive_message', {
+          ...message.toObject(),
+          isEditing: false, 
+          editedContent: ''
+        });
         
         setTimeout(async () => {
           message.status = 'delivered';

@@ -21,7 +21,16 @@
         }"
       >
         <span class="sender">{{ item.senderName }}</span>
-        <span class="content">{{ item.content }}</span>
+        <span class="content">
+          <span *ngIf="!item.isEditing">{{ item.content }}</span>
+          <textarea 
+          *ngIf="item.isEditing"
+          [(ngModel)]="item.editedContent"
+          class="edit-textarea"
+          (keydown.enter)="saveMessageEdit(item)"
+          (keydown.escape)="cancelEdit(item)"
+          ></textarea>
+        </span>
 
         <div class="message-footer">
           <span class="timestamp">{{ formatTimestamp(item.timestamp) }}</span>
@@ -33,6 +42,14 @@
             />
             {{ item.status || 'Sent' }}
           </span>
+          <div class="message-actions" *ngIf="item.senderId === userId && !item.isEditing">
+            <button class="edit-btn" (click)="startEdit(item)">✏️</button>
+            <button class="delete-btn" (click)="deleteMessage(item._id)">🗑️</button>
+          </div>
+          <div class="edit-actions" *ngIf="item.isEditing">
+            <button class="save-btn" (click)="saveMessageEdit(item)">✅</button>
+            <button class="cancel-btn" (click)="cancelEdit(item)">❌</button>
+          </div>
         </div>
       </div>
     </ng-container>
