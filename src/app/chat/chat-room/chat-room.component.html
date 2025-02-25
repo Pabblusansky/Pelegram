@@ -13,46 +13,115 @@
 
       <!-- Message -->
       <div
-        *ngIf="item.type === 'message'"
-        [ngClass]="{
-          'message': true,
-          'my-message': item.senderId === userId,
-          'their-message': item.senderId !== userId
-        }"
-      >
-        <span class="sender">{{ item.senderName }}</span>
-        <span class="content">
-          <span *ngIf="!item.isEditing">{{ item.content }}</span>
-          <textarea 
-          *ngIf="item.isEditing"
-          [(ngModel)]="item.editedContent"
+      *ngIf="item.type === 'message'"
+      [ngClass]="{
+        'message': true,
+        'my-message': item.senderId === userId,
+        'their-message': item.senderId !== userId,
+        'selected': selectedMessageId === item._id,
+        'edited-recently': item.editedRecently
+      }"
+      (contextmenu)="showContextMenu($event, item)"
+      (touchstart)="startLongPress($event, item)"
+      (touchend)="endLongPress()"
+      (touchmove)="endLongPress()"
+      (touchcancel)="endLongPress()"
+      (click)="onMessageClick(item)"
+    >
+      <!-- Menu icon -->
+      <button
+      *ngIf="item.senderId === userId"
+      class="message-menu-icon"
+      type="button"
+      (click)="showMenuIconClick($event, item)"
+      >⋮</button>
+      
+      <span class="sender">{{ item.senderName }}</span>
+      
+      <!-- Message containing (normal mode) -->
+      <span class="content" *ngIf="!item.isEditing"
+      [ngClass]="{'highlight-edit': item.editedRecently}">
+      <ng-container *ngFor="let line of item.content.split('\n'); let i = index">
+        {{ line }}<br *ngIf="i < item.content.split('\n').length - 1">
+      </ng-container>
+      </span>
+      
+      <!-- Edit mode -->
+      <div class="edit-container" *ngIf="item.isEditing">
+        <textarea 
           class="edit-textarea"
+          [(ngModel)]="item.editedContent"
+          #editTextarea
           (keydown.enter)="saveMessageEdit(item)"
+          (keydown.meta.enter)="saveMessageEdit(item)"
           (keydown.escape)="cancelEdit(item)"
-          ></textarea>
-        </span>
-
-        <div class="message-footer">
-          <span class="timestamp">{{ formatTimestamp(item.timestamp) }}</span>
-          <span *ngIf="item.senderId === userId" class="status">
-            <img
-              [src]="getMessageStatusIcon(item.status ?? 'sent')"
-              [alt]="item.status || 'Sent'"
-              class="status-icon"
-            />
-            {{ item.status || 'Sent' }}
-          </span>
-          <div class="message-actions" *ngIf="item.senderId === userId && !item.isEditing">
-            <button class="edit-btn" (click)="startEdit(item)">✏️</button>
-            <button class="delete-btn" (click)="deleteMessage(item._id)">🗑️</button>
+          autofocus
+        ></textarea>
+        <div class="edit-actions">
+          <div class="edit-keyboard-hints">
+            Press <kbd>Enter</kbd> to save, <kbd>Shift</kbd>+<kbd>Enter</kbd> for new line, <kbd>Esc</kbd> to cancel
           </div>
-          <div class="edit-actions" *ngIf="item.isEditing">
-            <button class="save-btn" (click)="saveMessageEdit(item)">✅</button>
-            <button class="cancel-btn" (click)="cancelEdit(item)">❌</button>
-          </div>
+          <button class="edit-btn cancel" (click)="cancelEdit(item)">Cancel</button>
+          <button class="edit-btn save" (click)="saveMessageEdit(item)">Save</button>
         </div>
       </div>
-    </ng-container>
+    
+      <div class="message-footer">
+        <div class="message-info">
+          <span class="timestamp">{{ formatTimestamp(item.timestamp) }}</span>
+          
+          <!-- Edited indicator -->
+          <span 
+            *ngIf="item.edited" 
+            class="edited-indicator"
+            [title]="'Edited: ' + formatEditedTime(item.editedAt)"
+          >
+            <span class="edited-icon">✎</span>
+            <span class="edited-text">edited</span>
+          </span>
+        </div>
+        
+        <!-- Message status -->
+        <span *ngIf="item.senderId === userId" class="status">
+          <img
+            [src]="getMessageStatusIcon(item.status ?? 'sent')"
+            [alt]="item.status || 'Sent'"
+            class="status-icon"
+          />
+          {{ item.status || 'Sent' }}
+        </span>
+      </div>
+    </div>
+  </ng-container>
+
+  <div 
+    *ngIf="activeContextMenuId"
+    class="context-menu"
+    [style.left.px]="menuPosition.x"
+    [style.top.px]="menuPosition.y"
+    @menuAnimation
+  >
+    <div class="menu-header">
+      <div class="menu-close" (click)="activeContextMenuId = null">×</div>
+    </div>
+    <div class="menu-items">
+      <ng-container *ngIf="getSelectedMessage()?.senderId === userId">
+        <button class="menu-item" (click)="startEdit(getSelectedMessage())">
+          <span class="menu-icon">✏️</span> Edit
+        </button>
+        <button class="menu-item delete" (click)="deleteMessage(getSelectedMessage()?._id)">
+          <span class="menu-icon">🗑️</span> Delete
+        </button>
+      </ng-container>
+      <button class="menu-item" (click)="copyMessageText(getSelectedMessage())">
+        <span class="menu-icon">📋</span> Copy
+      </button>
+      <button class="menu-item" (click)="forwardMessage(getSelectedMessage())">
+        <span class="menu-icon">↪️</span> Forward
+      </button>
+    </div>
+
+  </div>
     <div *ngIf="typingUsers.size > 0" class="typing-indicator">
       <span *ngFor="let userId of typingUsers">
         {{ getTypingUserName(userId) }} is typing...

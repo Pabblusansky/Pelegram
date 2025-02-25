@@ -19,4 +19,13 @@ export interface Message {
   timestamp: string;
   createdAt?: Date;
   status?: string;
+
+  edited?: boolean;
+  editedAt?: Date;
+
+  isEditing?: boolean;
+  editedContent?: string;
+
+  ismyMessage?: boolean;
+  editedRecently?: boolean;
 }

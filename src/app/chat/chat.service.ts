@@ -2,7 +2,7 @@
   import { HttpClient, HttpHeaders } from '@angular/common/http';
   import { io } from 'socket.io-client';
   import { Router } from '@angular/router';
-  import { Observable, Observer, throwError } from 'rxjs';
+  import { catchError, Observable, Observer, share, Subject, throwError } from 'rxjs';
   import { Message } from './chat.model';
   @Injectable({
     providedIn: 'root',
@@ -10,6 +10,7 @@
   export class ChatService {
     private apiUrl = 'http://localhost:3000';
     private socket: any; 
+    private destroySocket$ = new Subject<void>();
 
     constructor(private http: HttpClient, private router: Router) {
       this.initializeSocket();
@@ -112,7 +113,11 @@
           observer.next(savedMessage); 
           observer.complete();
         });
-    
+        
+        this.socket.on('message_edited', (message: Message) => {
+          console.log('Socket received message_edited event:', message);
+          observer.next(message);
+        });        
         // Error sending message
         this.socket.on('message_error', (error: any) => {
           observer.error(error);
@@ -123,18 +128,59 @@
       this.socket.on('receive_message', callback);
     }
 
-    editMessage(messageId: string, newContent: string): Observable<any> {
+    editMessage(messageId: string, newContent: string): Observable<Message> {
       const headers = this.getHeaders();
-      return headers ? 
-        this.http.patch(`${this.apiUrl}/messages/${messageId}`, { content: newContent }, { headers }) 
-        : throwError(() => new Error('Not authorized'));
+      if (!headers) {
+        return throwError(() => new Error('Not authorized'));
+      }
+      
+      const now = new Date().toISOString();
+      
+      return this.http.patch<Message>(
+        `${this.apiUrl}/messages/${messageId}`, 
+        { 
+          content: newContent,
+          edited: true,
+          editedAt: now
+        }, 
+        { headers }
+      ).pipe(
+        catchError(error => {
+          console.error('Error editing message:', error);
+          return throwError(() => error);
+        })
+      );
     }
     
-    deleteMessage(messageId: string): Observable<any> {
-      const headers = this.getHeaders();
-      return headers ? 
-        this.http.delete(`${this.apiUrl}/messages/${messageId}`, { headers }) 
-        : throwError(() => new Error('Not authorized'));
-    }
-
+  deleteMessage(messageId: string): Observable<any> {
+    const headers = this.getHeaders();
+    return headers ? 
+      this.http.delete(`${this.apiUrl}/messages/${messageId}`, { headers }) 
+      : throwError(() => new Error('Not authorized'));
   }
+
+onMessageEdited(): Observable<Message> {
+  return new Observable<Message>(observer => {
+    if (!this.socket) {
+      observer.error(new Error('Socket not initialized'));
+      return;
+    }
+    
+    this.socket.off('message_edited');
+    
+    const handleMessageEdited = (message: Message) => {
+      console.log('Socket received message_edited event:', message);
+      observer.next(message);
+    };
+    
+    this.socket.on('message_edited', handleMessageEdited);
+    
+    return () => {
+      if (this.socket) {
+        this.socket.off('message_edited', handleMessageEdited);
+      }
+    };
+  });
+}
+  
+}

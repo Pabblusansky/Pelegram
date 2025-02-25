@@ -136,6 +136,36 @@ io.on('connection', (socket) => {
       isTyping });
   })
 
+  socket.on('edit_message', async (data) => {
+    try {
+      const { messageId, content } = data;
+      const userId = socket.user.id;
+      
+      const message = await Message.findById(messageId);
+      if (!message) {
+        socket.emit('edit_error', { error: 'Message not found' });
+        return;
+      }
+      
+      if (message.senderId.toString() !== userId) {
+        socket.emit('edit_error', { error: 'Not authorized to edit this message' });
+        return;
+      }
+      
+      message.content = content;
+      message.edited = true;
+      message.editedAt = new Date();
+      await message.save();
+      
+      io.to(message.chatId.toString()).emit('message_edited', message);
+      
+      socket.emit('edit_success', message);
+    } catch (err) {
+      console.error('Edit message error:', err);
+      socket.emit('edit_error', { error: err.message });
+    }
+  });
+
   socket.on('join_chat', (chatId) => {
       socket.join(chatId);
       console.log(`User ${socket.id} joined chat: ${chatId}`);

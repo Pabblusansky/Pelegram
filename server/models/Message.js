@@ -10,6 +10,10 @@ const messageSchema = new mongoose.Schema({
     edited: {
       type: Boolean,
       default: false
+    },
+    editedAt: {
+      type: Date,
+      default: null
     }
   }, {
     timestamps: true,
@@ -17,7 +21,4 @@ const messageSchema = new mongoose.Schema({
     toObject: { virtuals: true }
   });
   
-  const Message = mongoose.model('Message', messageSchema);
 export default mongoose.model('Message', messageSchema);
-
-  

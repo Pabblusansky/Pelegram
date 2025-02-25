@@ -51,35 +51,30 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
 router.route('/:id')
   .patch(authenticateToken, async (req, res) => {
     try {
+      const now = new Date();
+      
       const message = await Message.findByIdAndUpdate(
         req.params.id,
-        { content: req.body.content, edited: true },
+        { 
+          content: req.body.content, 
+          edited: true,
+          editedAt: now
+        },
         { new: true }
       );
       
       if (!message) return res.status(404).json({ error: 'Message not found' });
       
-      io.to(message.chatId).emit('message_edited', message);
+      io.to(message.chatId.toString()).emit('message_edited', message);
+      console.log(`Emitted message_edited event to chat ${message.chatId}:`, message);
+      
       res.json(message);
     } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  })
-  .delete(authenticateToken, async (req, res) => {
-    try {
-      const message = await Message.findByIdAndDelete(req.params.id);
-      if (!message) return res.status(404).json({ error: 'Message not found' });
-
-      await Chat.findByIdAndUpdate(message.chatId, {
-        $pull: { messages: message._id }
-      });
-
-      io.to(message.chatId).emit('message_deleted', message._id);
-      res.sendStatus(204);
-    } catch (err) {
+      console.error('Error editing message:', err);
       res.status(500).json({ error: err.message });
     }
   });
+
 
 
 router.post('/markAsRead', authenticateToken, async (req, res) => {
