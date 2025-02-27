@@ -1,22 +1,12 @@
-import { Component, ElementRef, Host, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { animate, state, style, transition, trigger } from '@angular/animations';
+import { CommonModule } from '@angular/common';
+import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { debounceTime, Subject, Subscription, takeUntil } from 'rxjs';
 import { ChatService } from '../chat.service';
 import { Message } from '../chat.model';
 import { MessageInputComponent } from "../message-input/message-input.component";
-import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { Subscription, takeUntil } from 'rxjs';
-import { debounceTime, Subject} from 'rxjs';
-import { HostListener } from '@angular/core';
-
-import { 
-  trigger, 
-  state, 
-  style, 
-  transition, 
-  animate 
-} from '@angular/animations';
 
 @Component({
   selector: 'app-chat-room',
@@ -46,14 +36,14 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       this.markMessagesAsRead();
     }
   }
-  isTyping: boolean = false;
+  isTyping = false;
   typingUsers: Set<string> = new Set();
   chatId: string | null = null;
   messages: Message[] = [];
   messagesWithDividers: any = [];
   userId: string | null = null;
   activeContextMenuId: string | null = null;
-  private isAtBottom: boolean = true;
+  private isAtBottom = true;
   users: any[] = [];
   menuPosition: { x: number; y: number } = { x: 0, y: 0 };
   private markAsReadDebounce = new Subject<void>();
@@ -585,12 +575,12 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     
     console.log('Forward message:', message);
     this.showToast('Forward functionality not implemented yet');
+    // TODO: Implement forward message functionality
   }
   
   private showToast(message: string, duration: number = 3000): void {
     console.log('Showing toast:', message);
     
-    // Удаляем существующие уведомления
     const existingToasts = document.querySelectorAll('.toast-notification');
     existingToasts.forEach(toast => {
       if (toast.parentNode) {
@@ -598,14 +588,12 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       }
     });
   
-    // Создаем новое уведомление
     const toast = document.createElement('div');
     toast.className = 'toast-notification';
     
-    // Создаем содержимое с иконкой
     const iconSpan = document.createElement('span');
     iconSpan.className = 'toast-icon';
-    iconSpan.innerHTML = '✓'; // Можно заменить на другую иконку
+    iconSpan.innerHTML = '✓';
     
     const messageSpan = document.createElement('span');
     messageSpan.className = 'toast-message';
