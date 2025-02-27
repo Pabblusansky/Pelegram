@@ -53,6 +53,16 @@ router.route('/:id')
     try {
       const now = new Date();
       
+      const existingMessage = await Message.findById(req.params.id);
+      
+      if (!existingMessage) {
+        return res.status(404).json({ error: 'Message not found' });
+      }
+      
+      if (existingMessage.senderId.toString() !== req.user.id) {
+        return res.status(403).json({ error: 'Not authorized to edit this message' });
+      }
+      
       const message = await Message.findByIdAndUpdate(
         req.params.id,
         { 
@@ -63,8 +73,6 @@ router.route('/:id')
         { new: true }
       );
       
-      if (!message) return res.status(404).json({ error: 'Message not found' });
-      
       io.to(message.chatId.toString()).emit('message_edited', message);
       console.log(`Emitted message_edited event to chat ${message.chatId}:`, message);
       
@@ -73,8 +81,60 @@ router.route('/:id')
       console.error('Error editing message:', err);
       res.status(500).json({ error: err.message });
     }
-  });
+  })
 
+
+  router.delete('/:id', authenticateToken, async (req, res) => {
+    try {
+      console.log('DELETE request received for message:', req.params.id);
+      const messageId = req.params.id;
+      
+      const message = await Message.findById(messageId);
+      
+      if (!message) {
+        return res.status(404).json({ error: 'Message not found' });
+      }
+      
+      if (message.senderId.toString() !== req.user.id) {
+        return res.status(403).json({ error: 'Not authorized to delete this message' });
+      }
+
+      const chatId = message.chatId;
+      
+      await Message.findByIdAndDelete(messageId);
+      
+      const lastMessage = await Message.find({ chatId })
+      .sort({ createdAt: -1 })
+      .limit(1);
+    
+      let updatedChat;
+
+      if (lastMessage.length > 0) {
+        updatedChat = await Chat.findByIdAndUpdate(
+          chatId,
+          { lastMessage: lastMessage[0]._id },
+          { new: true }
+        ).populate('lastMessage').populate('participants', 'username');
+      } else {
+        updatedChat = await Chat.findByIdAndUpdate(
+          chatId,
+          { lastMessage: null },
+          { new: true }
+        ).populate('participants', 'username');
+      }
+  
+      io.to(chatId.toString()).emit('message_deleted', { 
+        messageId,
+        chatId,
+        updatedChat
+      });
+      
+      res.status(200).json({ success: true, messageId });
+    } catch (err) {
+      console.error('Error deleting message:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
 
 
 router.post('/markAsRead', authenticateToken, async (req, res) => {

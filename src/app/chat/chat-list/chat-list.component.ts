@@ -2,8 +2,8 @@ import { Component, EventEmitter, OnInit, Output } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ChatService } from '../chat.service';
 import { Router, RouterModule } from '@angular/router';
-import { User, Chat } from '../chat.model';
-import { debounceTime, Subject } from 'rxjs';
+import { User, Chat, Message } from '../chat.model';
+import { debounceTime, Subject, Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 
@@ -23,6 +23,8 @@ export class ChatListComponent implements OnInit {
   loading: boolean = false;
   private searchSubject = new Subject<string>();
   private currentUserId: string | null = null;
+  private subscription: Subscription = new Subscription();
+
 
   constructor(private chatService: ChatService, private http: HttpClient, private router: Router) {}
 
@@ -30,7 +32,18 @@ export class ChatListComponent implements OnInit {
     this.currentUserId = localStorage.getItem('userId');
     this.loadChats();
     this.setupSearch();
+
+    this.subscription.add(
+      this.chatService.newMessage$.subscribe(message => {
+        this.handleNewMessage(message);
+      })
+    );
   }
+
+  ngOnDestroy(): void {
+    this.subscription.unsubscribe();
+  }
+
 
   loadChats() {
     this.loading = true;
@@ -104,5 +117,20 @@ export class ChatListComponent implements OnInit {
   onChatClick(chatId: string) {
     this.chatSelected.emit(chatId);
     this.router.navigate([`/chats/${chatId}`]);
+  }
+
+  handleNewMessage(message: Message): void {
+    const chatIndex = this.chats.findIndex(chat => chat._id === message.chatId);
+    
+    if (chatIndex !== -1) {
+      this.chats[chatIndex].lastMessage = message;
+      
+      const chat = this.chats.splice(chatIndex, 1)[0];
+      this.chats.unshift(chat);
+      
+      this.formatParticipants();
+    } else {
+      this.loadChats();
+    }
   }
 }

@@ -4,13 +4,30 @@
   import { Router } from '@angular/router';
   import { catchError, Observable, Observer, share, Subject, throwError } from 'rxjs';
   import { Message } from './chat.model';
+  
+  
+  interface MessageDeletedEvent {
+    messageId: string;
+    chatId: string;
+    updatedChat: any;
+  }
+  
   @Injectable({
     providedIn: 'root',
   })
+  
   export class ChatService {
+    
     private apiUrl = 'http://localhost:3000';
     private socket: any; 
     private destroySocket$ = new Subject<void>();
+    private newMessageSubject = new Subject<Message>();
+    public newMessage$ = this.newMessageSubject.asObservable();
+    private messageDeletedSubject = new Subject<MessageDeletedEvent>();
+    public messageDeleted$ = this.messageDeletedSubject.asObservable();
+    
+
+
 
     constructor(private http: HttpClient, private router: Router) {
       this.initializeSocket();
@@ -32,12 +49,21 @@
           auth: { token },
         });
 
+        this.socket.on('receive_message', (message: Message) => {
+          this.newMessageSubject.next(message);
+        });
+
         this.socket.on('connect', () => {
           console.log('Socket connected: ', this.socket.id);
         });
 
         this.socket.on('disconnect', () => {
           console.log('Socket disconnected');
+        });
+
+        this.socket.on('message_deleted', (data: MessageDeletedEvent) => {
+          console.log('Socket received message_deleted event:', data);
+          this.messageDeletedSubject.next(data);
         });
       }
     }
@@ -159,28 +185,40 @@
       : throwError(() => new Error('Not authorized'));
   }
 
-onMessageEdited(): Observable<Message> {
-  return new Observable<Message>(observer => {
-    if (!this.socket) {
-      observer.error(new Error('Socket not initialized'));
-      return;
-    }
-    
-    this.socket.off('message_edited');
-    
-    const handleMessageEdited = (message: Message) => {
-      console.log('Socket received message_edited event:', message);
-      observer.next(message);
-    };
-    
-    this.socket.on('message_edited', handleMessageEdited);
-    
-    return () => {
-      if (this.socket) {
-        this.socket.off('message_edited', handleMessageEdited);
-      }
-    };
-  });
-}
+  onMessageDeleted(): Observable<MessageDeletedEvent> {
+    return this.messageDeleted$;
+  }
+
   
+  onMessageEdited(): Observable<Message> {
+    return new Observable<Message>(observer => {
+      if (!this.socket) {
+        observer.error(new Error('Socket not initialized'));
+        return;
+      }
+      
+      this.socket.off('message_edited');
+      
+      const handleMessageEdited = (message: Message) => {
+        console.log('Socket received message_edited event:', message);
+        observer.next(message);
+      };
+      
+      this.socket.on('message_edited', handleMessageEdited);
+      
+      return () => {
+        if (this.socket) {
+          this.socket.off('message_edited', handleMessageEdited);
+        }
+      };
+    });
+  }
+  
+updateChatWithLastMessage(chatId: string): Observable<any> {
+  const headers = this.getHeaders();
+  if (!headers) return throwError(() => new Error('Not authorized'));
+  
+  return this.http.get(`${this.apiUrl}/chats/${chatId}`, { headers });
+}
+
 }

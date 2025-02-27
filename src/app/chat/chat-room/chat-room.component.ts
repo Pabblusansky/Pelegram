@@ -147,6 +147,20 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
         console.log(`Message status updated: ${data.messageId} -> ${data.status}`); 
       }
     });
+
+    this.chatService.onMessageDeleted()
+    .pipe(takeUntil(this.destroy$))
+    .subscribe(event => {
+      console.log('Message deleted event received:', event);
+      
+      const deletedMessageId = event.messageId;
+      
+      if (!event.chatId || event.chatId === this.chatId) {
+        this.messages = this.messages.filter(msg => msg._id && msg._id !== deletedMessageId);
+        this.updateMessagesWithDividers();
+        this.cdr.detectChanges();
+      }
+    });
   }
   
   triggerMarkAsRead(): void {
@@ -246,8 +260,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     }
   }
 
-  trackByMessageId(index: number, item: Message): string {
-    return item._id ?? index.toString();
+  trackByMessageId(index: number, item: any): string {
+    if (item.type === 'divider') {
+      return `divider-${item.date}`;
+    }
+    return item._id || `index-${index}`;
   }
 
   loadMessages(): void {
@@ -348,16 +365,23 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   
   getSelectedMessage(): any {
     console.log('Getting selected message, activeContextMenuId:', this.activeContextMenuId);
-    console.log('Messages:', this.messagesWithDividers);
     
     if (!this.activeContextMenuId) return null;
     
-    const message = this.messagesWithDividers.find(
+    const messageFromDividers = this.messagesWithDividers.find(
       (item: any) => item.type === 'message' && item._id === this.activeContextMenuId
     );
     
-    console.log('Found message:', message);
-    return message;
+    if (messageFromDividers) {
+      return messageFromDividers;
+    }
+    
+    const messageFromOriginal = this.messages.find(
+      (msg: Message) => msg._id === this.activeContextMenuId
+    );
+    
+    console.log('Found message:', messageFromOriginal || null);
+    return messageFromOriginal || null;
   }
   
   onMessageClick(message: any): void {
@@ -369,6 +393,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   showContextMenu(event: MouseEvent, message: any): void {
     event.preventDefault();
     event.stopPropagation();
+
+    if (!message || !message._id) {
+      console.error('Cannot show context menu: Invalid message object', message);
+      return;
+    }
     
     console.log("showContextMenu triggered for message:", message._id);
     const x = Math.min(event.clientX, window.innerWidth - 200);
@@ -532,14 +561,28 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
 
   
   deleteMessage(messageId: string | undefined): void {
-    if (!messageId) return;
+    console.log('Attempting to delete message with ID:', messageId);
+    
+    if (!messageId) {
+      console.error('Cannot delete message: Message ID is undefined');
+      
+      if (this.activeContextMenuId) {
+        messageId = this.activeContextMenuId;
+        console.log('Using activeContextMenuId instead:', messageId);
+      } else {
+        return;
+      }
+    }
     
     this.activeContextMenuId = null;
     this.selectedMessageId = null;
     
     if (confirm('Are you sure you want to delete this message?')) {
+      console.log('Confirmed deletion for message ID:', messageId);
+      
       this.chatService.deleteMessage(messageId).subscribe({
         next: () => {
+          console.log('Message deleted successfully');
           this.messages = this.messages.filter(msg => msg._id !== messageId);
           this.updateMessagesWithDividers();
           this.cdr.detectChanges();
@@ -549,6 +592,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
           this.cdr.detectChanges();
         }
       });
+    } else {
+      console.log('Message deletion cancelled by user');
     }
   }
   

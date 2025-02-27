@@ -95,7 +95,7 @@
   </ng-container>
 
   <div 
-    *ngIf="activeContextMenuId"
+    *ngIf="activeContextMenuId && menuPosition"
     class="context-menu"
     [style.left.px]="menuPosition.x"
     [style.top.px]="menuPosition.y"
@@ -109,7 +109,7 @@
         <button class="menu-item" (click)="startEdit(getSelectedMessage())">
           <span class="menu-icon">✏️</span> Edit
         </button>
-        <button class="menu-item delete" (click)="deleteMessage(getSelectedMessage()?._id)">
+        <button class="menu-item delete" (click)="deleteMessage(activeContextMenuId)">
           <span class="menu-icon">🗑️</span> Delete
         </button>
       </ng-container>
