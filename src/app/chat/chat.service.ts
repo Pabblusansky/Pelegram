@@ -2,7 +2,7 @@
   import { HttpClient, HttpHeaders } from '@angular/common/http';
   import { io } from 'socket.io-client';
   import { Router } from '@angular/router';
-  import { catchError, Observable, Observer, share, Subject, throwError } from 'rxjs';
+  import { catchError, Observable, Observer, retry, share, Subject, throwError, map, tap } from 'rxjs';
   import { Message } from './chat.model';
   
   
@@ -214,11 +214,28 @@
     });
   }
   
-updateChatWithLastMessage(chatId: string): Observable<any> {
-  const headers = this.getHeaders();
-  if (!headers) return throwError(() => new Error('Not authorized'));
-  
-  return this.http.get(`${this.apiUrl}/chats/${chatId}`, { headers });
-}
+  updateChatWithLastMessage(chatId: string): Observable<any> {
+    const headers = this.getHeaders();
+    if (!headers) return throwError(() => new Error('Not authorized'));
+    
+    return this.http.get(`${this.apiUrl}/chats/${chatId}`, { headers });
+  }
 
+  getMessagesBefore(chatId: string, beforeMessageId: string, limit: number = 20): Observable<Message[]> {
+    const headers = this.getHeaders();
+    if (!headers) return throwError(() => new Error('Not authorized'));
+    
+    return this.http.get<Message[]>(
+      `${this.apiUrl}/messages/${chatId}?before=${beforeMessageId}&limit=${limit}`, 
+      { headers }
+    ).pipe(
+      map((messages: Message[]) => Array.isArray(messages) ? messages : []),
+      tap(messages => console.log(`Loaded ${messages.length} older messages`)),
+      catchError(error => {
+        console.error('Error loading older messages:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+  
 }

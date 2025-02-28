@@ -53,7 +53,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
   private destroy$ = new Subject<void>();
   private editAnimationTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
-
+  isLoadingMore = false;
+  noMoreMessages = false;
+  scrollHeightBeforeLoad = 0;
+  loadMoreDebounce: Subject<void> = new Subject<void>();
+  lastLoadTimestamp = 0;
+  
+  
 
   constructor(
     private route: ActivatedRoute,
@@ -66,6 +72,14 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+
+    this.loadMoreDebounce.pipe(
+      debounceTime(500),
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
+      this.executeLoadMoreMessages();
+    });
+  
 
     this.chatService.onTyping().subscribe((data: any) => {
       console.log('Typing event received:', data);
@@ -169,11 +183,19 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
 
   onScroll(): void {
     const messageContainer = document.querySelector('.messages');
-    if (messageContainer) {
-      const isNearBottom = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.clientHeight + 50;
-      this.isAtBottom = isNearBottom;
-      if (isNearBottom) {
-        this.triggerMarkAsRead();
+    if (!messageContainer) return;
+    
+    const isNearBottom = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.clientHeight + 50;
+    this.isAtBottom = isNearBottom;
+    
+    if (isNearBottom) {
+      this.triggerMarkAsRead();
+    }
+    
+    if (messageContainer.scrollTop < 100 && !this.isLoadingMore && !this.noMoreMessages && this.messages.length > 0) {
+      const now = Date.now();
+      if (now - this.lastLoadTimestamp > 1000) {
+        this.loadMoreDebounce.next();
       }
     }
   }
@@ -187,7 +209,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
 
     if (this.typingSubscription) {
       this.typingSubscription.unsubscribe();
-    }
+    }  
   }
   
   getTypingUserName(userId: string): string {
@@ -231,6 +253,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
         type: 'message',
       });
     }
+
+    this.cdr.detectChanges();
+    
   }
 
   markMessagesAsRead(): void {
@@ -270,6 +295,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   loadMessages(): void {
     if (this.chatId) {
       this.chatService.joinChat(this.chatId);
+      this.isLoadingMore = false;
+      this.noMoreMessages = false;
+
       this.chatService.getMessages(this.chatId)!.subscribe({
         next: (messages: Message[]) => {
           this.messages = messages.map((msg) => ({
@@ -817,6 +845,77 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     }, 2000);
     
     this.editAnimationTimeouts.set(messageId, timeout);
+  }
+
+  loadMoreMessages(): void {
+    if (!this.isLoadingMore && !this.noMoreMessages && this.messages.length > 0) {
+      this.loadMoreDebounce.next();
+    }
+  }
+
+  executeLoadMoreMessages(): void {
+    if (!this.chatId || this.isLoadingMore || this.noMoreMessages || this.messages.length === 0) {
+      return;
+    }
+    
+    this.isLoadingMore = true;
+    this.lastLoadTimestamp = Date.now();
+    
+    const messageContainer = document.querySelector('.messages');
+    if (messageContainer) {
+      this.scrollHeightBeforeLoad = messageContainer.scrollHeight;
+    }
+    
+    const oldestMessage = this.messages[0];
+    
+    if (!oldestMessage || !oldestMessage._id) {
+      console.error('No valid oldest message found');
+      this.isLoadingMore = false;
+      return;
+    }
+    
+    console.log(`Loading messages before: ${oldestMessage._id}`);
+    
+    this.chatService.getMessagesBefore(this.chatId, oldestMessage._id, 20).subscribe({
+      next: (olderMessages: Message[]) => {
+        this.isLoadingMore = false;
+        
+        if (olderMessages.length === 0) {
+          console.log('No more messages to load');
+          this.noMoreMessages = true;
+          return;
+        }
+        
+        console.log(`Loaded ${olderMessages.length} older messages`);
+        
+        const newMessages = olderMessages.map(msg => ({
+          ...msg,
+          isMyMessage: msg.senderId === this.userId,
+          status: msg.status || 'sent'
+        }));
+        
+        this.messages = [...newMessages, ...this.messages];
+        this.updateMessagesWithDividers();
+        this.cdr.detectChanges();
+        
+        this.preserveScrollPosition();
+      },
+      error: (error) => {
+        this.isLoadingMore = false;
+        console.error('Failed to load older messages:', error);
+      }
+    });
+  }
+  
+  preserveScrollPosition(): void {
+    requestAnimationFrame(() => {
+      const messageContainer = document.querySelector('.messages');
+      if (messageContainer) {
+        const newScrollHeight = messageContainer.scrollHeight;
+        const scrollDiff = newScrollHeight - this.scrollHeightBeforeLoad;
+        messageContainer.scrollTop = scrollDiff > 0 ? scrollDiff : 0;
+      }
+    });  
   }
 
 }

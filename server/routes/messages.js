@@ -38,11 +38,31 @@ router.post('/', authenticateToken, async (req, res) => {
 
 router.get('/:chatId', authenticateToken, async (req, res) => {
   const { chatId } = req.params;
-  console.log('Received chatId:', chatId);
+  const { before, limit = 30 } = req.query;
+
+  console.log(`Fetching messages for chat ${chatId}, before: ${before}, limit: ${limit}`);
+
   try {
-      const messages = await Message.find({ chatId });
-      res.status(200).json(messages);
-  } catch (error) {
+      let query = { chatId };
+
+    if (before) {
+      const beforeMessage = await Message.findById(before);
+      if (beforeMessage) {
+        query.createdAt = { $lt: new Date(beforeMessage.createdAt) };
+        console.log(`Finding messages before ${new Date(beforeMessage.createdAt)}`);
+      } else {
+        console.log(`Message with ID ${before} not found`);
+      }
+    }
+      const messages = await Message.find(query)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .exec();
+
+      console.log(`Found ${messages.length} messages`);
+
+      res.status(200).json(messages.reverse());
+    } catch (error) {
       console.error('Error fetching messages:', error);
       res.status(500).json({ error: 'Internal server error' });
   }

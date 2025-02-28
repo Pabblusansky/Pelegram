@@ -5,6 +5,15 @@
       No messages yet. Start the conversation!
     </div>
 
+    
+    <div *ngIf="isLoadingMore" class="loading-indicator">
+      <div class="spinner"></div>
+      <span>Loading older messages...</span>
+    </div>
+
+    <div *ngIf="noMoreMessages && messages.length > 0" class="no-more-messages">
+      <span>Beginning of conversation</span>
+    </div>
     <ng-container *ngFor="let item of messagesWithDividers; trackBy: trackByMessageId">
       <!-- Date Divider -->
       <div *ngIf="item.type === 'divider'" class="date-divider">
