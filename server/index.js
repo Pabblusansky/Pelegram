@@ -13,6 +13,7 @@ import User from './models/User.js';
 import messageRoutes from './routes/messages.js';
 import authenticateToken from './middleware/authenticateToken.js';
 import jwt from 'jsonwebtoken';
+import { differenceInMinutes } from 'date-fns';
 
 const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
 
@@ -58,6 +59,95 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
+//  Online users implementation
+const onlineUserStatuses = new Map();
+const onlineUsers = new Set();
+const userLastActive = new Map();
+
+function broadcastUserStatuses() {
+  const statusesObject = {};
+  
+  for (const [userId, lastActive] of userLastActive.entries()) {
+    let validLastActive = lastActive;
+    try {
+      const testDate = new Date(lastActive);
+      if (isNaN(testDate.getTime())) {
+        validLastActive = new Date().toISOString();
+        console.warn(`Fixed invalid date for user ${userId}: ${lastActive} -> ${validLastActive}`);
+      }
+    } catch (e) {
+      validLastActive = new Date().toISOString();
+      console.error(`Error with date for user ${userId}:`, e);
+    }
+    
+    statusesObject[userId] = {
+      lastActive: validLastActive,
+      online: onlineUsers.has(userId)
+    };
+  }
+  
+  io.emit('user_status_update', statusesObject);
+}
+
+function updateUserStatus(userId, isOnline = true) {
+  const now = new Date();
+  const isoString = now.toISOString();
+  
+  userLastActive.set(userId, isoString);
+  
+  if (isOnline === true) {
+    onlineUsers.add(userId);
+  } else {
+    onlineUsers.delete(userId);
+  }
+  
+  console.log(`User ${userId} status updated: online=${isOnline}, lastActive=${isoString}`);
+  
+  broadcastUserStatuses();
+}
+
+function cleanupInactiveUsers() {
+  const now = new Date();
+  const inactiveThreshold = 5;
+  
+  let hasChanges = false;
+  
+  for (const userId of onlineUsers) {
+    const lastActive = userLastActive.get(userId);
+    if (lastActive) {
+      const lastActiveDate = new Date(lastActive);
+      if (differenceInMinutes(now, lastActiveDate) >= inactiveThreshold) {
+        onlineUsers.delete(userId);
+        hasChanges = true;
+      }
+    }
+  }
+  
+  if (hasChanges) {
+    broadcastUserStatuses();
+  }
+}
+
+async function loadInitialUserStatuses() {
+  try {
+    const users = await User.find(
+      { lastActive: { $ne: null } },
+      '_id lastActive'
+    );
+    
+    users.forEach(user => {
+      userLastActive.set(user._id.toString(), user.lastActive.toISOString());
+    });
+    
+    console.log(`Loaded initial statuses for ${users.length} users`);
+  } catch (err) {
+    console.error('Error loading initial user statuses:', err);
+  }
+}
+
+setInterval(cleanupInactiveUsers, 60 * 1000);
+loadInitialUserStatuses();
+
 // MongoDB connection
 mongoose.connect('mongodb://localhost:27017/Pelegram', {
 
@@ -76,10 +166,27 @@ io.on('connection', (socket) => {
     const decoded = jwt.verify(token, SECRET_KEY); // Decode token
     socket.user = decoded; // Save user data to socket
     console.log(`User connected: ${socket.id}`);
+    if (socket.user && socket.user.id) {
+      updateUserStatus(socket.user.id, true);
+      
+      socket.emit('user_status_update', Object.fromEntries(
+        Array.from(userLastActive.entries()).map(([userId, lastActive]) => [
+          userId, 
+          { lastActive, online: onlineUsers.has(userId) }
+        ])
+      ));
+    }
+    
   } catch (err) {
     console.error('Error verifying token:', err.message);
     return socket.disconnect(true);
   }
+
+  socket.on('user_activity', () => {
+    if (socket.user && socket.user.id) {
+      updateUserStatus(socket.user.id, true);
+    }
+  });
 
   socket.on('send_message', async (data) => {
     const { chatId, content } = data;
@@ -166,13 +273,23 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('logout', () => {
+    if (socket.user && socket.user.id) {
+      updateUserStatus(socket.user.id, false);
+    }
+  });
+
   socket.on('join_chat', (chatId) => {
       socket.join(chatId);
       console.log(`User ${socket.id} joined chat: ${chatId}`);
   });
 
   socket.on('disconnect', () => {
-      console.log(`User disconnected: ${socket.id}`);
+    if (socket.user && socket.user.id) {
+      updateUserStatus(socket.user.id, false);
+    }
+    
+    console.log(`User disconnected: ${socket.id}`);
   });
 });
 // user routes
@@ -192,5 +309,67 @@ app.use(authenticateToken);
 app.use('/chats', chatRoutes);
 app.use('/messages', messageRoutes(io));
 
+app.get('/api/users/status', authenticateToken, async (req, res) => {
+  try {
+    const users = await User.find(
+      { lastActive: { $ne: null } },
+      '_id lastActive'
+    );
+    
+    const statusesObject = {};
+    
+    users.forEach(user => {
+      const userId = user._id.toString();
+      
+      let lastActiveStr;
+      try {
+        if (user.lastActive instanceof Date && !isNaN(user.lastActive.getTime())) {
+          lastActiveStr = user.lastActive.toISOString();
+        } else {
+          lastActiveStr = new Date().toISOString();
+          console.warn(`Replaced invalid lastActive for user ${userId}`);
+        }
+      } catch (e) {
+        lastActiveStr = new Date().toISOString();
+        console.error(`Error with lastActive for user ${userId}:`, e);
+      }
+      
+      statusesObject[userId] = {
+        lastActive: lastActiveStr,
+        online: onlineUsers.has(userId)
+      };
+    });
+    
+    for (const userId of onlineUsers) {
+      const lastActive = userLastActive.get(userId);
+      if (lastActive) {
+        try {
+          const testDate = new Date(lastActive);
+          if (!isNaN(testDate.getTime())) {
+            statusesObject[userId] = {
+              lastActive: lastActive,
+              online: true
+            };
+          } else {
+            statusesObject[userId] = {
+              lastActive: new Date().toISOString(),
+              online: true
+            };
+          }
+        } catch (e) {
+          statusesObject[userId] = {
+            lastActive: new Date().toISOString(),
+            online: true
+          };
+        }
+      }
+    }
+    
+    res.json(statusesObject);
+  } catch (err) {
+    console.error('Error getting user statuses:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

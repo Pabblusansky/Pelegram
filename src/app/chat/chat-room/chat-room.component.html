@@ -1,4 +1,28 @@
 <div class="chat-room">
+  <!-- Header -->
+  <div class="chat-header">
+    <button class="back-button" (click)="goBack()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M19 12H5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+    <div class="chat-avatar">
+      <img 
+      [src]="otherParticipant?.avatar || 'https://placekitten.com/50/50'" 
+      [alt]="otherParticipant?.username || 'Chat'" 
+      />
+      <div *ngIf="isOtherParticipantOnline$ | async" class="online-indicator"></div>
+    </div>
+    <div class="chat-header-info">
+      <div class="chat-name">{{ getChatName() }}</div>
+      <div class="chat-status" *ngIf="otherParticipantStatus$ | async as status">
+        {{ status }}
+      </div>
+    </div>
+  </div>
+
   <!-- Messages -->
   <div class="messages" (scroll)="onScroll()">
     <div *ngIf="messagesWithDividers.length === 0" class="no-messages">

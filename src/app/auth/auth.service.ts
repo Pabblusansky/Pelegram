@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 import { tap } from 'rxjs/operators';
+import { ChatService } from '../chat/chat.service';
 
 @Injectable({
   providedIn: 'root',
@@ -9,7 +10,7 @@ import { tap } from 'rxjs/operators';
 export class AuthService {
   private apiUrl = 'http://localhost:3000/api/auth';
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private http: HttpClient, private router: Router, private chatService: ChatService) {}
 
   register(user: { username: string; email: string; password: string }) {
     return this.http.post(`${this.apiUrl}/register`, user);
@@ -37,6 +38,9 @@ export class AuthService {
     localStorage.removeItem('token');
     localStorage.removeItem('tokenExpiration');
     this.router.navigate(['/login']);
+    if (this.chatService.getSocket()) {
+      this.chatService.getSocket().emit('logout');
+    }  
   }
 
   isTokenExpired(): boolean {

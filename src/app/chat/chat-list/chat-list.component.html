@@ -30,10 +30,19 @@
             <!-- Avatar -->
             <div class="chat-avatar">
               <img src="https://placekitten.com/50/50" alt="avatar" class="avatar" />
+              <div 
+              *ngIf="getOtherParticipantId(chat) && isParticipantOnline(getOtherParticipantId(chat)!)" 
+              class="online-indicator"
+            ></div>
             </div>
+            <!-- Details -->
+
             <div class="chat-details">
               <span class="chat-participants">
                 {{ chat.participantsString }}
+                <span *ngIf="getOtherParticipantId(chat) && isParticipantOnline(getOtherParticipantId(chat)!)" class="online-text">
+                  • online
+                </span>  
               </span>
               <span class="chat-preview">
                 {{ chat.lastMessage ? chat.lastMessage.content : 'No messages' }}

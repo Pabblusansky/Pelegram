@@ -57,4 +57,23 @@ router.get('/', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Error getting chats' });
     }
 });
+
+router.get('/:id', authenticateToken, async (req, res) => {
+  try {
+    const chatId = req.params.id;
+    const chat = await Chat.findById(chatId)
+      .populate('participants', 'username avatar')
+      .populate('lastMessage');
+      
+    if (!chat) {
+      return res.status(404).json({ error: 'Chat not found' });
+    }
+    
+    res.json(chat);
+  } catch (err) {
+    console.error('Error getting chat details:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;

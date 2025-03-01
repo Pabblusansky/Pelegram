@@ -531,6 +531,96 @@ html, body {
   }
 }
 
+.chat-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+  
+  .back-button {
+    display: none;
+    margin-right: 12px;
+    background: none;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+    
+    @media (max-width: 768px) {
+      display: block;
+    }
+  }
+
+  .chat-avatar {
+    position: relative;
+    margin-right: 12px;
+    
+    img {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    
+    .online-indicator {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 12px;
+      height: 12px;
+      background-color: #4CAF50;
+      border-radius: 50%;
+      border: 2px solid white;
+      animation: pulse 2s infinite ease-in-out;
+    }
+  }
+  
+  .chat-header-info {
+    flex: 1;
+    overflow: hidden;
+    
+    .chat-name {
+      font-weight: 600;
+      font-size: 16px;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .chat-status {
+      font-size: 13px;
+      color: #8e8e8e;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }

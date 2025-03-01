@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { debounceTime, Subject, Subscription, takeUntil } from 'rxjs';
+import { debounceTime, Observable, Subject, Subscription, takeUntil } from 'rxjs';
 import { ChatService } from '../chat.service';
 import { Message } from '../chat.model';
 import { MessageInputComponent } from "../message-input/message-input.component";
@@ -58,7 +58,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   scrollHeightBeforeLoad = 0;
   loadMoreDebounce: Subject<void> = new Subject<void>();
   lastLoadTimestamp = 0;
-  
+  chatDetails: any = null;
+  otherParticipant: any = null;
+  otherParticipantStatus$: Observable<string> | null = null;
+  isOtherParticipantOnline$: Observable<boolean> | null = null;
+
   
 
   constructor(
@@ -72,7 +76,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-
     this.loadMoreDebounce.pipe(
       debounceTime(500),
       takeUntil(this.destroy$)
@@ -137,8 +140,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     
     this.route.paramMap.subscribe(params => {
       this.chatId = params.get('chatId');
-      this.loadMessages();
-      this.markMessagesAsRead();
+      if (this.chatId) {
+        this.loadMessages();
+        this.loadChatDetails();
+        this.markMessagesAsRead();
+      }
     });
   
     this.userId = localStorage.getItem('userId');
@@ -258,6 +264,52 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     
   }
 
+  loadChatDetails(): void {
+    if (!this.chatId) return;
+    
+    this.chatService.getChat(this.chatId).subscribe({
+      next: (chat) => {
+        this.chatDetails = chat;
+        
+        if (chat.participants && chat.participants.length > 0) {
+          this.otherParticipant = chat.participants.find(
+            (p: any) => p._id !== this.userId
+          );
+          
+          if (this.otherParticipant) {
+            this.otherParticipantStatus$ = this.chatService.getUserStatusText(this.otherParticipant._id);
+            this.isOtherParticipantOnline$ = this.chatService.isUserOnline(this.otherParticipant._id);
+          }
+        }
+        
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error loading chat details:', err);
+      }
+    });
+  }
+  
+  getChatName(): string {
+    if (!this.chatDetails || !this.chatDetails.participants) {
+      return 'Chat';
+    }
+    
+    const otherParticipants = this.chatDetails.participants.filter(
+      (p: any) => p._id !== this.userId
+    );
+    
+    if (otherParticipants.length === 0) {
+      return 'Saved Messages';
+    }
+    
+    return otherParticipants.map((p: any) => p.username).join(', ');
+  }
+
+  goBack(): void {
+    window.history.back();
+  }
+  
   markMessagesAsRead(): void {
     if (this.chatId) {
       const unreadMessages = this.messages.filter(msg => 

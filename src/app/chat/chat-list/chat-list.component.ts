@@ -6,6 +6,8 @@ import { User, Chat, Message } from '../chat.model';
 import { debounceTime, Subject, Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { ChangeDetectorRef, OnDestroy } from '@angular/core';
+import { map, takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-chat-list',
@@ -24,9 +26,11 @@ export class ChatListComponent implements OnInit {
   private searchSubject = new Subject<string>();
   private currentUserId: string | null = null;
   private subscription: Subscription = new Subscription();
+  private destroy$ = new Subject<void>();
+  participantStatuses: Map<string, boolean> = new Map();
+  
 
-
-  constructor(private chatService: ChatService, private http: HttpClient, private router: Router) {}
+  constructor(private chatService: ChatService, private http: HttpClient, private router: Router, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
     this.currentUserId = localStorage.getItem('userId');
@@ -38,12 +42,49 @@ export class ChatListComponent implements OnInit {
         this.handleNewMessage(message);
       })
     );
+    this.chatService.userStatuses$
+    .pipe(takeUntil(this.destroy$))
+    .subscribe(statuses => {
+      this.chats.forEach(chat => {
+        const otherParticipant = chat.participants.find(
+          (p: any) => p._id !== this.currentUserId
+        );
+        
+        if (otherParticipant) {
+          const userId = otherParticipant._id;
+          const userStatus = statuses[userId];
+          
+          this.participantStatuses.set(userId, userStatus ? userStatus.online : false);
+        }
+      });
+      
+      this.cdr.detectChanges();
+    });
+  
   }
 
   ngOnDestroy(): void {
     this.subscription.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
+  isParticipantOnline(userId: string): boolean {
+    return this.participantStatuses.get(userId) || false;
+  }
+
+  getOtherParticipantId(chat: any): string | null {
+    if (!chat.participants || chat.participants.length === 0) {
+      return null;
+    }
+    
+    const otherParticipant = chat.participants.find(
+      (p: any) => p._id !== this.currentUserId
+    );
+    
+    return otherParticipant ? otherParticipant._id : null;
+  }
+  
 
   loadChats() {
     this.loading = true;
