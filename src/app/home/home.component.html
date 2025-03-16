@@ -1,15 +1,38 @@
 <div class="dashboard">
-  <!-- Chat List -->
-  <div class="chat-list">
-    <app-chat-list (chatSelected)="onChatSelect($event)"></app-chat-list>
+  <!-- Sidebar with Profile and Chat List -->
+  <div class="sidebar">
+    <!-- Profile Card -->
+    <div class="profile-section">
+      <app-profile-card 
+        [compact]="true" 
+        [profile]="userProfile" 
+        (click)="navigateToProfile()"
+      ></app-profile-card>
+    </div>
+    
+    <!-- Chat List -->
+    <div class="chat-list-container">
+      <app-chat-list (chatSelected)="onChatSelect($event)"></app-chat-list>
+    </div>
   </div>
 
-  <!-- Chat room or empty state -->
-  <div class="chat-room-container">
-    <app-chat-room *ngIf="selectedChatId; else emptyChat"></app-chat-room>
-    <ng-template #emptyChat>
-      <div class="empty-chat-room">
-        <p>Select a chat room to start chatting</p>
+  <!-- Main Content Area -->
+  <div class="main-content">
+    <!-- Router Outlet for Profile and Other Routes -->
+    <router-outlet *ngIf="isProfileRoute; else chatContent"></router-outlet>
+    
+    <!-- Chat Content -->
+    <ng-template #chatContent>
+      <div class="chat-room-container">
+        <app-chat-room 
+          *ngIf="selectedChatId; else emptyChat" 
+          [selectedChatId]="selectedChatId"
+        ></app-chat-room>
+        <ng-template #emptyChat>
+          <div class="empty-chat-room">
+            <p>Select a chat room to start chatting</p>
+          </div>
+        </ng-template>
       </div>
     </ng-template>
   </div>

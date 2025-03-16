@@ -167,6 +167,67 @@
   }
 }
 
+
+.search-result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 12px;
+  
+  &:hover {
+    background-color: rgba(74, 118, 168, 0.1);
+  }
+  
+  .view-profile-btn {
+    background: none;
+    border: none;
+    color: #4a76a8;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    
+    &:hover {
+      background-color: rgba(74, 118, 168, 0.2);
+    }
+    
+    .profile-icon {
+      font-size: 14px;
+    }
+  }
+}
+
+.chat-avatar {
+  position: relative;
+  cursor: pointer;
+  
+  &:hover::after {
+    content: '👤';
+    position: absolute;
+    right: -5px;
+    bottom: -5px;
+    background-color: #4a76a8;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.participant-name {
+  cursor: pointer;
+  
+  &:hover {
+    text-decoration: underline;
+    color: #4a76a8;
+  }
+}
+
+
 @keyframes pulse {
   0% {
     transform: scale(1);

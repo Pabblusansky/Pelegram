@@ -16,10 +16,17 @@
       <div *ngIf="isOtherParticipantOnline$ | async" class="online-indicator"></div>
     </div>
     <div class="chat-header-info">
-      <div class="chat-name">{{ getChatName() }}</div>
-      <div class="chat-status" *ngIf="otherParticipantStatus$ | async as status">
-        {{ status }}
-      </div>
+      <div 
+      class="chat-name"
+      [class.clickable]="otherParticipant && chatDetails?.participants?.length === 2"
+      (click)="onChatNameClick($event)"
+      [title]="otherParticipant ? 'View ' + otherParticipant.username + '\'s profile' : ''"
+    >
+      {{ getChatName() }}
+    </div>
+    <div class="chat-status" *ngIf="otherParticipantStatus$ | async as status">
+      {{ status }}
+    </div>
     </div>
   </div>
 
@@ -69,8 +76,16 @@
       (click)="showMenuIconClick($event, item)"
       >⋮</button>
       
-      <span class="sender">{{ item.senderName }}</span>
-      
+      <span 
+      class="sender" 
+      [class.clickable]="item.senderId"
+      (click)="item.senderId && navigateToUserProfile(item.senderId, $event)"
+      [title]="item.senderId ? 'View profile' : ''"
+    >
+      {{ item.senderName }}
+    </span>
+    
+          
       <!-- Message containing (normal mode) -->
       <span class="content" *ngIf="!item.isEditing"
       [ngClass]="{'highlight-edit': item.editedRecently}">

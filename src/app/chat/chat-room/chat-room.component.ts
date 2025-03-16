@@ -1,4 +1,5 @@
 import { animate, state, style, transition, trigger } from '@angular/animations';
+import { Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -7,6 +8,7 @@ import { debounceTime, Observable, Subject, Subscription, takeUntil } from 'rxjs
 import { ChatService } from '../chat.service';
 import { Message } from '../chat.model';
 import { MessageInputComponent } from "../message-input/message-input.component";
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-chat-room',
@@ -37,6 +39,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     }
   }
   isTyping = false;
+  @Input() selectedChatId: string | null = null;
   typingUsers: Set<string> = new Set();
   chatId: string | null = null;
   messages: Message[] = [];
@@ -67,8 +70,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private chatService: ChatService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
   ) {
     this.markAsReadDebounce.pipe(debounceTime(500)).subscribe(() => {
       this.markMessagesAsRead();
@@ -139,7 +143,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     });
     
     this.route.paramMap.subscribe(params => {
-      this.chatId = params.get('chatId');
+      const routeChatId = params.get('chatId');
+      this.chatId = routeChatId || this.selectedChatId;
       if (this.chatId) {
         this.loadMessages();
         this.loadChatDetails();
@@ -238,6 +243,41 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       day: 'numeric',
     });
   }
+  
+onChatNameClick(event: Event): void {
+  console.log('Chat name clicked');
+  console.log('otherParticipant:', this.otherParticipant);
+  console.log('chatDetails.participants.length:', this.chatDetails?.participants?.length);
+  
+  if (this.otherParticipant && this.chatDetails?.participants?.length === 2) {
+    console.log('Navigating to user profile:', this.otherParticipant._id);
+    this.navigateToUserProfile(this.otherParticipant._id, event);
+  } else {
+    console.log('Cannot navigate: conditions not met');
+  }
+}
+navigateToUserProfile(userId: string, event?: Event): void {
+  console.log('navigateToUserProfile called with userId:', userId);
+  
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+    console.log('Event propagation stopped');
+  }
+  
+  if (!userId) {
+    console.error('Cannot navigate: userId is null or undefined');
+    return;
+  }
+  
+  if (userId === this.userId) {
+    console.log('Navigating to own profile');
+    this.router.navigate(['/profile']);
+  } else {
+    console.log('Navigating to user profile:', userId);
+    this.router.navigate(['/user', userId]);
+  }
+}
   
   updateMessagesWithDividers(): void {
     this.messagesWithDividers = [];

@@ -1,0 +1,16 @@
+<div class="profile-card" [class.compact]="compact">
+  <div class="avatar-container">
+    <img [src]="avatarUrl" alt="Profile avatar" class="profile-avatar">
+  </div>
+  
+  <div class="profile-info">
+    <h3 class="display-name">{{ displayName }}</h3>
+    
+    <p class="username" *ngIf="profile">{{'@' + profile.username }}</p>
+    
+    <p class="bio" *ngIf="profile?.bio && !compact">{{ profile?.bio }}</p>
+    <div class="actions" *ngIf="isCurrentUser && !compact">
+      <a [routerLink]="['/profile']" class="view-profile-link">View Full Profile</a>
+    </div>
+  </div>
+</div>

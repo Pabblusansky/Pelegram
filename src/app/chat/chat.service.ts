@@ -3,7 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { io } from 'socket.io-client';
 import { Router } from '@angular/router';
 import { catchError, Observable, Observer, retry, share, Subject, throwError, map, tap } from 'rxjs';
-import { Message } from './chat.model';
+import { Chat, Message } from './chat.model';
 import { BehaviorSubject, interval } from 'rxjs';
 import { shareReplay, takeUntil } from 'rxjs/operators';
 
@@ -407,4 +407,24 @@ getMessagesBefore(chatId: string, beforeMessageId: string, limit: number = 20): 
   );
 }
 
+createOrGetDirectChat(userId: string): Observable<Chat> {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.error('No token found, cannot create chat');
+    return throwError(() => new Error('Authentication required'));
+  }
+  
+  const headers = new HttpHeaders({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  });
+  
+  return this.http.post<Chat>(`${this.apiUrl}/chats`, { recipientId: userId }, { headers })
+    .pipe(
+      catchError(error => {
+        console.error('Error creating or getting direct chat:', error);
+        return throwError(() => new Error(`Failed to create chat: ${error.message}`));
+      })
+    );
+}
 }

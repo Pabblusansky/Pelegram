@@ -73,6 +73,30 @@ export class ChatListComponent implements OnInit {
     return this.participantStatuses.get(userId) || false;
   }
 
+  viewUserProfile(userId: string | null): void {
+    if (!userId) return;
+    
+    if (userId === this.currentUserId) {
+      this.router.navigate(['/profile']);
+    } else {
+      this.router.navigate(['/user', userId]);
+    }
+  }
+
+  onParticipantNameClick(event: Event, userId: string | null): void {
+    event.stopPropagation();
+    event.preventDefault();
+    
+    this.viewUserProfile(userId);
+  }
+
+  onAvatarClick(event: Event, userId: string | null): void {
+    event.stopPropagation();
+    event.preventDefault();
+    
+    this.viewUserProfile(userId);
+  }
+
   getOtherParticipantId(chat: any): string | null {
     if (!chat.participants || chat.participants.length === 0) {
       return null;
@@ -131,16 +155,23 @@ export class ChatListComponent implements OnInit {
     this.selectedUserId = user._id;
   }
 
-  createChat() {
-    if (this.selectedUserId) {
-      const token = localStorage.getItem('token');
-      this.http.post<Chat>('http://localhost:3000/chats', { recipientId: this.selectedUserId }, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      }).subscribe(
-        newChat => this.router.navigate(['/chats', newChat._id])
-      );
-    }
+createChat() {
+  if (this.selectedUserId) {
+    this.loading = true;
+    this.chatService.createOrGetDirectChat(this.selectedUserId)
+      .subscribe({
+        next: (newChat) => {
+          this.loading = false;
+          this.router.navigate(['/chats', newChat._id]);
+        },
+        error: (error) => {
+          this.loading = false;
+          console.error('Failed to create chat:', error);
+          
+        }
+      });
   }
+}
 
   formatParticipants() {
     this.chats.forEach(chat => {

@@ -1,0 +1,70 @@
+<div class="profile-container">
+    <div *ngIf="isLoading" class="loading-spinner">
+      <div class="spinner"></div>
+      <p>Loading profile...</p>
+    </div>
+  
+    <div *ngIf="error" class="error-message">
+      <p>{{ error }}</p>
+      <button (click)="loadProfile()" class="retry-button">Retry</button>
+    </div>
+  
+    <div *ngIf="!isLoading && !error" class="profile-content">
+      <div *ngIf="!isEditing; else editMode">
+        <div class="profile-header">
+          <h1>My Profile</h1>
+          <button (click)="startEditing()" class="edit-button">Edit Profile</button>
+        </div>
+        
+        <div class="profile-card" *ngIf="profile">
+          <div class="avatar-container">
+            <img 
+              [src]="profile.avatar || 'assets/default-avatar.png'" 
+              alt="Profile avatar" 
+              class="profile-avatar"
+            >
+          </div>
+          
+          <div class="profile-details">
+            <h2>{{ profile.displayName || profile.username }}</h2>
+            <p class="username">{{'@'}}{{ profile.username }}</p>
+            
+            <div class="bio-section" *ngIf="profile.bio">
+              <h3>Bio</h3>
+              <p>{{ profile.bio }}</p>
+            </div>
+            
+            <div class="contact-section" *ngIf="profile.email || profile.phoneNumber">
+              <h3>Contact</h3>
+              <p *ngIf="profile.email">Email: {{ profile.email }}</p>
+              <p *ngIf="profile.phoneNumber">Phone: {{ profile.phoneNumber }}</p>
+            </div>
+            
+            <div class="settings-section">
+              <h3>Settings</h3>
+              <p>Theme: {{ profile.settings.theme }}</p>
+              <p>Notifications: {{ profile.settings.notifications ? 'Enabled' : 'Disabled' }}</p>
+              <p>Sound: {{ profile.settings.soundEnabled ? 'Enabled' : 'Disabled' }}</p>
+            </div>
+            
+            <div class="account-info">
+              <p>Account created: {{ profile.createdAt | date:'medium' }}</p>
+              <p>Last updated: {{ profile.updatedAt | date:'medium' }}</p>
+            </div>
+          </div>
+        </div>
+    </div>
+    <ng-template #editMode>
+        <div class="profile-header">
+          <h1>Edit Profile</h1>
+          <button (click)="cancelEditing()" class="cancel-button">Cancel</button>
+        </div>
+        <app-profile-edit 
+          [profile]="profile"
+          (save)="saveProfile($event)"
+          (cancel)="cancelEditing()"
+          (avatarUpload)="uploadAvatar($event)"
+        ></app-profile-edit>
+      </ng-template>
+    </div>
+  </div>

@@ -1,0 +1,153 @@
+<div class="profile-edit">
+  <form (ngSubmit)="onSubmit()" #profileForm="ngForm">
+    <div class="avatar-section">
+      <div class="avatar-preview">
+        <img 
+          [src]="previewAvatarUrl || 'assets/default-avatar.png'" 
+          alt="Profile avatar" 
+          class="avatar-image"
+        >
+      </div>
+      
+      <div class="avatar-upload">
+        <input 
+          type="file" 
+          accept="image/*" 
+          (change)="onFileSelected($event)" 
+          id="avatar-upload"
+          class="file-input"
+        >
+        <label for="avatar-upload" class="upload-button">
+          Change Avatar
+        </label>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label for="displayName">Display Name</label>
+      <input 
+        type="text" 
+        id="displayName" 
+        name="displayName" 
+        [(ngModel)]="editableProfile.displayName" 
+        class="form-control" 
+        placeholder="Display Name"
+        required
+        maxlength="50"
+      >
+    </div>
+    
+    <div class="form-group">
+      <label for="bio">Bio</label>
+      <textarea 
+        id="bio" 
+        name="bio" 
+        [(ngModel)]="editableProfile.bio" 
+        class="form-control" 
+        rows="4" 
+        placeholder="Tell us about yourself"
+        maxlength="250"
+      ></textarea>
+      <div class="char-counter" *ngIf="editableProfile.bio">
+        {{ 250 - (editableProfile.bio.length || 0) }} characters left
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label for="phoneNumber">Phone Number</label>
+      <input 
+        type="tel" 
+        id="phoneNumber" 
+        name="phoneNumber" 
+        [(ngModel)]="editableProfile.phoneNumber" 
+        class="form-control" 
+        placeholder="Phone Number"
+        pattern="[0-9+\-\s()]+"
+      >
+    </div>
+    
+    <h3 class="settings-heading">Settings</h3>
+    
+    <div class="form-group">
+      <label class="form-label">Theme</label>
+      <div class="theme-options">
+        <label class="theme-option" [class.active]="editableProfile.settings?.theme === 'light'">
+          <input 
+            type="radio" 
+            name="theme" 
+            value="light" 
+            [(ngModel)]="editableProfile.settings!.theme"
+            (change)="onThemeChange('light')"
+          >
+          <span class="option-icon">☀️</span>
+          <span class="option-label">Light</span>
+        </label>
+        
+        <label class="theme-option" [class.active]="editableProfile.settings?.theme === 'dark'">
+          <input 
+            type="radio" 
+            name="theme" 
+            value="dark" 
+            [(ngModel)]="editableProfile.settings!.theme"
+            (change)="onThemeChange('dark')"
+          >
+          <span class="option-icon">🌙</span>
+          <span class="option-label">Dark</span>
+        </label>
+        
+        <label class="theme-option" [class.active]="editableProfile.settings?.theme === 'system'">
+          <input 
+            type="radio" 
+            name="theme" 
+            value="system" 
+            [(ngModel)]="editableProfile.settings!.theme"
+            (change)="onThemeChange('system')"
+          >
+          <span class="option-icon">⚙️</span>
+          <span class="option-label">System</span>
+        </label>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label class="toggle-option">
+        <div class="toggle-switch">
+          <input 
+            type="checkbox" 
+            name="notifications" 
+            [(ngModel)]="editableProfile.settings!.notifications"
+            (change)="onNotificationsChange(editableProfile.settings!.notifications || false)"
+          >
+          <span class="toggle-slider"></span>
+        </div>
+        <div class="toggle-content">
+          <span class="toggle-label">Enable Notifications</span>
+          <span class="toggle-description">Receive notifications for new messages and events</span>
+        </div>
+      </label>
+    </div>
+    
+    <div class="form-group">
+      <label class="toggle-option">
+        <div class="toggle-switch">
+          <input 
+            type="checkbox" 
+            name="soundEnabled" 
+            [(ngModel)]="editableProfile.settings!.soundEnabled"
+            (change)="onSoundChange(editableProfile.settings!.soundEnabled || false)"
+          >
+          <span class="toggle-slider"></span>
+        </div>
+        <div class="toggle-content">
+          <span class="toggle-label">Enable Sound</span>
+          <span class="toggle-description">Play sounds for notifications and messages</span>
+        </div>
+      </label>
+    </div>
+    
+    <div class="form-actions">
+      <button type="button" (click)="onCancel()" class="btn-cancel">Cancel</button>
+      <button type="submit" class="btn-save" [disabled]="profileForm.invalid">Save Changes</button>
+    </div>
+  </form>
+</div>

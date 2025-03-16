@@ -86,10 +86,31 @@ html, body {
     }
 
     .sender {
-      font-weight: bold;
-      font-size: 0.9rem;
-      color: #555;
-      margin-bottom: 5px;
+      &.clickable {
+        cursor: pointer;
+        position: relative;
+        
+        &:hover {
+          text-decoration: underline;
+          color: #4a76a8;
+        }
+        
+        &::after {
+          content: '';
+          position: absolute;
+          bottom: -2px;
+          left: 0;
+          width: 100%;
+          height: 1px;
+          background-color: currentColor;
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+        
+        &:hover::after {
+          opacity: 1;
+        }
+      }
     }
 
     .content {
@@ -594,6 +615,15 @@ html, body {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+
+      &.clickable {
+        cursor: pointer;
+        
+        &:hover {
+          text-decoration: underline;
+          color: #4a76a8;
+        }
+      }     
     }
     
     .chat-status {

@@ -1,0 +1,145 @@
+import express from 'express';
+import User from '../models/User.js';
+import authenticateToken from '../middleware/authenticateToken.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const router = express.Router();
+
+const storage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    const dir = path.join(__dirname, '../uploads/avatars');
+    
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    cb(null, dir);
+  },
+  filename: function(req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `user-${req.user.id}-${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: function(req, file, cb) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('Only image files are allowed'));
+    }
+    
+    cb(null, true);
+  }
+});
+
+router.get('/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json(user);
+  } catch (err) {
+    console.error('Error fetching profile:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/:userId', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId)
+      .select('username displayName bio avatar lastActive');
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json(user);
+  } catch (err) {
+    console.error('Error fetching user profile:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Profile update
+router.patch('/me', authenticateToken, async (req, res) => {
+    try {
+      const allowedUpdates = ['displayName', 'bio', 'phoneNumber', 'settings'];
+      const updates = {};
+      
+      Object.keys(req.body).forEach(key => {
+        if (allowedUpdates.includes(key)) {
+          if (key === 'settings' && typeof req.body.settings === 'object') {
+            updates.settings = {
+              ...(req.body.settings || {})
+            };
+          } else {
+            updates[key] = req.body[key];
+          }
+        }
+      });
+      
+      updates.updatedAt = new Date();
+      
+      const user = await User.findByIdAndUpdate(
+        req.user.id,
+        { $set: updates },
+        { new: true, runValidators: true }
+      ).select('-password');
+      
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      res.json(user);
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+  
+  router.post('/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+      
+      const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      
+      const user = await User.findByIdAndUpdate(
+        req.user.id,
+        { 
+          avatar: avatarUrl,
+          updatedAt: new Date()
+        },
+        { new: true }
+      ).select('-password');
+      
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      res.json({ 
+        success: true, 
+        avatar: avatarUrl,
+        user
+      });
+    } catch (err) {
+      console.error('Error uploading avatar:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+  
+  export { router as profileRoutes };
