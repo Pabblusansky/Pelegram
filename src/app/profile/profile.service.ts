@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders, HttpEvent, HttpEventType } from '@angular/comm
 import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, tap, map, finalize } from 'rxjs/operators';
 import { UserProfile, ProfileUpdateDto } from './profile.model';
+import { ThemeService } from '../services/theme.service';
 
 @Injectable({
   providedIn: 'root'
@@ -16,7 +17,10 @@ export class ProfileService {
   private avatarUploadProgress = new BehaviorSubject<number>(0);
   public avatarUploadProgress$ = this.avatarUploadProgress.asObservable();
   
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient,
+    private themeService: ThemeService
+  ) {
     this.getMyProfile().subscribe({
       next: (profile) => this.currentProfileSubject.next(profile),
       error: () => {} 
@@ -46,6 +50,15 @@ export class ProfileService {
           return throwError(() => new Error(`Failed to load profile: ${error.message}`));
         })
       );
+  }
+
+  private applyProfileSettings(profile: UserProfile): void {
+    if (profile.settings?.theme) {
+      console.log('Applying theme from profile:', profile.settings.theme);
+      this.themeService.setTheme(profile.settings.theme);
+    }
+  
+  
   }
 
   getUserProfile(userId: string): Observable<UserProfile> {

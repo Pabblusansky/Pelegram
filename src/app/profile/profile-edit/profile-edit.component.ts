@@ -59,7 +59,7 @@ export class ProfileEditComponent implements OnInit {
   }
   
   onSubmit(): void {
-    console.log('Submitting profile update:', this.editableProfile);
+    console.log('Submitting profile update with settings:', this.editableProfile.settings);
     this.save.emit(this.editableProfile);
   }
   
@@ -100,13 +100,11 @@ export class ProfileEditComponent implements OnInit {
   }
   
   onThemeChange(theme: 'light' | 'dark' | 'system'): void {
-    if (!this.editableProfile.settings) {
-      this.editableProfile.settings = {
-        theme: 'system',
-        notifications: true,
-        soundEnabled: true
-      };
-    }
+    this.editableProfile.settings = this.editableProfile.settings || {
+      theme: 'system',
+      notifications: true,
+      soundEnabled: true
+    };
     
     this.editableProfile.settings.theme = theme;
     
@@ -116,23 +114,23 @@ export class ProfileEditComponent implements OnInit {
   }
   
   onNotificationsChange(enabled: boolean): void {
-    if (!this.editableProfile.settings) {
-      this.editableProfile.settings = {
-        theme: 'system',
-        notifications: true,
-        soundEnabled: true
-      };
-    }
+    this.editableProfile.settings = this.editableProfile.settings || {
+      theme: 'system',
+      notifications: true,
+      soundEnabled: true
+    };
     
     this.editableProfile.settings.notifications = enabled;
     
-    this.notificationService.setNotificationsEnabled(enabled);
-    
-    if (enabled) {
-      this.notificationService.showNotification('Notifications enabled', {
-        body: 'You will now receive notifications from Pelegram',
-        icon: 'assets/logo.png'
-      });
+    if (this.notificationService) {
+      this.notificationService.setNotificationsEnabled(enabled);
+      
+      if (enabled) {
+        this.notificationService.showNotification('Notifications enabled', {
+          body: 'You will now receive notifications from Pelegram',
+          icon: 'assets/logo.png'
+        });
+      }
     }
     
     console.log('Notifications ' + (enabled ? 'enabled' : 'disabled'));

@@ -41,7 +41,11 @@ export class UserProfileComponent implements OnInit {
   }
   
   loadUserProfile(): void {
-    if (!this.userId) return;
+    if (!this.userId) {
+      this.error = 'User ID is missing';
+      this.isLoading = false;
+      return;
+    }
     
     this.isLoading = true;
     this.error = null;
@@ -52,10 +56,30 @@ export class UserProfileComponent implements OnInit {
         this.isLoading = false;
       },
       error: (err) => {
-        this.error = err.message || 'Failed to load user profile';
+        this.error = this.getErrorMessage(err);
         this.isLoading = false;
       }
     });
+  }
+  
+  private getErrorMessage(error: any): string {
+    if (typeof error === 'string') {
+      return error;
+    }
+    
+    if (error instanceof Error) {
+      return error.message;
+    }
+    
+    if (error.error && error.error.message) {
+      return error.error.message;
+    }
+    
+    if (error.message) {
+      return error.message;
+    }
+    
+    return 'Failed to load user profile';
   }
   
   startChat(): void {

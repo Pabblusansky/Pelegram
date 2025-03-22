@@ -10,8 +10,8 @@
   width: 300px;
   flex-shrink: 0;
   height: 100vh;
-  background-color: #f4f6f9;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  background-color: var(--card-background);
+  box-shadow: 2px 0 5px var(--box-shadow);
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -20,7 +20,7 @@
 
 .chat-room-container {
   flex: 1;
-  background-color: #ffffff;
+  background-color: var(--background-color);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -32,8 +32,8 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #f9f9f9;
-  color: #888;
+  background-color: var(--background-color);
+  color: var(--text-secondary);
   font-size: 1.2rem;
   min-width: 0;
 }
@@ -44,17 +44,19 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #e0e0e0;
-  background-color: #f8f9fa;
+  border-right: 1px solid var(--border-color);
+  background-color: var(--card-background);
 }
 
 .profile-section {
   padding: 15px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-color);
   cursor: pointer;
   
   &:hover {
-    background-color: rgba(0, 0, 0, 0.03);
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
   }
 }
 

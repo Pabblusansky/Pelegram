@@ -2,13 +2,15 @@
     display: flex;
     align-items: center;
     padding: 10px;
-    background-color: #fff;
+    background-color: var(--card-background);
+    border-top: 1px solid var(--border-color);
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     width: 100%;
     margin-top: auto;
     gap: 10px;
     margin-bottom: 15px;
+    
     input {
       flex: 1;
       padding: 12px;
@@ -17,7 +19,7 @@
       outline: none;
       font-size: 1rem;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      background-color: #f9f9f9;
+      background-color: var(--input-background);
   
       &:focus {
         border-color: #007bff;

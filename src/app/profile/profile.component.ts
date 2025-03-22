@@ -115,6 +115,11 @@ export class ProfileComponent implements OnInit {
         this.profile = profile;
         this.isLoading = false;
         this.isEditing = false;
+
+        if (profile.settings?.theme) {
+          this.themeService.setTheme(profile.settings.theme);
+          console.log('Theme set to:', profile.settings.theme);
+        }
       },
       error: (err: any) => {
         this.error = this.handleError(err, 'Failed to update profile');

@@ -1,5 +1,4 @@
-@import 'styles/themes.css';
-
+@use './styles/themes.scss' as themes;
 
 @media (max-width: 768px) {
     .app-container {

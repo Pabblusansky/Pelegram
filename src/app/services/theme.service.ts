@@ -1,5 +1,5 @@
 // src/app/services/theme.service.ts
-import { Injectable, Renderer2, RendererFactory2 } from '@angular/core';
+import { Injectable, OnDestroy, Renderer2, RendererFactory2 } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 
 export type ThemeType = 'light' | 'dark' | 'system';
@@ -7,7 +7,7 @@ export type ThemeType = 'light' | 'dark' | 'system';
 @Injectable({
   providedIn: 'root'
 })
-export class ThemeService {
+export class ThemeService implements OnDestroy{
   private renderer: Renderer2;
   private themeSubject = new BehaviorSubject<ThemeType>(this.getStoredTheme());
   
@@ -26,8 +26,10 @@ export class ThemeService {
   }
 
   private getStoredTheme(): ThemeType {
-    const storedTheme = localStorage.getItem('theme') as ThemeType;
-    return storedTheme || 'system';
+    const storedTheme = localStorage.getItem('theme');
+    return (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system') 
+      ? storedTheme 
+      : 'system';
   }
   
 

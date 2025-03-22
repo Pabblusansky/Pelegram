@@ -2,6 +2,10 @@
     max-width: 800px;
     margin: 0 auto;
     padding: 20px;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  
   }
   
   .loading-spinner {
@@ -14,15 +18,15 @@
     .spinner {
       width: 40px;
       height: 40px;
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #4a76a8;
+      border: 4px solid var(--border-color, #f3f3f3);
+      border-top: 4px solid var(--primary-color, #4a76a8);  
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
     
     p {
       margin-top: 10px;
-      color: #666;
+      color: var(--text-secondary, #666);
     }
   }
   
@@ -32,8 +36,8 @@
   }
   
   .error-message {
-    background-color: #ffebee;
-    color: #c62828;
+    background-color: var(--error-background, #ffebee);
+    color: var(--error-color, #c62828);
     padding: 15px;
     border-radius: 4px;
     margin-bottom: 20px;
@@ -64,7 +68,8 @@
     
     h1 {
       margin: 0;
-      color: #333;
+      color: var(--text-color, #333);
+      transition: color 0.3s ease;
     }
     
     .edit-button, .cancel-button {
@@ -72,31 +77,34 @@
       border-radius: 4px;
       cursor: pointer;
       border: none;
+      transition: background-color 0.3s ease, color 0.3s ease;
+
     }
     
     .edit-button {
-      background-color: #4a76a8;
+      background-color: var(--primary-color, #4a76a8);
       color: white;
       
       &:hover {
-        background-color: #3a5a80;
+        background-color: var(--primary-hover, #3a5a80);
       }
     }
     
     .cancel-button {
-      background-color: #757575;
+      background-color: var(--text-secondary, #757575);
       color: white;
+  
       
       &:hover {
-        background-color: #616161;
+        background-color: var(--text-secondary-hover, #616161);
       }
     }
   }
   
   .profile-card {
-    background-color: white;
+    background-color: var(--card-background, white);
     border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 10px var(--box-shadow, rgba(0, 0, 0, 0.1));
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -110,7 +118,9 @@
     padding: 20px;
     display: flex;
     justify-content: center;
-    
+    background-color: var(--card-background, white);
+    transition: background-color 0.3s ease;
+  
     @media (min-width: 768px) {
       width: 200px;
       align-items: flex-start;
@@ -122,32 +132,41 @@
     height: 150px;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid #4a76a8;
+    border: 3px solid var(--primary-color, #4a76a8);
   }
   
   .profile-details {
     padding: 20px;
     flex: 1;
-    
+    background-color: var(--card-background, white);
+    transition: background-color 0.3s ease;
+
     h2 {
       margin: 0 0 5px;
-      color: #333;
+      color: var(--text-color, #333);
+      transition: color 0.3s ease;
+  
     }
     
     .username {
-      color: #757575;
+      color: var(--text-secondary, #757575);
       margin: 0 0 20px;
+      transition: color 0.3s ease;  
     }
     
     h3 {
       margin: 15px 0 5px;
-      color: #4a76a8;
+      color: var(--primary-color, #4a76a8);
       font-size: 16px;
+      transition: color 0.3s ease;
+  
     }
     
     p {
       margin: 5px 0;
-      color: #555;
+      color: var(--text-color, #555);
+      transition: color 0.3s ease;
+  
     }
     
     .bio-section, .contact-section, .settings-section {
@@ -157,19 +176,21 @@
     .account-info {
       margin-top: 20px;
       padding-top: 15px;
-      border-top: 1px solid #eee;
+      border-top: 1px solid var(--border-color, #eee);
+      transition: border-color 0.3s ease;
+  
       
       p {
-        color: #9e9e9e;
+        color: var(--text-secondary, #9e9e9e);
         font-size: 12px;
       }
     }
   }
   
   .profile-edit-form {
-    background-color: white;
+    background-color: var(--card-background, white);
     border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 10px var(--box-shadow, rgba(0, 0, 0, 0.1));
     padding: 20px;
     
     .avatar-upload {
@@ -187,14 +208,15 @@
       }
       
       .upload-button {
-        background-color: #4a76a8;
+        background-color: var(--primary-color, #4a76a8);
         color: white;
         padding: 8px 16px;
         border-radius: 4px;
         cursor: pointer;
-        
+        transition: background-color 0.3s ease;
+
         &:hover {
-          background-color: #3a5a80;
+          background-color: var(--primary-hover, #3a5a80);
         }
       }
     }
@@ -214,12 +236,15 @@
       textarea {
         width: 100%;
         padding: 8px 12px;
-        border: 1px solid #ddd;
+        border: 1px solid var(--border-color, #ddd);
         border-radius: 4px;
         font-size: 14px;
-        
+        background-color: var(--input-background, white);
+        color: var(--text-color, #333);
+        transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+  
         &:focus {
-          border-color: #4a76a8;
+          border-color: var(--primary-color, #4a76a8);
           outline: none;
         }
       }
@@ -237,7 +262,9 @@
         display: flex;
         align-items: center;
         cursor: pointer;
-        
+        color: var(--text-color, #333);
+        transition: color 0.3s ease;
+  
         input {
           margin-right: 5px;
         }
@@ -249,7 +276,9 @@
         display: flex;
         align-items: center;
         cursor: pointer;
-        
+        color: var(--text-color, #333);
+        transition: color 0.3s ease;
+  
         input {
           margin-right: 8px;
         }
@@ -271,20 +300,22 @@
       }
       
       .cancel-button {
-        background-color: #f5f5f5;
-        color: #333;
+        background-color: var(--background-secondary, #f5f5f5);
+        color: var(--text-color, #333);
+  
         
         &:hover {
-          background-color: #e0e0e0;
+          background-color: var(--border-color, #e0e0e0);
         }
       }
       
       .save-button {
-        background-color: #4a76a8;
+        background-color: var(--primary-color, #4a76a8);
         color: white;
+  
         
         &:hover {
-          background-color: #3a5a80;
+          background-color: var(--primary-hover, #3a5a80);
         }
       }
     }
