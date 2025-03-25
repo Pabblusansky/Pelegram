@@ -1,9 +1,12 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, NgForm } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { ProfileService } from './profile.service';
 import { UserProfile, ProfileUpdateDto } from './profile.model';
 import { ProfileEditComponent } from "./profile-edit/profile-edit.component";
+import { ThemeService } from '../services/theme.service';
+import { NotificationService } from '../services/notifications.service';
+import { SoundService } from '../services/sound.service';
 
 @Component({
   selector: 'app-profile',
@@ -20,9 +23,7 @@ export class ProfileComponent implements OnInit {
   @Input() isCurrentUser: boolean = true;
   @Input() compact: boolean = false;
   @Output() profileClick = new EventEmitter<void>();
-  themeService: any;
-  notificationService: any;
-  soundService: any;
+  uploadProgress = 0;
   
   get displayName(): string {
     if (!this.profile) return 'User';
@@ -30,26 +31,68 @@ export class ProfileComponent implements OnInit {
   }
   
   get avatarUrl(): string {
-    if (!this.profile || !this.profile.avatar) {
-      return 'assets/default-avatar.png';
-    }
-    return this.profile.avatar;
+  if (!this.profile || !this.profile.avatar) {
+    return 'assets/images/default-avatar.png';
   }
-  
-  onProfileClick(): void {
-    this.profileClick.emit();
+
+  if (this.profile.avatar.startsWith('/uploads')) {
+    return `http://localhost:3000${this.profile.avatar}`;
+  }
+
+  return this.profile.avatar;
   }
   
   get username(): string {
     return this.profile?.username || '';
   }
   
-  constructor(private profileService: ProfileService) {}
+  get currentAppliedTheme(): string {
+    return this.themeService.getAppliedTheme();
+  }
+  
+  get themeDisplayName(): string {
+    if (!this.profile || !this.profile.settings) return 'System';
+    
+    switch (this.profile.settings.theme) {
+      case 'light': return 'Light';
+      case 'dark': return 'Dark';
+      case 'system': 
+        const applied = this.currentAppliedTheme;
+        return `System (${applied === 'dark' ? 'Dark' : 'Light'})`;
+      default: return this.profile.settings.theme || 'System';
+    }
+  }
+  
+  constructor(
+    private profileService: ProfileService,
+    public themeService: ThemeService,
+    private notificationService: NotificationService,
+    private soundService: SoundService
+  ) {}
 
   ngOnInit(): void {
-    this.loadProfile();
+    if (!this.profile) {
+      this.loadProfile();
+    }
+    this.profileService.avatarUploadProgress$.subscribe(progress => {
+      this.uploadProgress = progress;
+    });
+  }
+  
+  onProfileClick(): void {
+    this.profileClick.emit();
   }
 
+  handleImageError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    console.error(`Failed to load image: ${img.src}`);
+    
+    // Set default avatar image if the current one failed to load
+    if (!img.src.includes('default-avatar.png')) {
+      img.src = 'assets/images/default-avatar.png';
+    }
+  }
+  
   loadProfile(): void {
     this.isLoading = true;
     this.error = null;
@@ -58,6 +101,10 @@ export class ProfileComponent implements OnInit {
       next: (profile: UserProfile) => {
         this.profile = profile;
         this.isLoading = false;
+        
+        this.applyProfileSettings(profile);
+        
+        console.log('Profile loaded with settings:', profile.settings);
       },
       error: (err: any) => {
         this.error = this.handleError(err, 'Failed to load profile');
@@ -67,20 +114,25 @@ export class ProfileComponent implements OnInit {
   }
 
   private applyProfileSettings(profile: UserProfile): void {
-    if (profile.settings) {
-      if (profile.settings.theme) {
-        this.themeService.setTheme(profile.settings.theme);
-      }
-      
-      this.notificationService.setNotificationsEnabled(
-        profile.settings.notifications !== false
-      );
-      
-      // Применяем настройки звука
-      this.soundService.setSoundEnabled(
-        profile.settings.soundEnabled !== false
-      );
+    if (!profile.settings) {
+      console.log('No settings in profile, using defaults');
+      return;
     }
+    
+    console.log('Applying profile settings:', profile.settings);
+    
+    if (profile.settings.theme) {
+      console.log('Setting theme from profile:', profile.settings.theme);
+      this.themeService.setTheme(profile.settings.theme);
+    }
+    
+    const notificationsEnabled = profile.settings.notifications !== false;
+    console.log('Setting notifications to:', notificationsEnabled);
+    this.notificationService.setNotificationsEnabled(notificationsEnabled);
+    
+    const soundEnabled = profile.settings.soundEnabled !== false;
+    console.log('Setting sound to:', soundEnabled);
+    this.soundService.setSoundEnabled(soundEnabled);
   }
 
   startEditing(): void {
@@ -89,24 +141,13 @@ export class ProfileComponent implements OnInit {
 
   cancelEditing(): void {
     this.isEditing = false;
-    this.loadProfile();
+        this.loadProfile();
   }
 
-  saveProfile(formValue: any): void {
+  saveProfile(updateData: ProfileUpdateDto): void {
     if (!this.profile) return;
     
-    const updateData: ProfileUpdateDto = {
-      displayName: formValue.displayName || undefined,
-      bio: formValue.bio || undefined,
-      phoneNumber: formValue.phoneNumber || undefined,
-      settings: {
-        theme: formValue.theme || this.profile.settings.theme,
-        notifications: formValue.notifications !== undefined ? 
-          formValue.notifications : this.profile.settings.notifications,
-        soundEnabled: formValue.soundEnabled !== undefined ? 
-          formValue.soundEnabled : this.profile.settings.soundEnabled
-      }
-    };
+    console.log('Saving profile with settings:', updateData.settings);
     
     this.isLoading = true;
     
@@ -115,11 +156,10 @@ export class ProfileComponent implements OnInit {
         this.profile = profile;
         this.isLoading = false;
         this.isEditing = false;
-
-        if (profile.settings?.theme) {
-          this.themeService.setTheme(profile.settings.theme);
-          console.log('Theme set to:', profile.settings.theme);
-        }
+        
+        this.applyProfileSettings(profile);
+        
+        console.log('Profile updated successfully with settings:', profile.settings);
       },
       error: (err: any) => {
         this.error = this.handleError(err, 'Failed to update profile');
@@ -128,35 +168,66 @@ export class ProfileComponent implements OnInit {
     });
   }
 
-uploadAvatar(fileOrEvent: File | Event): void {
+  uploadAvatar(fileOrEvent: File | Event): void {
     let file: File | null = null;
     
     if (fileOrEvent instanceof Event) {
       const target = fileOrEvent.target as HTMLInputElement;
       if (target && target.files && target.files.length > 0) {
         file = target.files[0];
+        console.log('File selected from event:', file.name, file.type, file.size);
+      } else {
+        console.error('No file selected or file input is invalid');
+        return;
       }
     } else if (fileOrEvent instanceof File) {
       file = fileOrEvent;
+      console.log('File provided directly:', file.name, file.type, file.size);
+    } else {
+      console.error('Invalid input type for uploadAvatar:', fileOrEvent);
+      return;
     }
     
     if (!file) {
+      console.error('No valid file to upload');
+      return;
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      this.error = 'Only image files are allowed';
+      console.error(this.error);
+      return;
+    }
+    
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      this.error = `File is too large. Maximum size is ${maxSize / (1024 * 1024)}MB`;
+      console.error(this.error);
       return;
     }
     
     this.isLoading = true;
+    this.error = null;
     
     this.profileService.uploadAvatar(file).subscribe({
-      next: (response: { avatar: string }) => {
+      next: (response: { avatar: string; user: UserProfile }) => {
+        console.log('Avatar upload successful:', response);
+        
         if (this.profile) {
           this.profile.avatar = response.avatar;
+          
+          console.log('Full avatar URL:', this.avatarUrl);
+
+          if (response.user) {
+            this.profile = response.user;
+          }
         }
+        
         this.isLoading = false;
       },
       error: (err: any) => {
-        this.error = this.handleError ? 
-          this.handleError(err, 'Failed to upload avatar') : 
-          (err.message || 'Failed to upload avatar');
+        this.error = this.handleError(err, 'Failed to upload avatar');
+        console.error('Avatar upload error:', this.error);
         this.isLoading = false;
       }
     });

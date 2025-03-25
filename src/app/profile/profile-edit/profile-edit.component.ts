@@ -5,6 +5,7 @@ import { UserProfile, ProfileUpdateDto } from '../profile.model';
 import { ThemeService } from '../../services/theme.service';
 import { NotificationService } from '../../services/notifications.service';
 import { SoundService } from '../../services/sound.service';
+import { getFullAvatarUrl } from '../../utils/url-utils';
 
 @Component({
   selector: 'app-profile-edit',
@@ -14,6 +15,7 @@ import { SoundService } from '../../services/sound.service';
   imports: [CommonModule, FormsModule]
 })
 export class ProfileEditComponent implements OnInit {
+[x: string]: any;
   @Input() profile: UserProfile | null = null;
   @Output() save = new EventEmitter<ProfileUpdateDto>();
   @Output() cancel = new EventEmitter<void>();
@@ -39,6 +41,12 @@ export class ProfileEditComponent implements OnInit {
     this.initializeEditableProfile();
   }
   
+  get displayAvatarUrl(): string {
+    if (this.previewAvatarUrl && this.previewAvatarUrl.startsWith('data:')) {
+      return this.previewAvatarUrl;
+    }
+    return getFullAvatarUrl(this.previewAvatarUrl || this.profile?.avatar);
+  }
   private initializeEditableProfile(): void {
     if (this.profile) {
       this.editableProfile = {

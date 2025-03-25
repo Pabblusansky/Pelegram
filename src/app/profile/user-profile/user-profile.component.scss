@@ -32,7 +32,7 @@
   }
   
   .error-message {
-    background-color: #ffebee;
+    background-color: var(--error-background, #ffebee);
     color: #c62828;
     padding: 15px;
     border-radius: 4px;
@@ -90,7 +90,7 @@
   }
   
   .user-card {
-    background-color: white;
+    background-color: var(--text-color, #fff);
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     overflow: hidden;
@@ -151,7 +151,7 @@
     
     .display-name {
       margin: 0 0 5px;
-      color: #333;
+      color: var(--text-color, #333);
       font-size: 20px;
     }
     

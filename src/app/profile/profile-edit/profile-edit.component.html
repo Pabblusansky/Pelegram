@@ -1,9 +1,10 @@
 <div class="profile-edit">
+  <h2>Edit Profile</h2>
   <form (ngSubmit)="onSubmit()" #profileForm="ngForm">
     <div class="avatar-section">
       <div class="avatar-preview">
         <img 
-          [src]="previewAvatarUrl || 'assets/default-avatar.png'" 
+          [src]="displayAvatarUrl"
           alt="Profile avatar" 
           class="avatar-image"
         >
@@ -145,9 +146,15 @@
       </label>
     </div>
     
-    <div class="form-actions">
-      <button type="button" (click)="onCancel()" class="btn-cancel">Cancel</button>
-      <button type="submit" class="btn-save" [disabled]="profileForm.invalid">Save Changes</button>
+    <div class="action-buttons">
+      <button type="button" (click)="onCancel()" class="btn btn-cancel">Cancel</button>
+      <button 
+        type="submit" 
+        class="btn btn-save" 
+        [disabled]="profileForm.invalid"
+      >
+        Save Changes
+      </button>
     </div>
   </form>
 </div>

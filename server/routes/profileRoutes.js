@@ -110,36 +110,51 @@ router.patch('/me', authenticateToken, async (req, res) => {
     }
   });
   
-  router.post('/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-      }
-      
-      const avatarUrl = `/uploads/avatars/${req.file.filename}`;
-      
-      const user = await User.findByIdAndUpdate(
-        req.user.id,
-        { 
-          avatar: avatarUrl,
-          updatedAt: new Date()
-        },
-        { new: true }
-      ).select('-password');
-      
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-      
-      res.json({ 
-        success: true, 
-        avatar: avatarUrl,
-        user
-      });
-    } catch (err) {
-      console.error('Error uploading avatar:', err);
-      res.status(500).json({ error: 'Server error' });
+router.post('/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
     }
-  });
+    
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const oldAvatarUrl = user.avatar;
+    
+    user.avatar = avatarUrl;
+    user.updatedAt = new Date();
+    await user.save();
+    
+    if (oldAvatarUrl && oldAvatarUrl !== avatarUrl) {
+      const oldAvatarPath = path.join(__dirname, '..', oldAvatarUrl);
+      
+      fs.access(oldAvatarPath, fs.constants.F_OK, (err) => {
+        if (!err) {
+          fs.unlink(oldAvatarPath, (unlinkErr) => {
+            if (unlinkErr) {
+              console.error(`Failed to delete old avatar: ${unlinkErr.message}`);
+            } else {
+              console.log(`Successfully deleted old avatar: ${oldAvatarPath}`);
+            }
+          });
+        }
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      avatar: avatarUrl,
+      user
+    });
+  } catch (err) {
+    console.error('Error uploading avatar:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
   
   export { router as profileRoutes };

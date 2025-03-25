@@ -225,7 +225,8 @@
 
 .participant-name {
   cursor: pointer;
-  
+  color: var(--text-color);
+
   &:hover {
     text-decoration: underline;
     color: #4a76a8;

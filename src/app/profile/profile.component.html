@@ -18,11 +18,22 @@
         
         <div class="profile-card" *ngIf="profile">
           <div class="avatar-container">
-            <img 
-              [src]="profile.avatar || 'assets/default-avatar.png'" 
-              alt="Profile avatar" 
-              class="profile-avatar"
-            >
+            <div class="avatar-wrapper">
+              <img 
+                [src]="avatarUrl" 
+                alt="Profile avatar" 
+                class="profile-avatar"
+                (error)="handleImageError($event)"
+              >
+              
+              <!-- Loading indicator -->
+              <div class="avatar-upload-progress" *ngIf="uploadProgress > 0 && uploadProgress < 100">
+                <div class="progress-bar">
+                  <div class="progress-fill" [style.width.%]="uploadProgress"></div>
+                </div>
+                <div class="progress-text">{{ uploadProgress }}%</div>
+              </div>
+            </div>
           </div>
           
           <div class="profile-details">
@@ -40,11 +51,32 @@
               <p *ngIf="profile.phoneNumber">Phone: {{ profile.phoneNumber }}</p>
             </div>
             
-            <div class="settings-section">
+            <div class="settings-section" *ngIf="profile.settings">
               <h3>Settings</h3>
-              <p>Theme: {{ profile.settings.theme }}</p>
-              <p>Notifications: {{ profile.settings.notifications ? 'Enabled' : 'Disabled' }}</p>
-              <p>Sound: {{ profile.settings.soundEnabled ? 'Enabled' : 'Disabled' }}</p>
+              
+              <p>
+                <strong>Theme:</strong> 
+                <span [ngSwitch]="profile.settings.theme">
+                  <span *ngSwitchCase="'light'">☀️ Light</span>
+                  <span *ngSwitchCase="'dark'">🌙 Dark</span>
+                  <span *ngSwitchCase="'system'">⚙️ System ({{ themeService.getAppliedTheme() === 'dark' ? 'Dark' : 'Light' }})</span>
+                  <span *ngSwitchDefault>{{ profile.settings.theme || 'System' }}</span>
+                </span>
+              </p>
+              
+              <p>
+                <strong>Notifications:</strong> 
+                <span [ngClass]="{'enabled': profile.settings.notifications !== false, 'disabled': profile.settings.notifications === false}">
+                  {{ profile.settings.notifications !== false ? '✅ Enabled' : '❌ Disabled' }}
+                </span>
+              </p>
+              
+              <p>
+                <strong>Sound:</strong> 
+                <span [ngClass]="{'enabled': profile.settings.soundEnabled !== false, 'disabled': profile.settings.soundEnabled === false}">
+                  {{ profile.settings.soundEnabled !== false ? '✅ Enabled' : '❌ Disabled' }}
+                </span>
+              </p>
             </div>
             
             <div class="account-info">
@@ -57,7 +89,7 @@
     <ng-template #editMode>
         <div class="profile-header">
           <h1>Edit Profile</h1>
-          <button (click)="cancelEditing()" class="cancel-button">Cancel</button>
+          <button (click)="cancelEditing()" class="cancel-button">Back</button>
         </div>
         <app-profile-edit 
           [profile]="profile"

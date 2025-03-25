@@ -309,12 +309,14 @@ app.get('/users', async (_req, res) => {
 
 // Mount routes
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use('/uploads/avatars', express.static(path.join(__dirname, 'uploads/avatars')));
+
 app.use('/api/auth', authRoutes);
 app.use(authenticateToken);
 app.use('/chats', chatRoutes);
 app.use('/messages', messageRoutes(io));
 app.use('/api/profile', profileRoutes);
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/api/users/status', authenticateToken, async (req, res) => {
   try {
