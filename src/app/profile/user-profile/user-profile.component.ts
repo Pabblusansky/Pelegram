@@ -6,6 +6,7 @@ import { UserProfile } from '../profile.model';
 import { ChatService } from '../../chat/chat.service';
 import { Observable } from 'rxjs';
 import { Location } from '@angular/common';
+
 @Component({
   selector: 'app-user-profile',
   templateUrl: './user-profile.component.html',
@@ -40,6 +41,28 @@ export class UserProfileComponent implements OnInit {
     });
   }
   
+  get avatarUrl(): string {
+    if (!this.profile || !this.profile.avatar) {
+      return 'assets/images/default-avatar.png';
+    }
+
+    if (this.profile.avatar.startsWith('/uploads')) {
+      return `http://localhost:3000${this.profile.avatar}`;
+    }
+
+    return this.profile.avatar;
+  }
+  
+  handleImageError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    console.error(`Failed to load image: ${img.src}`);
+    
+    // Set default avatar image if the current one failed to load
+    if (!img.src.includes('default-avatar.png')) {
+      img.src = 'assets/images/default-avatar.png';
+    }
+  }
+  
   loadUserProfile(): void {
     if (!this.userId) {
       this.error = 'User ID is missing';
@@ -54,6 +77,8 @@ export class UserProfileComponent implements OnInit {
       next: (profile) => {
         this.profile = profile;
         this.isLoading = false;
+        console.log('User profile loaded:', profile);
+        console.log('Avatar URL:', this.avatarUrl);
       },
       error: (err) => {
         this.error = this.getErrorMessage(err);

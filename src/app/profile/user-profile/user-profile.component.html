@@ -1,54 +1,55 @@
 <div class="user-profile-container">
-    <div *ngIf="isLoading" class="loading-spinner">
-      <div class="spinner"></div>
-      <p>Loading profile...</p>
+  <div *ngIf="isLoading" class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Loading profile...</p>
+  </div>
+
+  <div *ngIf="error" class="error-message">
+    <p>{{ error }}</p>
+    <button (click)="loadUserProfile()" class="retry-button">Retry</button>
+  </div>
+
+  <div *ngIf="!isLoading && !error && profile" class="profile-content">
+    <div class="profile-header">
+      <button class="back-button" (click)="goBack()">
+        <span class="back-icon">←</span> Back
+      </button>
+      <h1>User Profile</h1>
     </div>
-  
-    <div *ngIf="error" class="error-message">
-      <p>{{ error }}</p>
-      <button (click)="loadUserProfile()" class="retry-button">Retry</button>
-    </div>
-  
-    <div *ngIf="!isLoading && !error && profile" class="profile-content">
-      <div class="profile-header">
-        <button class="back-button" (click)="goBack()">
-          <span class="back-icon">←</span> Back
-        </button>
-        <h1>User Profile</h1>
+    
+    <div class="user-card">
+      <div class="avatar-section">
+        <img 
+          [src]="avatarUrl" 
+          alt="User avatar" 
+          class="user-avatar"
+          (error)="handleImageError($event)"
+        >
+        
+        <div class="online-status">
+          <span 
+            class="status-indicator" 
+            [class.online]="isOnline$ | async"
+          ></span>
+          <span class="status-text">{{ userStatus$ | async }}</span>
+        </div>
       </div>
       
-      <div class="user-card">
-        <div class="avatar-section">
-          <img 
-            [src]="profile.avatar || 'assets/images/default-avatar.png'" 
-            alt="User avatar" 
-            class="user-avatar"
-          >
-          
-          <div class="online-status">
-            <span 
-              class="status-indicator" 
-              [class.online]="isOnline$ | async"
-            ></span>
-            <span class="status-text">{{ userStatus$ | async }}</span>
-          </div>
+      <div class="user-info">
+        <h2 class="display-name">{{ profile.displayName || profile.username }}</h2>
+        <p class="username">&#64;{{ profile.username }}</p>
+        
+        <div class="bio-section" *ngIf="profile.bio">
+          <h3>Bio</h3>
+          <p class="bio-text">{{ profile.bio }}</p>
         </div>
         
-        <div class="user-info">
-          <h2 class="display-name">{{ profile.displayName || profile.username }}</h2>
-          <p class="username">&#64;{{ profile.username }}</p>
-          
-          <div class="bio-section" *ngIf="profile.bio">
-            <h3>Bio</h3>
-            <p class="bio-text">{{ profile.bio }}</p>
-          </div>
-          
-          <div class="actions">
-            <button class="chat-button" (click)="startChat()">
-              Start Chat
-            </button>
-          </div>
+        <div class="actions">
+          <button class="chat-button" (click)="startChat()">
+            Start Chat
+          </button>
         </div>
       </div>
     </div>
   </div>
+</div>

@@ -543,15 +543,15 @@ html, body {
   padding: 15px 20px;
   margin: 20px 0;
   font-size: 14px;
-  color: var(--text-secondary);
-  background: #f0f2f5;
-  border: 1px solid #e0e2e5;
+  color: var(--text-color);
+  background: var(--background-color, #f0f2f5);
+  border: 1px solid var(--border-color, #e0e2e5);
   border-radius: 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: background 0.3s ease, box-shadow 0.3s ease;
 
   &:hover {
-    background: #e0e2e5;
+    background: var(--card-background, #f0f2f5);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   }
 

@@ -1,15 +1,14 @@
 <div class="profile-edit">
-  <h2>Edit Profile</h2>
   <form (ngSubmit)="onSubmit()" #profileForm="ngForm">
     <div class="avatar-section">
       <div class="avatar-preview">
         <img 
-          [src]="displayAvatarUrl"
-          alt="Profile avatar" 
+          [src]="displayAvatarUrl && displayAvatarUrl.trim() ? displayAvatarUrl : 'assets/images/default-avatar.png'"
+          (error)="handleImageError($event)"
           class="avatar-image"
+          alt="Profile avatar"
         >
       </div>
-      
       <div class="avatar-upload">
         <input 
           type="file" 
@@ -26,7 +25,7 @@
     
     <div class="form-group">
       <label for="displayName">Display Name</label>
-      <input 
+      <input
         type="text" 
         id="displayName" 
         name="displayName" 
@@ -56,7 +55,7 @@
     
     <div class="form-group">
       <label for="phoneNumber">Phone Number</label>
-      <input 
+      <input
         type="tel" 
         id="phoneNumber" 
         name="phoneNumber" 

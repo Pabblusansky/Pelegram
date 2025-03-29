@@ -1,6 +1,15 @@
 <div class="profile-card" [class.compact]="compact">
   <div class="avatar-container">
-    <img [src]="avatarUrl" alt="Profile avatar" class="profile-avatar">
+    <div class="avatar-placeholder" *ngIf="!avatarLoaded">
+      {{ getInitials() }}
+    </div>
+    <img 
+      [src]="avatarUrl" 
+      alt="Profile avatar" 
+      class="profile-avatar"
+      (error)="handleAvatarError($event)"
+      (load)="onAvatarLoad()"
+    >
   </div>
   
   <div class="profile-info">

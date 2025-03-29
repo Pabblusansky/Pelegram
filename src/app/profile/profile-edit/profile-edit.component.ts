@@ -120,7 +120,12 @@ export class ProfileEditComponent implements OnInit {
     
     console.log('Theme changed to:', theme);
   }
-  
+
+  handleImageError(event: Event): void {
+    const imgElement = event.target as HTMLImageElement;
+    imgElement.src = 'assets/images/default-avatar.png';
+    imgElement.onerror = null;
+  }
   onNotificationsChange(enabled: boolean): void {
     this.editableProfile.settings = this.editableProfile.settings || {
       theme: 'system',
