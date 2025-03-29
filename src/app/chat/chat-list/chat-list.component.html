@@ -38,7 +38,12 @@
         <div class="chat-info">
           <!-- Avatar with profile view option -->
           <div class="chat-avatar" (click)="onAvatarClick($event, getOtherParticipantId(chat))">
-            <img src="https://placekitten.com/50/50" alt="avatar" class="avatar" />
+            <img 
+              [src]="getUserAvatar(chat)" 
+              alt="avatar" 
+              class="avatar"
+              (error)="handleAvatarError($event)"
+            />
             <div 
               *ngIf="getOtherParticipantId(chat) && isParticipantOnline(getOtherParticipantId(chat)!)" 
               class="online-indicator"

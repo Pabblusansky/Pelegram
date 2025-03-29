@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, OnInit, OnDestroy, Output } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ChatService } from '../chat.service';
 import { Router, RouterModule } from '@angular/router';
@@ -6,8 +6,11 @@ import { User, Chat, Message } from '../chat.model';
 import { debounceTime, Subject, Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, OnDestroy } from '@angular/core';
-import { map, takeUntil } from 'rxjs/operators';
+import { ChangeDetectorRef } from '@angular/core';
+import { takeUntil } from 'rxjs/operators';
+import { UserProfile } from '../../profile/profile.model';
+import { getFullAvatarUrl } from '../../utils/url-utils';
+import { ProfileService } from '../../profile/profile.service';
 
 @Component({
   selector: 'app-chat-list',
@@ -16,7 +19,7 @@ import { map, takeUntil } from 'rxjs/operators';
   standalone: true,
   imports: [FormsModule, CommonModule, RouterModule]
 })
-export class ChatListComponent implements OnInit {
+export class ChatListComponent implements OnInit, OnDestroy {
   @Output() chatSelected = new EventEmitter<string>();
   chats: any[] = [];
   searchQuery: string = '';
@@ -29,8 +32,20 @@ export class ChatListComponent implements OnInit {
   private destroy$ = new Subject<void>();
   participantStatuses: Map<string, boolean> = new Map();
   
+  // Кэш для профилей пользователей
+  private userProfilesCache = new Map<string, UserProfile>();
+  
+  // Отслеживание загрузки аватаров
+  loadingAvatars = new Set<string>();
+  
 
-  constructor(private chatService: ChatService, private http: HttpClient, private router: Router, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private chatService: ChatService, 
+    private http: HttpClient, 
+    private router: Router, 
+    private cdr: ChangeDetectorRef,
+    private profileService: ProfileService
+  ) {}
 
   ngOnInit(): void {
     this.currentUserId = localStorage.getItem('userId');
@@ -42,6 +57,7 @@ export class ChatListComponent implements OnInit {
         this.handleNewMessage(message);
       })
     );
+    
     this.chatService.userStatuses$
     .pipe(takeUntil(this.destroy$))
     .subscribe(statuses => {
@@ -60,9 +76,63 @@ export class ChatListComponent implements OnInit {
       
       this.cdr.detectChanges();
     });
-  
   }
 
+  getUserAvatar(chat: any): string {
+    if (!chat || !chat.participants) {
+      return 'assets/images/default-avatar.png';
+    }
+    
+    const otherParticipant = chat.participants.find(
+      (p: any) => p._id !== this.currentUserId
+    );
+    
+    if (!otherParticipant) {
+      return 'assets/images/default-avatar.png';
+    }
+    
+    const userId = otherParticipant._id;
+    
+    if (this.userProfilesCache.has(userId)) {
+      const profile = this.userProfilesCache.get(userId);
+      return getFullAvatarUrl(profile?.avatar);
+    }
+    
+    if (this.loadingAvatars.has(userId)) {
+      return 'assets/images/avatar-loading.png';
+    }
+    
+    this.loadUserProfile(userId);
+    
+    return 'assets/images/default-avatar.png';
+  }
+
+  getSearchResultAvatar(user: User): string {
+    if (!user || !user._id) {
+      return 'assets/images/default-avatar.png';
+    }
+    
+    if (this.userProfilesCache.has(user._id)) {
+      const profile = this.userProfilesCache.get(user._id);
+      return getFullAvatarUrl(profile?.avatar);
+    }
+    
+    
+    this.loadUserProfile(user._id);
+    
+    return 'assets/images/default-avatar.png';
+  }
+
+  handleAvatarError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    console.error(`Failed to load avatar image: ${img.src}`);
+    
+    // Set default avatar image if the current one failed to load
+    if (!img.src.includes('default-avatar.png')) {
+      img.src = 'assets/images/default-avatar.png';
+    }
+  }
+  
   ngOnDestroy(): void {
     this.subscription.unsubscribe();
     this.destroy$.next();
@@ -109,22 +179,72 @@ export class ChatListComponent implements OnInit {
     return otherParticipant ? otherParticipant._id : null;
   }
   
-
   loadChats() {
     this.loading = true;
     this.chatService.getChats()?.subscribe(
       (data: any) => {
+        console.log('Loaded chats:', data);
         this.chats = data;
         this.formatParticipants();
+        
+        this.loadParticipantProfiles();
+        
         this.loading = false;
       },
       (error) => {
+        console.error('Failed to load chats:', error);
         this.loading = false;
         if (error.status === 401 || error.status === 403) {
           this.router.navigate(['/login']);
         }
       }
     );
+  }
+  
+  loadParticipantProfiles() {
+    const participantIds = new Set<string>();
+    
+    this.chats.forEach(chat => {
+      chat.participants.forEach((participant: any) => {
+        if (participant._id !== this.currentUserId && !this.userProfilesCache.has(participant._id)) {
+          participantIds.add(participant._id);
+        }
+      });
+    });
+    
+    console.log('Loading profiles for participants:', Array.from(participantIds));
+    
+    // Загружаем профиль для каждого участника
+    participantIds.forEach(userId => {
+      this.loadUserProfile(userId);
+    });
+  }
+  
+  // Метод для загрузки профиля отдельного пользователя
+  loadUserProfile(userId: string) {
+    // Если профиль уже в кэше или загружается, не загружаем снова
+    if (this.userProfilesCache.has(userId) || this.loadingAvatars.has(userId)) {
+      return;
+    }
+    
+    this.loadingAvatars.add(userId);
+    
+    this.profileService.getUserProfile(userId).subscribe({
+      next: (profile: UserProfile) => {
+        console.log(`Loaded profile for user ${userId}:`, profile);
+        
+        this.userProfilesCache.set(userId, profile);
+        
+        this.loadingAvatars.delete(userId);
+        
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error(`Failed to load profile for user ${userId}:`, err);
+        
+        this.loadingAvatars.delete(userId);
+      }
+    });
   }
 
   setupSearch() {
@@ -143,8 +263,20 @@ export class ChatListComponent implements OnInit {
       this.http.get<User[]>(`http://localhost:3000/chats/search?query=${query}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       }).subscribe({
-        next: users => this.searchResults = users,
-        error: () => this.searchResults = []
+        next: users => {
+          console.log('Search results:', users);
+          this.searchResults = users;
+          
+          users.forEach(user => {
+            if (user._id && !this.userProfilesCache.has(user._id)) {
+              this.loadUserProfile(user._id);
+            }
+          });
+        },
+        error: (err) => {
+          console.error('Search error:', err);
+          this.searchResults = [];
+        }
       });
     } else {
       this.searchResults = [];
@@ -155,23 +287,22 @@ export class ChatListComponent implements OnInit {
     this.selectedUserId = user._id;
   }
 
-createChat() {
-  if (this.selectedUserId) {
-    this.loading = true;
-    this.chatService.createOrGetDirectChat(this.selectedUserId)
-      .subscribe({
-        next: (newChat) => {
-          this.loading = false;
-          this.router.navigate(['/chats', newChat._id]);
-        },
-        error: (error) => {
-          this.loading = false;
-          console.error('Failed to create chat:', error);
-          
-        }
-      });
+  createChat() {
+    if (this.selectedUserId) {
+      this.loading = true;
+      this.chatService.createOrGetDirectChat(this.selectedUserId)
+        .subscribe({
+          next: (newChat) => {
+            this.loading = false;
+            this.router.navigate(['/chats', newChat._id]);
+          },
+          error: (error) => {
+            this.loading = false;
+            console.error('Failed to create chat:', error);
+          }
+        });
+    }
   }
-}
 
   formatParticipants() {
     this.chats.forEach(chat => {

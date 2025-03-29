@@ -10,8 +10,9 @@
 
     <div class="chat-avatar">
       <img 
-      [src]="otherParticipant?.avatar || 'https://placekitten.com/50/50'" 
-      [alt]="otherParticipant?.username || 'Chat'" 
+        [src]="getAvatarUrl" 
+        [alt]="otherParticipant?.username || 'Chat'"
+        (error)="handleAvatarError($event)"
       />
       <div *ngIf="isOtherParticipantOnline$ | async" class="online-indicator"></div>
     </div>

@@ -210,7 +210,7 @@ html, body {
   color: var(--text-secondary);
   margin: 5px 0;
   padding: 5px;
-  background-color: #f0f2f5;
+  background-color: var(--background-color, #f0f2f5);
   border-radius: 10px;
   align-self: flex-start;
 }

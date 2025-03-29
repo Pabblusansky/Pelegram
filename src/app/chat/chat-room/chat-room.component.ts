@@ -732,6 +732,42 @@ navigateToUserProfile(userId: string, event?: Event): void {
       });
   }
   
+  get getAvatarUrl(): string {
+    if (!this.otherParticipant || !this.otherParticipant.avatar) {
+      return 'assets/images/default-avatar.png';
+    }
+  
+    if (this.otherParticipant.avatar.startsWith('/uploads')) {
+      return `http://localhost:3000${this.otherParticipant.avatar}`;
+    }
+  
+    return this.otherParticipant.avatar;
+  }
+
+  handleAvatarError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    console.error(`Failed to load avatar image: ${img.src}`);
+    
+    // Set default avatar image if the current one failed to load
+    if (!img.src.includes('default-avatar.png')) {
+      img.src = 'assets/images/default-avatar.png';
+    }
+  }
+
+  getUserAvatar(userId: string): string {
+    const user = this.users.find(u => u._id === userId);
+    
+    if (!user || !user.avatar) {
+      return 'assets/images/default-avatar.png';
+    }
+  
+    if (user.avatar.startsWith('/uploads')) {
+      return `http://localhost:3000${user.avatar}`;
+    }
+  
+    return user.avatar;
+  }
+  
   forwardMessage(message: any): void {
     if (!message) return;
     
