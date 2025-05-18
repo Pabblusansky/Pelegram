@@ -1,34 +1,119 @@
-# Pelegram
+[![Angular Version][angular-shield]][angular-url][![Node.js Version][nodejs-shield]][nodejs-url][![Socket.IO Shield][socketio-shield]][socketio-url][![License: MIT][license-shield]][license-url]
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.0.5.
+# Pelegram: Reimagining real-time chat. Built with Angular.
 
-## Development server
+Welcome to the Pelegram Messenger project! This is a feature-rich, real-time web chat application inspired by Telegram, built from the ground up with Angular for the frontend and a robust backend (NodeJS/Express with MongoDB). It's been challenging journey bringing this to life, and I'm excited to share it.
+# ✨ Features
 
-To start a local development server, run:
+Pelegram aims to provide a seamless and engaging chat experience. Here's what's packed in (so far!):
+
+    📱 Real-Time Messaging: Instant message delivery and updates powered by Socket.IO.
+
+    👤 User Authentication: Secure registration and login system.
+
+    👀 Online & Last Seen Status: See when your contacts are online or their last activity.
+
+    ✔️ Message Status: Track if your messages are sent, delivered, and read.
+
+    ✏️ Edit & Delete Messages: Easily edit or delete your messages.
+
+    ↪️ Message Forwarding: Seamlessly forward messages from one chat to another, keeping the original sender's context.
+
+    🖼️ User Profiles & Avatars: Personalize your profile and see others' avatars. Clickable names and avatars to view profiles.
+
+    🎨 Customizable Themes: Light and Dark mode support for comfortable viewing.
+
+    📜 Infinite Scroll / Message History Loading: Smoothly load older messages as you scroll up.
+
+    🔍 User & Chat Search: Easily find users to start new conversations.
+
+    And more to come!
+
+#  Tech Stack
+  
+
+Frontend:
+
+- Angular (Angular CLI)
+
+- TypeScript
+
+- Socket.IO Client
+
+- SCSS for styling
+
+- RxJS for reactive programming
+
+  
+
+Backend:
+
+- Node.js
+
+- Express.js
+
+- MongoDB with Mongoose
+
+- Socket.IO Server
+
+- JWT (JSON Web Tokens) for authentication
+
+  
+
+Development Tools:
+
+- npm
+- VS Code
+- Git
+
+
+🚀 Getting Started
+
+Want to run Pelegram locally? Here's how:
+
+Prerequisites:
+
+- Node.js v18.x or higher
+
+- npm or yarn
+- MongoDB instance running
+- Angular CLI: npm install -g @angular/cli
+
+
+1. Clone the repository:
 
 ```bash
-ng serve
+git clone https://github.com/Pabblusansky/pelegram.git
+cd Pelegram
 ```
+2. Setup Backend:
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
+```bash   
+cd ./server
+npm install
+```
+### Create a .env file named secret.env containing SECRET_KEY= text_here with your secret key for password encoding.
+- Run the server:
 ```bash
-ng generate component component-name
+node ./server/index.js
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+- The backend server will typically start on http://localhost:3000.
 
-```bash
-ng generate --help
+3. Setup Frontend:
+
+```bash      
+cd Pelegram
+npm install
+npm start # or ng serve
 ```
 
-## Building
+- The Angular development server will typically start on http://localhost:4200.
 
-To build the project run:
+4. Open your browser and navigate to http://localhost:4200.
+
+# Additional information:
+1. To build the project run:
 
 ```bash
 ng build
@@ -44,16 +129,27 @@ To execute unit tests with the [Karma](https://karma-runner.github.io) test runn
 ng test
 ```
 
-## Running end-to-end tests
+📜 License
 
-For end-to-end (e2e) testing, run:
+This project is licensed under the MIT License - see the LICENSE.md file for details.
 
-```bash
-ng e2e
-```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+      
+[angular-shield]: https://img.shields.io/badge/angular-v19%2B-%23DD0031?logo=angular
+[angular-url]: https://angular.io/
+      
+[typescript-shield]: https://img.shields.io/badge/typescript-v5%2B-%233178C6?logo=typescript
+[typescript-url]: https://www.typescriptlang.org/
 
-## Additional Resources
+      
+[nodejs-shield]: https://img.shields.io/badge/Node.js-v20%2B-%23339933?logo=node.js
+[nodejs-url]: https://nodejs.org/
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+    
+      
+[socketio-shield]: https://img.shields.io/badge/Socket.IO-v4%2B-010101?logo=socket.io
+[socketio-url]: https://socket.io/
+
+      
+[license-shield]: https://img.shields.io/badge/License-MIT-yellow.svg
+[license-url]: https://opensource.org/licenses/MIT
