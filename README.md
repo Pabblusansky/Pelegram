@@ -67,7 +67,7 @@ Development Tools:
 - Git
 
 
-🚀 Getting Started
+# 🚀 Getting Started
 
 Want to run Pelegram locally? Here's how:
 
@@ -129,7 +129,7 @@ To execute unit tests with the [Karma](https://karma-runner.github.io) test runn
 ng test
 ```
 
-📜 License
+# 📜 License
 
 This project is licensed under the MIT License - see the LICENSE.md file for details.
 
