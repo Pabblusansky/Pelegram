@@ -2,9 +2,88 @@ import express from 'express';
 import Message from '../models/Message.js';
 import authenticateToken from '../middleware/authenticateToken.js';
 import Chat from '../models/Chat.js';
-
+import User from '../models/User.js';
 export default (io) => {
 const router = express.Router();
+
+// Endpoint to get available chats for the user
+router.get('/available-for-forward', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const chats = await Chat.find({ participants: userId })
+      .populate('participants', '_id username avatar')
+      .populate('lastMessage')
+      .sort({ updatedAt: -1 });
+    
+    res.json(chats);
+  } catch (error) {
+    console.error('Error fetching available chats:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Forward message
+router.post('/:messageId/forward', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { messageId } = req.params;
+    const { targetChatId } = req.body;
+    
+    const user = await User.findById(userId);
+    const senderName = user ? (user.name || user.username) : 'Unknown User';
+    
+    const originalMessage = await Message.findById(messageId);
+    if (!originalMessage) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+    
+    const sourceChat = await Chat.findById(originalMessage.chatId);
+    if (!sourceChat.participants.includes(userId)) {
+      return res.status(403).json({ message: 'Access denied to source chat' });
+    }
+    
+    const targetChat = await Chat.findById(targetChatId);
+    if (!targetChat || !targetChat.participants.includes(userId)) {
+      return res.status(403).json({ message: 'Access denied to target chat' });
+    }
+    
+    const forwardedMessage = new Message({
+      chatId: targetChatId,
+      content: originalMessage.content,
+      senderId: userId,
+      senderName: senderName,
+      timestamp: new Date(),
+      status: 'sent',
+      forwarded: true,
+      originalMessageId: messageId,
+      originalSenderId: originalMessage.senderId,
+      originalSenderName: originalMessage.senderName
+    });
+    
+    const savedMessage = await forwardedMessage.save();
+    console.log('[FORWARD_MESSAGE] Saved forwarded message (to be emitted):', JSON.stringify(savedMessage, null, 2));
+    targetChat.lastMessage = savedMessage._id;
+    targetChat.updatedAt = new Date();
+    await targetChat.save();
+    
+    io.to(targetChatId).emit('message', savedMessage);
+    
+    targetChat.participants.forEach(participantId => {
+      if (participantId !== userId) {
+        io.to(participantId.toString()).emit('message:status', {
+          messageId: savedMessage._id,
+          status: 'delivered'
+        });
+      }
+    });
+    
+    res.status(201).json(savedMessage);
+  } catch (error) {
+    console.error('Error forwarding message:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
 
 router.post('/', authenticateToken, async (req, res) => {
     const { chatId, content } = req.body;

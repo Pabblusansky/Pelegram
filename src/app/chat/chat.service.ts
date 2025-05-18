@@ -31,8 +31,6 @@ export class ChatService {
 
   
 
-
-
   constructor(private http: HttpClient, private router: Router) {
     this.initializeSocket();
   }
@@ -72,7 +70,6 @@ export class ChatService {
       this.socket.on('user_status_update', (statuses: Record<string, any>) => {
         console.log('Received user statuses update:', Object.keys(statuses).length);
         
-        // Форматируем и проверяем данные от сервера
         const formattedStatuses: Record<string, { lastActive: string, online: boolean }> = {};
         
         for (const [userId, status] of Object.entries(statuses)) {
@@ -347,84 +344,111 @@ export class ChatService {
     );
   }
   
-deleteMessage(messageId: string): Observable<any> {
-  const headers = this.getHeaders();
-  return headers ? 
-    this.http.delete(`${this.apiUrl}/messages/${messageId}`, { headers }) 
-    : throwError(() => new Error('Not authorized'));
-}
-
-onMessageDeleted(): Observable<MessageDeletedEvent> {
-  return this.messageDeleted$;
-}
-
-
-onMessageEdited(): Observable<Message> {
-  return new Observable<Message>(observer => {
-    if (!this.socket) {
-      observer.error(new Error('Socket not initialized'));
-      return;
-    }
-    
-    this.socket.off('message_edited');
-    
-    const handleMessageEdited = (message: Message) => {
-      console.log('Socket received message_edited event:', message);
-      observer.next(message);
-    };
-    
-    this.socket.on('message_edited', handleMessageEdited);
-    
-    return () => {
-      if (this.socket) {
-        this.socket.off('message_edited', handleMessageEdited);
-      }
-    };
-  });
-}
-
-updateChatWithLastMessage(chatId: string): Observable<any> {
-  const headers = this.getHeaders();
-  if (!headers) return throwError(() => new Error('Not authorized'));
-  
-  return this.http.get(`${this.apiUrl}/chats/${chatId}`, { headers });
-}
-
-getMessagesBefore(chatId: string, beforeMessageId: string, limit: number = 20): Observable<Message[]> {
-  const headers = this.getHeaders();
-  if (!headers) return throwError(() => new Error('Not authorized'));
-  
-  return this.http.get<Message[]>(
-    `${this.apiUrl}/messages/${chatId}?before=${beforeMessageId}&limit=${limit}`, 
-    { headers }
-  ).pipe(
-    map((messages: Message[]) => Array.isArray(messages) ? messages : []),
-    tap(messages => console.log(`Loaded ${messages.length} older messages`)),
-    catchError(error => {
-      console.error('Error loading older messages:', error);
-      return throwError(() => error);
-    })
-  );
-}
-
-createOrGetDirectChat(userId: string): Observable<Chat> {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    console.error('No token found, cannot create chat');
-    return throwError(() => new Error('Authentication required'));
+  deleteMessage(messageId: string): Observable<any> {
+    const headers = this.getHeaders();
+    return headers ? 
+      this.http.delete(`${this.apiUrl}/messages/${messageId}`, { headers }) 
+      : throwError(() => new Error('Not authorized'));
   }
-  
-  const headers = new HttpHeaders({
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  });
-  
-  return this.http.post<Chat>(`${this.apiUrl}/chats`, { recipientId: userId }, { headers })
-    .pipe(
+
+  onMessageDeleted(): Observable<MessageDeletedEvent> {
+    return this.messageDeleted$;
+  }
+
+
+  onMessageEdited(): Observable<Message> {
+    return new Observable<Message>(observer => {
+      if (!this.socket) {
+        observer.error(new Error('Socket not initialized'));
+        return;
+      }
+      
+      this.socket.off('message_edited');
+      
+      const handleMessageEdited = (message: Message) => {
+        console.log('Socket received message_edited event:', message);
+        observer.next(message);
+      };
+      
+      this.socket.on('message_edited', handleMessageEdited);
+      
+      return () => {
+        if (this.socket) {
+          this.socket.off('message_edited', handleMessageEdited);
+        }
+      };
+    });
+  }
+
+  updateChatWithLastMessage(chatId: string): Observable<any> {
+    const headers = this.getHeaders();
+    if (!headers) return throwError(() => new Error('Not authorized'));
+    
+    return this.http.get(`${this.apiUrl}/chats/${chatId}`, { headers });
+  }
+
+  getMessagesBefore(chatId: string, beforeMessageId: string, limit: number = 20): Observable<Message[]> {
+    const headers = this.getHeaders();
+    if (!headers) return throwError(() => new Error('Not authorized'));
+    
+    return this.http.get<Message[]>(
+      `${this.apiUrl}/messages/${chatId}?before=${beforeMessageId}&limit=${limit}`, 
+      { headers }
+    ).pipe(
+      map((messages: Message[]) => Array.isArray(messages) ? messages : []),
+      tap(messages => console.log(`Loaded ${messages.length} older messages`)),
       catchError(error => {
-        console.error('Error creating or getting direct chat:', error);
-        return throwError(() => new Error(`Failed to create chat: ${error.message}`));
+        console.error('Error loading older messages:', error);
+        return throwError(() => error);
       })
     );
-}
+  }
+
+  createOrGetDirectChat(userId: string): Observable<Chat> {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('No token found, cannot create chat');
+      return throwError(() => new Error('Authentication required'));
+    }
+    
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    });
+    
+    return this.http.post<Chat>(`${this.apiUrl}/chats`, { recipientId: userId }, { headers })
+      .pipe(
+        catchError(error => {
+          console.error('Error creating or getting direct chat:', error);
+          return throwError(() => new Error(`Failed to create chat: ${error.message}`));
+        })
+      );
+  }
+
+  forwardMessage(messageId: string, targetChatId: string): Observable<any> {
+    const url = `${this.apiUrl}/messages/${messageId}/forward`;
+    return this.http.post(url, { targetChatId }, this.getHttpOptions()).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  handleError(error: any) {
+    console.error('An error occurred:', error);
+    return throwError(() => new Error('Something went wrong; please try again later.'));
+  }
+
+  getAvailableChatsForForward(): Observable<any[]> {
+    const url = `${this.apiUrl}/messages/available-for-forward`;
+    return this.http.get<any[]>(url, this.getHttpOptions()).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  private getHttpOptions() {
+    const headers = this.getHeaders();
+    if (!headers) {
+      throw new Error('No token provided');
+    }
+    return { headers };
+  }
 }

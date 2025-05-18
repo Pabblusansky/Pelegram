@@ -60,7 +60,8 @@
         'my-message': item.senderId === userId,
         'their-message': item.senderId !== userId,
         'selected': selectedMessageId === item._id,
-        'edited-recently': item.editedRecently
+        'edited-recently': item.editedRecently,
+        'forwarded': item.forwarded
       }"
       (contextmenu)="showContextMenu($event, item)"
       (touchstart)="startLongPress($event, item)"
@@ -86,6 +87,22 @@
       {{ item.senderName }}
     </span>
     
+      <div *ngIf="item.forwarded && item.originalSenderName" class="forwarded-info">
+        <span class="forwarded-icon">↪️</span>
+        <span class="forwarded-text">
+          Forwarded from 
+          <strong 
+            class="clickable-sender-name" 
+            (click)="navigateToUserProfile(item.originalSenderId, $event)"
+            [title]="'View ' + item.originalSenderName + '\'s profile'"
+            *ngIf="item.originalSenderId">
+            {{ item.originalSenderName }}
+          </strong>
+          <span *ngIf="!item.originalSenderId">
+            {{ item.originalSenderName }}
+          </span>
+        </span>
+      </div>
           
       <!-- Message containing (normal mode) -->
       <span class="content" *ngIf="!item.isEditing"
@@ -186,4 +203,10 @@
       (inputChange)="onInputChange($event)"
     ></app-message-input>
   </div>
+  <app-forward-dialog
+    *ngIf="showForwardDialogue && messagetoForward"
+    [message]="messagetoForward"
+    (cancel)="cancelForward()"
+    (forward)="confirmForward($event)"
+  ></app-forward-dialog>
 </div>

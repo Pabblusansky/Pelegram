@@ -4,30 +4,29 @@
     <input 
       type="text" 
       [(ngModel)]="searchQuery" 
-      (input)="searchUsers(searchQuery)" 
+      (input)="onSearchChange()" 
       placeholder="Search for a user..." 
       aria-label="User Search"
     />
-    <ul *ngIf="searchResults.length > 0" class="search-results">
-      <li *ngFor="let user of searchResults" class="search-result-item">
-        <span (click)="selectedUserId = user._id">{{ user.username }}</span>
+    <ul *ngIf="searchQuery && searchResults.length > 0" class="search-results">
+      <li *ngFor="let user of searchResults" 
+          class="search-result-item"
+          (click)="startChatWithUser(user)" 
+          title="Start chat with {{ user.username }}">
+        <span class="search-result-username">{{ user.username }}</span>
+        
         <button 
           class="view-profile-btn" 
-          (click)="viewUserProfile(user._id)"
-          title="View profile"
+          (click)="onAvatarClick($event, user._id)"
+          title="View {{ user.username }}'s profile"
         >
           <span class="profile-icon">👤</span>
         </button>
       </li>
     </ul>
-    <button 
-      class="create-chat-btn"
-      (click)="createChat()" 
-      [disabled]="!selectedUserId"
-    >
-      Create chat
-    </button>
-  </div>
+    <div *ngIf="searchQuery && searchResults.length === 0 && !loading" class="no-search-results">
+      No users found for "{{ searchQuery }}"
+    </div>
 
   <!-- Chat list -->
   <div *ngIf="loading" class="loading-indicator">Loading chats..</div>

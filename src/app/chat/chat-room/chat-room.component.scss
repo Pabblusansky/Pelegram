@@ -229,6 +229,37 @@ html, body {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
+.message.forwarded {
+  .forwarded-info {
+    font-size: 12px;
+    color: var(--text-muted, #999);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    
+    .forwarded-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+
+    }
+
+    .clickable-sender-name {
+      color: var(--primary-color);
+      cursor: pointer;
+      text-decoration: underline;
+      
+      &:hover {
+        color: var(--accent-color);
+        text-decoration: underline;
+      }
+    }
+    .forwarded-icon {
+      font-size: 14px;
+    }
+  }
+}
+
 .context-menu {
   position: fixed;
   background-color: var(--card-background);

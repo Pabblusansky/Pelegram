@@ -14,11 +14,39 @@ const messageSchema = new mongoose.Schema({
     editedAt: {
       type: Date,
       default: null
+    },
+    forwarded: {
+      type: Boolean,
+      default: false
+    },
+    originalMessageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Message',
+      default: null
+    },
+    originalSenderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    originalSenderName: {
+      type: String,
+      default: null
+    },
+    reactions: [{
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      reaction: { type: String }
+    }],
+    replyTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Message',
+      default: null
     }
   }, {
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true }
-  });
-  
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+messageSchema.index({ chatId: 1, timestamp: -1 }); 
 export default mongoose.model('Message', messageSchema);

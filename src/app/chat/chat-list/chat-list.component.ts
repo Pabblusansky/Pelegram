@@ -24,7 +24,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
   chats: any[] = [];
   searchQuery: string = '';
   searchResults: User[] = [];
-  selectedUserId: string | null = null;
+  // selectedUserId: string | null = null;
   loading: boolean = false;
   private searchSubject = new Subject<string>();
   private currentUserId: string | null = null;
@@ -248,8 +248,11 @@ export class ChatListComponent implements OnInit, OnDestroy {
   }
 
   setupSearch() {
-    this.searchSubject.pipe(debounceTime(300)).subscribe(query => {
-      this.searchUsers(query);
+    this.searchSubject.pipe(
+      debounceTime(300),
+      takeUntil(this.destroy$)
+    ).subscribe(query => {
+      this.searchUsersInternal(query);
     });
   }
 
@@ -257,53 +260,63 @@ export class ChatListComponent implements OnInit, OnDestroy {
     this.searchSubject.next(this.searchQuery);
   }
 
-  searchUsers(query: string) {
+  private searchUsersInternal(query: string) { 
     const token = localStorage.getItem('token');
     if (query.trim()) {
+      this.loading = true;
       this.http.get<User[]>(`http://localhost:3000/chats/search?query=${query}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       }).subscribe({
         next: users => {
-          console.log('Search results:', users);
-          this.searchResults = users;
-          
-          users.forEach(user => {
+          this.searchResults = users.filter(user => user._id !== this.currentUserId); 
+          this.searchResults.forEach(user => {
             if (user._id && !this.userProfilesCache.has(user._id)) {
               this.loadUserProfile(user._id);
             }
           });
+          this.loading = false;
+          this.cdr.detectChanges();
         },
         error: (err) => {
           console.error('Search error:', err);
           this.searchResults = [];
+          this.loading = false;
+          this.cdr.detectChanges();
         }
       });
     } else {
       this.searchResults = [];
+      this.cdr.detectChanges();
     }
   }
 
-  selectUser(user: User) {
-    this.selectedUserId = user._id;
-  }
+  // selectUser(user: User) {
+  //   this.selectedUserId = user._id;
+  // }
 
-  createChat() {
-    if (this.selectedUserId) {
-      this.loading = true;
-      this.chatService.createOrGetDirectChat(this.selectedUserId)
-        .subscribe({
-          next: (newChat) => {
-            this.loading = false;
-            this.router.navigate(['/chats', newChat._id]);
-          },
-          error: (error) => {
-            this.loading = false;
-            console.error('Failed to create chat:', error);
+  startChatWithUser(user: User) {
+    if (!user || !user._id) return;
+
+    console.log('Attempting to start chat with user:', user.username);
+    this.loading = true;
+    this.chatService.createOrGetDirectChat(user._id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (newChat: Chat) => {
+          this.loading = false;
+          this.searchQuery = '';
+          this.searchResults = [];
+          this.router.navigate(['/chats', newChat._id]);
+          if (!this.chats.find(c => c._id === newChat._id)) {
+            this.loadChats();
           }
-        });
-    }
+        },
+        error: (error) => {
+          this.loading = false;
+          console.error('Failed to create or get chat with user:', user.username, error);
+        }
+      });
   }
-
   formatParticipants() {
     this.chats.forEach(chat => {
       const otherParticipants = chat.participants.filter(

@@ -1,30 +1,21 @@
-import { Component, OnInit } from '@angular/core';
+// src/app/app.component.ts
+
+import { CommonModule } from '@angular/common';
+import { Component } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { CommonModule } from '@angular/common'; // Import CommonModule
-import { AuthService } from './auth/auth.service';
-import { ChatService } from './chat/chat.service';
 
 @Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss'],
-  imports: [RouterModule, CommonModule], // Include CommonModule in imports
+  selector: 'app-root', 
   standalone: true,
+  imports: [
+    RouterModule,
+    CommonModule
+  ],
+  template: `
+    <router-outlet></router-outlet>
+  `,
+  // styleUrls: ['./app.component.scss'] // No styles yet(05.2025)
 })
-export class AppComponent implements OnInit {
-  title = 'Pelegram';
-
-  constructor(public authService: AuthService, private chatService: ChatService) {}
-
-  ngOnInit(): void {
-    // Remove this check to prevent automatic logout
-    // if (!this.authService.isAuthenticated()) {
-    //   this.authService.logout();
-    // }
-  }
-
-  logout(): void {
-    this.authService.logout();
-    this.chatService.logoutAndReconnectSocket();
-  }
+export class AppComponent {
+  title = 'Pelegram'; // App name
 }

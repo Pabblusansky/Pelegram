@@ -9,13 +9,14 @@ import { ChatService } from '../chat.service';
 import { Message } from '../chat.model';
 import { MessageInputComponent } from "../message-input/message-input.component";
 import { Router } from '@angular/router';
+import { ForwardDialogComponent } from '../forward/forward-dialogue.component';
 
 @Component({
   selector: 'app-chat-room',
   templateUrl: './chat-room.component.html',
   styleUrls: ['./chat-room.component.scss'],
   standalone: true,
-  imports: [MessageInputComponent, CommonModule, FormsModule],
+  imports: [MessageInputComponent, CommonModule, FormsModule, ForwardDialogComponent ],
   animations: [
     trigger('menuAnimation', [
       transition(':enter', [
@@ -65,7 +66,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   otherParticipant: any = null;
   otherParticipantStatus$: Observable<string> | null = null;
   isOtherParticipantOnline$: Observable<boolean> | null = null;
-
+  showForwardDialogue = false;
+  messagetoForward: any = null;
   
 
   constructor(
@@ -770,16 +772,41 @@ navigateToUserProfile(userId: string, event?: Event): void {
   
   forwardMessage(message: any): void {
     if (!message) return;
-    
+  
     this.activeContextMenuId = null;
     this.selectedMessageId = null;
     
-    console.log('Forward message:', message);
-    this.showToast('Forward functionality not implemented yet');
-    // TODO: Implement forward message functionality
+    this.messagetoForward = message;
+    this.showForwardDialogue = true;
+    this.cdr.detectChanges();  
   }
   
-  private showToast(message: string, duration: number = 3000): void {
+  cancelForward() {
+    this.showForwardDialogue = false;
+    this.messagetoForward = null;
+  }
+
+  confirmForward(targetChatId: string): void {
+    if (!this.messagetoForward || !this.messagetoForward._id) {
+      this.showToast('Cannot forward message: Invalid message');
+      this.cancelForward();
+      return;
+    }
+    
+    this.chatService.forwardMessage(this.messagetoForward._id, targetChatId).subscribe({
+      next: () => {
+        this.showToast('Message forwarded successfully');
+        this.cancelForward();
+      },
+      error: (error) => {
+        console.error('Error forwarding message:', error);
+        this.showToast('Failed to forward message');
+        this.cancelForward();
+      }
+    });
+  }
+
+    private showToast(message: string, duration: number = 3000): void {
     console.log('Showing toast:', message);
     
     const existingToasts = document.querySelectorAll('.toast-notification');

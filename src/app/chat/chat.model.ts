@@ -28,4 +28,9 @@ export interface Message {
 
   ismyMessage?: boolean;
   editedRecently?: boolean;
+
+  forwarded?: boolean;
+  originalMessageId?: string;
+  originalSenderId?: string;
+  originalSenderName?: string;
 }
