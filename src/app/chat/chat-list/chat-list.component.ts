@@ -32,10 +32,8 @@ export class ChatListComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   participantStatuses: Map<string, boolean> = new Map();
   
-  // Кэш для профилей пользователей
   private userProfilesCache = new Map<string, UserProfile>();
   
-  // Отслеживание загрузки аватаров
   loadingAvatars = new Set<string>();
   
 
@@ -58,6 +56,12 @@ export class ChatListComponent implements OnInit, OnDestroy {
       })
     );
     
+    this.subscription.add(
+      this.chatService.chatUpdated$.pipe(takeUntil(this.destroy$)).subscribe(updatedChat => {
+        this.handleChatUpdate(updatedChat);
+      })
+    );
+
     this.chatService.userStatuses$
     .pipe(takeUntil(this.destroy$))
     .subscribe(statuses => {
@@ -179,11 +183,31 @@ export class ChatListComponent implements OnInit, OnDestroy {
     return otherParticipant ? otherParticipant._id : null;
   }
   
-  loadChats() {
-    this.loading = true;
-    this.chatService.getChats()?.subscribe(
-      (data: any) => {
-        console.log('Loaded chats:', data);
+  private handleChatUpdate(updatedChat: Chat): void {
+    const chatIndex = this.chats.findIndex(chat => chat._id === updatedChat._id);
+    
+    if (chatIndex !== -1) {
+    this.chats[chatIndex] = {
+      ...this.chats[chatIndex],
+      ...updatedChat,
+    };
+    this.formatSingleChat(this.chats[chatIndex]); 
+
+    const chatToMove = this.chats.splice(chatIndex, 1)[0];
+    this.chats.unshift(chatToMove);
+    this.loadParticipantProfilesForSingleChat(chatToMove);
+    this.cdr.detectChanges();
+  } else {
+    console.warn(`Chat with ID ${updatedChat._id} not found in local list. Reloading all chats.`);
+    this.loadChats();
+  }
+}
+
+loadChats() {
+  this.loading = true;
+  this.chatService.getChats()?.subscribe(
+    (data: any) => {
+      console.log('Loaded chats:', data);
         this.chats = data;
         this.formatParticipants();
         
@@ -214,15 +238,12 @@ export class ChatListComponent implements OnInit, OnDestroy {
     
     console.log('Loading profiles for participants:', Array.from(participantIds));
     
-    // Загружаем профиль для каждого участника
     participantIds.forEach(userId => {
       this.loadUserProfile(userId);
     });
   }
   
-  // Метод для загрузки профиля отдельного пользователя
   loadUserProfile(userId: string) {
-    // Если профиль уже в кэше или загружается, не загружаем снова
     if (this.userProfilesCache.has(userId) || this.loadingAvatars.has(userId)) {
       return;
     }
@@ -345,8 +366,35 @@ export class ChatListComponent implements OnInit, OnDestroy {
       this.chats.unshift(chat);
       
       this.formatParticipants();
+      this.cdr.detectChanges();
     } else {
       this.loadChats();
+    }
+  }
+
+  private loadParticipantProfilesForSingleChat(chat: any): void {
+    if (chat && chat.participants) {
+      chat.participants.forEach((participant: any) => {
+        if (participant._id !== this.currentUserId && !this.userProfilesCache.has(participant._id)) {
+          this.loadUserProfile(participant._id);
+        }
+      });
+    }
+  }
+
+  private formatSingleChat(chat: any): void {
+    if (!chat || !chat.participants) return;
+    const otherParticipants = chat.participants.filter(
+      (participant: any) => participant._id !== this.currentUserId
+    );
+    if (otherParticipants.length > 0) {
+      if (otherParticipants.length > 1) {
+          chat.participantsString = otherParticipants.map((participant: any) => participant.username || 'User').join(', ');
+      } else {
+          chat.participantsString = otherParticipants[0]?.username || 'Saved Messages'; 
+      }
+    } else {
+      chat.participantsString = 'Saved Messages';
     }
   }
 }

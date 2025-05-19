@@ -62,13 +62,33 @@ router.post('/:messageId/forward', authenticateToken, async (req, res) => {
     });
     
     const savedMessage = await forwardedMessage.save();
-    console.log('[FORWARD_MESSAGE] Saved forwarded message (to be emitted):', JSON.stringify(savedMessage, null, 2));
     targetChat.lastMessage = savedMessage._id;
     targetChat.updatedAt = new Date();
     await targetChat.save();
     
-    io.to(targetChatId).emit('message', savedMessage);
+    const updatedTargetChat = await Chat.findById(targetChatId)
+      .populate('participants', '_id username avatar')
+      .populate({
+        path: 'lastMessage',
+        populate: { path: 'senderId', select: '_id username avatar' }
+      });
+
     
+    if (updatedTargetChat) {
+      console.log('--- DEBUG FORWARD BACKEND ---');
+      console.log('Original Message ID:', messageId);
+      console.log('Target Chat ID:', targetChatId);
+      console.log('Saved Forwarded Message:', JSON.stringify(savedMessage, null, 2));
+      console.log('Updated Target Chat for emit (includes lastMessage):', JSON.stringify(updatedTargetChat, null, 2));
+      io.to(targetChatId).emit('chat_updated', updatedTargetChat);
+      io.to(targetChatId).emit('message', savedMessage);
+      const populatedSavedMessage = await Message.findById(savedMessage._id)
+        .populate('senderId', '_id username avatar')
+        .lean();
+    io.to(targetChatId).emit('receive_message', populatedSavedMessage);
+  } else {
+    console.error(`Chat with ID ${targetChatId} not found after update for forwarding message.`);
+  }
     targetChat.participants.forEach(participantId => {
       if (participantId !== userId) {
         io.to(participantId.toString()).emit('message:status', {

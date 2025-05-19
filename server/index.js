@@ -193,6 +193,23 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('user_logout_attempt', async (data) => { 
+    const userId = data && data.userId ? data.userId : (socket.user ? socket.user.id : null);
+    if (userId) {
+      console.log(`User ${userId} (socket ${socket.id}) is attempting to logout.`);
+      updateUserStatus(userId, false); 
+      try {
+        await User.findByIdAndUpdate(userId, { online: false, lastActive: new Date() });
+        const now = new Date().toISOString();
+        userLastActive.set(userId.toString(), now);
+        onlineUsers.delete(userId.toString());
+        broadcastUserStatuses();
+        console.log(`User ${userId} status updated to offline due to logout.`);
+      } catch (error) {
+        console.error(`Error updating user status on logout for ${userId}:`, error);
+      }
+    }
+  });
   socket.on('send_message', async (data) => {
     const { chatId, content } = data;
     const senderId = socket.user.id;
@@ -286,17 +303,18 @@ io.on('connection', (socket) => {
 
   socket.on('join_chat', (chatId) => {
       socket.join(chatId);
-      console.log(`User ${socket.id} joined chat: ${chatId}`);
+      // console.log(`User ${socket.id} joined chat: ${chatId}`); // This is too noisy because it logs every join(auto-join in chat list is triggering this multiple times)
   });
 
   socket.on('disconnect', () => {
     if (socket.user && socket.user.id) {
       updateUserStatus(socket.user.id, false);
     }
-    
-    console.log(`User disconnected: ${socket.id}`);
+    // console.log(`User disconnected: ${socket.id}`);
   });
 });
+
+
 // user routes
 app.get('/users', async (_req, res) => {
   try {
@@ -310,7 +328,10 @@ app.get('/users', async (_req, res) => {
 // Mount routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads/avatars', express.static(path.join(__dirname, 'uploads/avatars')));
+app.use('/uploads/avatars', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, 'uploads/avatars')));
 
 app.use('/api/auth', authRoutes);
 app.use(authenticateToken);

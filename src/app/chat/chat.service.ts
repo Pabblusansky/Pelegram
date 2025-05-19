@@ -1,6 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { io } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 import { Router } from '@angular/router';
 import { catchError, Observable, Observer, retry, share, Subject, throwError, map, tap } from 'rxjs';
 import { Chat, Message } from './chat.model';
@@ -18,21 +18,30 @@ interface MessageDeletedEvent {
   providedIn: 'root',
 })
 
-export class ChatService {
+export class ChatService implements OnDestroy {
   private apiUrl = 'http://localhost:3000';
-  private socket: any; 
-  private destroySocket$ = new Subject<void>();
+  private socket: Socket | undefined;
+  private destroySocket$ = new Subject<void>(); 
   private newMessageSubject = new Subject<Message>();
   public newMessage$ = this.newMessageSubject.asObservable();
   private messageDeletedSubject = new Subject<MessageDeletedEvent>();
   public messageDeleted$ = this.messageDeletedSubject.asObservable();
   private userStatusesSubject = new BehaviorSubject<Record<string, { lastActive: string, online: boolean }>>({});
   public userStatuses$ = this.userStatusesSubject.asObservable().pipe(shareReplay(1));
-
-  
+  private chatUpdatedSubject = new Subject<Chat>();
+  public chatUpdated$ = this.chatUpdatedSubject.asObservable();
 
   constructor(private http: HttpClient, private router: Router) {
     this.initializeSocket();
+  }
+  ngOnDestroy() {
+    console.log('ChatService ngOnDestroy called.');
+    this.destroySocket$.next();
+    this.destroySocket$.complete();
+    if (this.socket) {
+      this.socket.disconnect();
+      console.log('ChatService: Socket disconnected on service destroy.');
+    }
   }
 
   private getHeaders() {
@@ -45,10 +54,21 @@ export class ChatService {
   }
 
   private initializeSocket() {
+    if (this.socket) {
+      this.socket.disconnect();
+      this.destroySocket$.next();
+      this.destroySocket$.complete();
+      this.destroySocket$ = new Subject<void>();
+    }
     const token = localStorage.getItem('token');
+
     if (token) {
-      this.socket = io('http://localhost:3000', {
+      this.socket = io(this.apiUrl, {
         auth: { token },
+      });
+
+      this.socket.on('chat_updated', (chat: Chat) => {
+        this.chatUpdatedSubject.next(chat);
       });
 
       this.socket.on('receive_message', (message: Message) => {
@@ -56,7 +76,26 @@ export class ChatService {
       });
 
       this.socket.on('connect', () => {
-        console.log('Socket connected: ', this.socket.id);
+        console.log('Socket connected:', this.socket?.id);
+        this.getChats()
+        ?.pipe(
+          takeUntil(this.destroySocket$),
+          map((chats: any) => chats as Chat[])
+        )
+        .subscribe({
+          next: (chats: Chat[]) => {
+            chats.forEach((chat) => {
+              if (chat._id) {
+                this.socket?.emit('join_chat', chat._id);
+              }
+            });
+          },
+          error: (err) => {
+            console.error('Error fetching user chats for auto-joining:', err);
+          },
+        });
+        this.loadInitialUserStatuses(); 
+        this.setupActivityPing();
       });
 
       this.socket.on('disconnect', () => {
@@ -152,6 +191,7 @@ export class ChatService {
         
         let lastActive: Date;
         try {
+          console.log('Trying to parse date from userStatus.lastActive:', userStatus.lastActive, typeof userStatus.lastActive);
           lastActive = new Date(userStatus.lastActive);
           
           if (isNaN(lastActive.getTime())) {
@@ -248,6 +288,11 @@ export class ChatService {
 
   onMessageStatusUpdated() {
     return new Observable((observer) => {
+      if (!this.socket) {
+        observer.error(new Error('Socket not initialized'));
+        return;
+      }
+      
       this.socket.on('messageStatusUpdated', (data: { messageId: string; status: string }) => {
         observer.next(data);
       });
@@ -264,11 +309,18 @@ export class ChatService {
   
   sendTyping(chatId: string, isTyping: boolean) {
     console.log("Emitting typing event to server:", chatId, isTyping);
-    this.socket.emit('typing', { chatId, isTyping });
+    if (this.socket) {
+      this.socket.emit('typing', { chatId, isTyping });
+    }
   }
 
   onTyping(): Observable<any> {
     return new Observable((observer) => {
+      if (!this.socket) {
+        observer.error(new Error('Socket not initialized'));
+        return;
+      }
+      
       this.socket.on('typing', (data: any) => {
         observer.next(data);
       });
@@ -287,12 +339,16 @@ export class ChatService {
     return this.http.get(`${this.apiUrl}/messages/${chatId}`, { headers });
   }
   joinChat(chatId: string) {
-    this.socket.emit('join_chat', chatId);
-    console.log(`Joined chat room: ${chatId}`);
+    if (this.socket) {
+      this.socket.emit('join_chat', chatId);
+      console.log(`Joined chat room: ${chatId}`);
+    } else {
+      console.error('Cannot join chat: Socket is not initialized');
+    }
   }  
   sendMessage(chatId: string, content: string): Observable<any> {
     return new Observable((observer) => {
-      if (!this.socket.connected) {
+      if (!this.socket || !this.socket.connected) {
         console.error('Socket is not connected. Cannot send message.');
         observer.error('Socket is not connected');
         return;
@@ -317,7 +373,11 @@ export class ChatService {
     });
   }
   receiveMessages(callback: (message: any) => void) {
-    this.socket.on('receive_message', callback);
+    if (this.socket) {
+      this.socket.on('receive_message', callback);
+    } else {
+      console.error('Socket is not initialized');
+    }
   }
 
   editMessage(messageId: string, newContent: string): Observable<Message> {

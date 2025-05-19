@@ -353,3 +353,60 @@
     text-align: center;
   }
 }
+
+.logout-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color, #e0e0e0);
+  display: flex;
+  justify-content: center; 
+}
+
+.logout-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--danger-color, #f44336);
+  background-color: transparent;
+  border: 1px solid var(--danger-color-border, #f44336);
+  border-radius: var(--border-radius-medium, 8px);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  text-decoration: none;
+  gap: 8px; 
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    background-color: var(--danger-color-hover-bg, rgba(244, 67, 54, 0.1));
+    color: var(--danger-color-hover, #d32f2f);
+    border-color: var(--danger-color-hover, #d32f2f);
+  }
+
+  &:active {
+    background-color: var(--danger-color-active-bg, rgba(244, 67, 54, 0.2));
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--focus-ring-color, rgba(244, 67, 54, 0.3)); // Фокусное кольцо
+  }
+}
+
+
+:host {
+  --danger-color: #f44336;
+  --danger-color-border: #f44336;
+  --danger-color-hover-bg: rgba(244, 67, 54, 0.1);
+  --danger-color-hover: #d32f2f;
+  --danger-color-active-bg: rgba(244, 67, 54, 0.2);
+  --focus-ring-color: rgba(244, 67, 54, 0.3);
+  --border-radius-medium: 8px;
+  --border-color: #e0e0e0;
+}

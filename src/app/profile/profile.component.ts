@@ -7,6 +7,7 @@ import { ProfileEditComponent } from "./profile-edit/profile-edit.component";
 import { ThemeService } from '../services/theme.service';
 import { NotificationService } from '../services/notifications.service';
 import { SoundService } from '../services/sound.service';
+import { AuthService } from '../auth/auth.service';
 
 @Component({
   selector: 'app-profile',
@@ -67,7 +68,8 @@ export class ProfileComponent implements OnInit {
     private profileService: ProfileService,
     public themeService: ThemeService,
     private notificationService: NotificationService,
-    private soundService: SoundService
+    private soundService: SoundService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -168,6 +170,9 @@ export class ProfileComponent implements OnInit {
     });
   }
 
+  onLogout(): void {
+    this.authService.logout();
+  }
   uploadAvatar(fileOrEvent: File | Event): void {
     let file: File | null = null;
     
