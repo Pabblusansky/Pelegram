@@ -171,6 +171,8 @@ router.route('/:id')
   .patch(authenticateToken, async (req, res) => {
     try {
       const now = new Date();
+      const messageId = req.params.id;
+      const userId = req.user.id;
       
       const existingMessage = await Message.findById(req.params.id);
       
@@ -182,20 +184,38 @@ router.route('/:id')
         return res.status(403).json({ error: 'Not authorized to edit this message' });
       }
       
-      const message = await Message.findByIdAndUpdate(
-        req.params.id,
+      const updatedMessage = await Message.findByIdAndUpdate(
+        messageId,
         { 
           content: req.body.content, 
           edited: true,
           editedAt: now
         },
         { new: true }
-      );
+      ).populate('senderId', '_id username avatar name');
+      if (!updatedMessage) {
+        return res.status(404).json({ error: 'Message not found' });
+      }
+      io.to(updatedMessage.chatId.toString()).emit('message_edited', updatedMessage);
+      console.log(`Emitted message_edited event to chat ${updatedMessage.chatId}:`, updatedMessage);
+
+      const chat = await Chat.findById(updatedMessage.chatId)
       
-      io.to(message.chatId.toString()).emit('message_edited', message);
-      console.log(`Emitted message_edited event to chat ${message.chatId}:`, message);
-      
-      res.json(message);
+      if (chat && chat.lastMessage &&  chat.lastMessage.toString() === updatedMessage._id.toString()) {
+        const updatedChatForEmit = await Chat.findById(chat._id)
+          .populate('participants', '_id username avatar name')
+          .populate({
+            path: 'lastMessage',
+            populate: { path: 'senderId', select: '_id username avatar name' }
+          });
+          if (updatedChatForEmit) {
+            console.log('Emitting chat_updated event:', updatedChatForEmit);
+            io.to(updatedMessage.chatId.toString()).emit('chat_updated', updatedChatForEmit);
+          } else {
+            console.error(`Chat with ID ${chat._id} not found after update for emitting chat_updated event.`);
+          }
+        }
+      res.json(updatedMessage);
     } catch (err) {
       console.error('Error editing message:', err);
       res.status(500).json({ error: err.message });
