@@ -95,6 +95,7 @@ npm install
 ### Create a .env file named secret.env containing SECRET_KEY= text_here with your secret key for password encoding.
 - Run the server:
 ```bash
+cd Pelegram
 node ./server/index.js
 ```
 
