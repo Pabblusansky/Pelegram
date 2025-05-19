@@ -1,4 +1,4 @@
-[![Angular Version][angular-shield]][angular-url][![Node.js Version][nodejs-shield]][nodejs-url][![Socket.IO Shield][socketio-shield]][socketio-url][![License: MIT][license-shield]][license-url]
+[![Angular Version][angular-shield]][angular-url][![Node.js Version][nodejs-shield]][nodejs-url][![Socket.IO Shield][socketio-shield]][socketio-url][![License: MIT][license-shield]][license-url[![TypeScript][typescript-shield]][typescript-url]
 
 # Pelegram: Reimagining real-time chat. Built with Angular.
 
