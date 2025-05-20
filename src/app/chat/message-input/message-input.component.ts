@@ -1,40 +1,63 @@
-import { Component, Input, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, Input, ViewChild, ElementRef } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ChatService } from '../chat.service';
-
 @Component({
   selector: 'app-message-input',
-  templateUrl: './message-input.component.html',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
   styleUrls: ['./message-input.component.scss'],
-  imports: [FormsModule]
+  template: `
+    <div class="message-input">
+      <textarea 
+        #messageTextarea
+        [(ngModel)]="newMessage"
+        (input)="onInput()"
+        (keydown.enter)="onEnterPress($event)"
+        placeholder="Type a message..."></textarea>
+      <button (click)="send()">Send</button>
+    </div>
+  `,
 })
 export class MessageInputComponent {
-  @Input() chatId: string | null = null; // Getting chatId from input
-  @Output() messageSent = new EventEmitter<string>(); // Event for sending message
-  @Output() inputChange = new EventEmitter<boolean>();
+  @Input() chatId: string | null = null;
+  @Output() sendMessageEvent = new EventEmitter<string>(); 
+  @Output() inputChange = new EventEmitter<boolean>(); 
 
-  constructor(private ChatService: ChatService) {}
-  message: string = '';
-  
+  newMessage: string = '';
+  @ViewChild('messageTextarea') messageTextarea!: ElementRef<HTMLTextAreaElement>;
+
   private typingTimeout: any;
-  onInputChange(): void {
-    console.log('Input changed');
-    this.inputChange.emit(this.message.trim().length > 0);
 
+  constructor() {}
+
+  onInput(): void {
+    this.inputChange.emit(this.newMessage.trim().length > 0);
     clearTimeout(this.typingTimeout);
-
-    if(this.message.trim().length > 0) {
+    if (this.newMessage.trim().length > 0) {
       this.typingTimeout = setTimeout(() => {
         this.inputChange.emit(false);
       }, 3000);
     }
   }
 
-  sendMessage(): void {
-    if (this.message.trim() && this.chatId) {
-      this.messageSent.emit(this.message);
-      this.message = '';
+  onEnterPress(event: Event): void {
+    const keyboardEvent = event as KeyboardEvent;
+    if (!keyboardEvent.shiftKey && this.newMessage.trim()) {
+      event.preventDefault(); 
+      this.send();
+    }
+  }
+
+  send(): void {
+    const content = this.newMessage.trim();
+    if (content) {
+      this.sendMessageEvent.emit(content);
+      this.newMessage = '';
       this.inputChange.emit(false);
     }
+  }
+
+  public focusInput(): void {
+    this.messageTextarea.nativeElement.focus();
   }
 }

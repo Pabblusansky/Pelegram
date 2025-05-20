@@ -729,3 +729,152 @@ html, body {
     }
   }
 }
+
+
+.reply-preview-container {
+  display: flex;
+  align-items: center; 
+  padding: 8px 12px;
+  margin: 0 10px 8px 8px;
+  background-color: var(--background-color-reply-preview, rgba(var(--text-color-rgb, 255, 255, 255), 0.05));
+  border-left: 3px solid var(--accent-color, #5865f2);
+  border-radius: var(--border-radius-medium, 8px);
+  font-family: var(--app-font-family);
+  animation: fadeInReplyPreview 0.3s ease-out;
+  position: relative; 
+
+  .reply-indicator {
+    display: flex;
+    align-items: center;
+    color: var(--accent-color, #5865f2);
+    font-size: 13px;
+    margin-right: 8px;
+    flex-shrink: 0;
+
+    svg {
+      margin-right: 4px;
+      width: 14px;
+      height: 14px;
+    }
+    span {
+        color: var(--secondary-text-color, #b0b3b8);
+    }
+  }
+
+  .reply-preview-content {
+    flex-grow: 1;
+    overflow: hidden;
+    padding-right: 28px; 
+
+    .reply-sender {
+      display: block; 
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--primary-text-color, #e0e0e0);
+      margin-bottom: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .reply-text {
+      font-size: 13px;
+      color: var(--secondary-text-color, #b0b3b8);
+      line-height: 1.3;
+      margin: 0;
+      word-break: break-word;
+      display: -webkit-box;
+      display: -webkit-box;
+      -webkit-line-clamp: 2; 
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      text-overflow: ellipsis;
+      max-height: (1.3em * 2);
+    }
+  }
+
+  .cancel-reply-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: none;
+    border: none;
+    color: var(--secondary-text-color, #b0b3b8);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 50%; 
+    width: 20px; 
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, color 0.2s ease;
+
+    svg {
+      display: block;
+      width: 16px;
+      height: 16px;
+    }
+
+    &:hover {
+      color: var(--primary-text-color, #e0e0e0);
+      
+    }
+  }
+}
+
+@keyframes fadeInReplyPreview {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+.reply-quote-block {
+  padding: 6px 10px;
+  margin: -4px -8px 8px -8px;
+  background-color: var(--background-color-reply-quote, rgba(255, 255, 255, 0.05)); 
+  border-left: 2px solid var(--accent-color, #5865f2);
+  border-radius: var(--border-radius-small, 4px);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  position: relative;
+
+  &:hover {
+    background-color: var(--background-color-reply-quote-hover, rgba(255, 255, 255, 0.08));
+  }
+
+  .reply-quote-sender {
+    font-weight: 600;
+    color: var(--accent-color, #5865f2); 
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .reply-quote-content {
+    color: var(--secondary-text-color, #b0b3b8);
+    line-height: 1.3;
+    white-space: nowrap; 
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-all;
+  }
+}
+
+
+
+.message-item.highlighted-reply {
+  animation: highlightAnimation 2s ease-out; 
+
+  & > .message-bubble {
+    background-color: var(--highlight-bg-color, rgba(88, 101, 242, 0.15));
+    transition: background-color 0.3s ease-out; 
+  }
+}

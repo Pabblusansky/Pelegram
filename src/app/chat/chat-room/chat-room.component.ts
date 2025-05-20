@@ -68,6 +68,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   isOtherParticipantOnline$: Observable<boolean> | null = null;
   showForwardDialogue = false;
   messagetoForward: any = null;
+  replyingToMessage: Message | null = null;
   
 
   constructor(
@@ -172,6 +173,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
         this.updateMessagesWithDividers();
         this.cdr.detectChanges(); 
         console.log(`Message status updated: ${data.messageId} -> ${data.status}`); 
+      }
+    });
+
+    this.chatService.newMessage$.pipe(takeUntil(this.destroy$)).subscribe(message => {
+      if (this.chatId === message.chatId) {
+        const isMyOwnMessageJustSent = message.senderId === this.userId && !this.messages.find(m => m._id === message._id);
+        this.addOrUpdateMessage(message, isMyOwnMessageJustSent);
       }
     });
 
@@ -305,7 +313,7 @@ navigateToUserProfile(userId: string, event?: Event): void {
     this.cdr.detectChanges();
     
   }
-
+  
   loadChatDetails(): void {
     if (!this.chatId) return;
     
@@ -409,48 +417,62 @@ navigateToUserProfile(userId: string, event?: Event): void {
       });
     }
 
-    this.chatService.receiveMessages((message) => {
-      if (this.chatId === message.chatId) {
-        message.isMyMessage = message.senderId === this.userId;
-        this.messages.push(message);
-        this.updateMessagesWithDividers();
-        this.cdr.detectChanges();
-        this.scrollToBottom();
-        this.triggerMarkAsRead();
-      }
-    });
+    // this.chatService.receiveMessages((message) => {
+    //   if (this.chatId === message.chatId) {
+    //     message.isMyMessage = message.senderId === this.userId;
+    //     this.messages.push(message);
+    //     this.updateMessagesWithDividers();
+    //     this.cdr.detectChanges();
+    //     this.scrollToBottom();
+    //     this.triggerMarkAsRead();
+    //   }
+    // });
   }
 
-  sendMessage(messageContent: string): void {
-    if (this.chatId) {
-      const newMessage: Message = {
-        chatId: this.chatId,
-        content: messageContent,
-        senderId: this.userId!,
-        senderName: 'You',
-        timestamp: new Date().toISOString(),
-        status: 'Sent'
-      };
+  // sendMessage(messageContent: string): void {
+  //   if (this.chatId) {
+  //     const newMessage: Message = {
+  //       chatId: this.chatId,
+  //       content: messageContent,
+  //       senderId: this.userId!,
+  //       senderName: 'You',
+  //       timestamp: new Date().toISOString(),
+  //       status: 'Sent'
+  //     };
 
-      this.scrollToBottom();
+  //     this.scrollToBottom();
 
-      this.chatService.sendMessage(this.chatId, messageContent).subscribe({
-        next: () => {
-          newMessage.status = 'Delivered'; 
-        },
-        error: () => {
-          newMessage.status = 'Failed'; 
-        }
-      });
+  //     this.chatService.sendMessage(this.chatId, messageContent, null).subscribe({
+  //       next: () => {
+  //         newMessage.status = 'Delivered'; 
+  //       },
+  //       error: () => {
+  //         newMessage.status = 'Failed'; 
+  //       }
+  //     });
+  //   }
+  // } 
+  // Under possible deleting (05.2025)
+
+  scrollToBottom(force: boolean = false): void {
+    if (!force && !this.isAtBottom) {
+      console.log('ScrollToBottom: Not scrolling, user is not at bottom.');
+      return;
     }
-  }
 
-  scrollToBottom(): void {
-    const messageContainer = document.querySelector('.messages');
-    if (messageContainer && this.isAtBottom) {
-      setTimeout(() => {
-        messageContainer.scrollTop = messageContainer.scrollHeight;
-      }, 100);
+    try {
+      const messageContainer = document.querySelector('.messages');
+      if (messageContainer) {
+        setTimeout(() => {
+          messageContainer.scrollTop = messageContainer.scrollHeight;
+          console.log(`Scrolled to bottom. New scrollTop: ${messageContainer.scrollTop}, scrollHeight: ${messageContainer.scrollHeight}`);
+          this.isAtBottom = true; 
+        }, 0); 
+      } else {
+        console.warn('ScrollToBottom: Message container not found.');
+      }
+    } catch (e) {
+      console.error('Error in scrollToBottom:', e);
     }
   }
 
@@ -1073,4 +1095,102 @@ navigateToUserProfile(userId: string, event?: Event): void {
     });  
   }
 
+  private addOrUpdateMessage(message: Message, forceScrollForMyMessage: boolean = false): void {
+    message.ismyMessage = message.senderId === this.userId; 
+    const existingMessageIndex = this.messages.findIndex(m => m._id === message._id);
+
+    if (existingMessageIndex > -1) {
+      this.messages[existingMessageIndex] = { ...this.messages[existingMessageIndex], ...message };
+    } else {
+      this.messages.push(message);
+    }
+
+    this.updateMessagesWithDividers();
+    this.cdr.detectChanges(); 
+
+    if (forceScrollForMyMessage && message.ismyMessage) {
+      console.log('Forcing scroll to bottom for my just sent message.');
+      this.scrollToBottom(true);
+    } else if (!message.ismyMessage && this.isAtBottom) {
+      console.log('Scrolling to bottom for their message while at bottom.');
+      this.scrollToBottom();
+    } else if (message.ismyMessage && this.isAtBottom) {
+      console.log('Scrolling to bottom for my message echo while at bottom.');
+      this.scrollToBottom();
+    }
+
+
+    if (message.senderId !== this.userId) {
+      this.triggerMarkAsRead();
+    }
+  }
+  
+  startReply(message: Message): void {
+    this.replyingToMessage = message;
+    this.activeContextMenuId = null;
+    const messageInput = document.querySelector('app-message-input textarea') as HTMLTextAreaElement;
+    if (messageInput) {
+      messageInput.focus();
+    }
+  }
+
+  cancelReply(): void {
+    this.replyingToMessage = null; 
+  }
+
+    onMessageSend(content: string | Event): void {
+    let messageContent: string;
+    
+    if (typeof content !== 'string') {
+      // If it's an event object, extract the value from the target input
+      const target = content.target as HTMLInputElement;
+      messageContent = target?.value || '';
+    } else {
+      messageContent = content;
+    }
+
+    if (!this.chatId || !messageContent.trim()) return;
+
+    const messagePayload: any = {
+      chatId: this.chatId,
+      content: messageContent.trim(),
+    };
+
+    if (this.replyingToMessage) {
+      messagePayload.replyTo = {
+        _id: this.replyingToMessage._id,
+        senderName: this.replyingToMessage.senderName,
+        content: this.replyingToMessage.content.substring(0, 100),
+        senderId: this.replyingToMessage.senderId
+      };
+    }
+
+    this.chatService.sendMessage(this.chatId, messageContent.trim(), messagePayload.replyTo)
+      .subscribe({
+        next: (sentMessage) => {
+          console.log('Message sent:', sentMessage);
+        },
+        error: (err) => {
+          console.error('Error sending message:', err);
+        }
+      });
+
+    this.cancelReply(); 
+  }
+
+        
+  scrollToMessage(messageId: string): void {
+    const messageElement = document.getElementById('message-' + messageId);
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      messageElement.classList.add('highlighted-reply');
+      setTimeout(() => {
+        messageElement.classList.remove('highlighted-reply');
+      }, 2000);
+    } else {
+      console.warn(`Message element with ID 'message-${messageId}' not found for scrolling.`);
+    }
+  }
+
+    
 }

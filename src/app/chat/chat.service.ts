@@ -346,30 +346,43 @@ export class ChatService implements OnDestroy {
       console.error('Cannot join chat: Socket is not initialized');
     }
   }  
-  sendMessage(chatId: string, content: string): Observable<any> {
+  sendMessage(chatId: string, content: string, replyToDetails?: any): Observable<Message> {
     return new Observable((observer) => {
       if (!this.socket || !this.socket.connected) {
         console.error('Socket is not connected. Cannot send message.');
         observer.error('Socket is not connected');
         return;
       }
-  
+      const MessageData: {
+        chatId: string;
+        content: string;
+        replyTo?: any;
+      } = {
+        chatId,
+        content,
+      }
+      if (replyToDetails) {
+        MessageData.replyTo = replyToDetails;
+      }
       // Message sent
-      this.socket.emit('send_message', { chatId, content });
-  
-      this.socket.on('message_sent', (savedMessage: Message) => {
-        observer.next(savedMessage); 
-        observer.complete();
+    this.socket.emit('send_message', MessageData, (ack: { success: any; message: Message; error: any; }) => { 
+      if (ack && ack.success) {
+          console.log('Server acknowledged message sent:', ack.message);
+          observer.next(ack.message as Message);
+          observer.complete();
+      } else {
+          console.error('Server did not acknowledge message or error:', ack);
+          observer.error(ack && ack.error ? ack.error : 'Failed to send message to server');
+      }
       });
+
       
       this.socket.on('message_edited', (message: Message) => {
         console.log('Socket received message_edited event:', message);
         observer.next(message);
       });        
-      // Error sending message
-      this.socket.on('message_error', (error: any) => {
-        observer.error(error);
-      });
+
+
     });
   }
   receiveMessages(callback: (message: any) => void) {

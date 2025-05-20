@@ -1,11 +1,9 @@
 <div class="message-input">
-  <input
-    type="text"
-    (input) = "onInputChange()"
+  <textarea
+    #messageTextarea 
     [(ngModel)]="message"
-    placeholder="Type a message..."
-    (keyup.enter)="sendMessage()"
-    autofocus
-  />
-  <button (click)="sendMessage()">Send</button>
+    (keydown.enter)="onEnterPress($event)"
+    (input)="onInput()"
+    ></textarea>
+  <button (click)="send()" [disabled]="!newMessage.trim()">Send</button>
 </div>

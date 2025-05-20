@@ -38,9 +38,10 @@ const messageSchema = new mongoose.Schema({
       reaction: { type: String }
     }],
     replyTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Message',
-      default: null
+      _id: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
+      senderName: { type: String },
+      content: { type: String },
+      senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
     }
   }, {
   timestamps: true,

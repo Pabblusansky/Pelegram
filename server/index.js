@@ -210,48 +210,64 @@ io.on('connection', (socket) => {
       }
     }
   });
-  socket.on('send_message', async (data) => {
-    const { chatId, content } = data;
+  socket.on('send_message', async (data, callback) => {
+    const { chatId, content, replyTo } = data;
     const senderId = socket.user.id;
       // Save message to database
-      try {
-        const sender = await User.findById(senderId);
-        if (!sender) {
-          console.log('Sender not found');
-          return;
+    try {
+      const sender = await User.findById(senderId);
+      if (!sender) {
+        console.log('Sender not found');
+        return;
+      }
+      const senderName = sender.username;
+
+      const message = new Message({
+          chatId,
+          senderId,
+          senderName,
+          content,
+          status: 'sent',
+      });
+
+      if (replyTo && replyTo._id) {
+        message.replyTo = {
+          _id: replyTo._id,
+          senderName: replyTo.senderName,
+          content: replyTo.content,
+          senderId: replyTo.senderId
+        };
+      }
+      
+      await message.save();
+
+      const updatedChat = await Chat.findByIdAndUpdate(chatId, {
+        lastMessage: message._id,
+      }, { new: true })
+        .populate('participants', '_id username avatar')
+        .populate({
+          path: 'lastMessage',
+          populate: { path: 'senderId', select: '_id username avatar' }
+        })
+      // Update chat with last message
+      const messageToSend = message.toObject();
+      io.to(chatId).emit('receive_message', messageToSend);
+      console.log('Emitted receive_message with replyTo:', messageToSend.replyTo);
+
+      if (updatedChat) {
+        io.to(chatId).emit('chat_updated', updatedChat.toObject());
+      }
+      if (typeof callback === 'function') {
+        callback({ success: true, message: messageToSend })
+      };
+      setTimeout(async () => {
+        const msgToUpdate = await Message.findById(message._id);
+        if (msgToUpdate) {
+          msgToUpdate.status = 'delivered';
+          await msgToUpdate.save();
+          io.to(chatId).emit('messageStatusUpdated', { messageId: msgToUpdate._id, status: 'delivered' });
         }
-        const senderName = sender.username;
-
-        const message = new Message({
-            chatId,
-            senderId,
-            senderName,
-            content,
-            status: 'sent',
-        });
-        await message.save();
-
-        // Update chat with last message
-
-        await Chat.findByIdAndUpdate(chatId, {
-            $push: { messages: message._id },
-            lastMessage: message._id,
-            updatedAt: Date.now(),
-        });
-
-        // Sending message to all users in chat
-        io.to(chatId).emit('receive_message', {
-          ...message.toObject(),
-          isEditing: false, 
-          editedContent: ''
-        });
-        
-        setTimeout(async () => {
-          message.status = 'delivered';
-          await message.save();
-          console.log(`Message ${message._id} status updated to delivered`); 
-          io.to(chatId).emit('messageStatusUpdated', { messageId: message._id, status: 'delivered' });
-        }, 1000); 
+      }, 1000);
     } catch (err) {
         console.error('Error sending message:', err);
     }

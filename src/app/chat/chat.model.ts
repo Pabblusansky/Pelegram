@@ -33,4 +33,11 @@ export interface Message {
   originalMessageId?: string;
   originalSenderId?: string;
   originalSenderName?: string;
+
+  replyTo?: {
+    _id: string;
+    senderName: string;
+    content: string;
+    senderId?: string;
+  }
 }

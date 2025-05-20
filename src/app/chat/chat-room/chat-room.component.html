@@ -55,6 +55,7 @@
       <!-- Message -->
       <div
       *ngIf="item.type === 'message'"
+      [id]="'message-' + item._id"
       [ngClass]="{
         'message': true,
         'my-message': item.senderId === userId,
@@ -86,7 +87,11 @@
     >
       {{ item.senderName }}
     </span>
-    
+
+      <div *ngIf="item.replyTo && item.replyTo._id" class="reply-quote-block" (click)="scrollToMessage(item.replyTo._id)">
+        <div class="reply-quote-sender">{{ item.replyTo.senderName }}</div>
+        <div class="reply-quote-content">{{ item.replyTo.content | slice:0:70 }}{{ item.replyTo.content?.length > 70 ? '...' : '' }}</div>
+      </div>
       <div *ngIf="item.forwarded && item.originalSenderName" class="forwarded-info">
         <span class="forwarded-icon">↪️</span>
         <span class="forwarded-text">
@@ -175,6 +180,13 @@
         <button class="menu-item" (click)="startEdit(getSelectedMessage())">
           <span class="menu-icon">✏️</span> Edit
         </button>
+        <button class="menu-item" (click)="startReply(getSelectedMessage())">
+          <span class="menu-icon">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 1C4.14 1 1 4.14 1 8c0 3.86 3.14 7 7 7 1.34 0 2.6-0.38 3.66-1.03l3.45 1.24c0.38 0.14 0.78-0.17 0.75-0.58L15.44 11.31C15.8 10.3 16 9.19 16 8 16 4.14 12.86 1 9 1H8zM5 7h6c0.55 0 1 0.45 1 1s-0.45 1-1 1H5C4.45 9 4 8.55 4 8s0.45-1 1-1z"/>
+            </svg>
+          </span> Reply
+        </button>
         <button class="menu-item delete" (click)="deleteMessage(activeContextMenuId)">
           <span class="menu-icon">🗑️</span> Delete
         </button>
@@ -195,11 +207,30 @@
     </div>
   </div>
   
+  <!-- Reply Box -->
+   <div *ngIf="replyingToMessage" class="reply-preview-container">
+  <div class="reply-indicator">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+      <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 0 1-.025 1.06L3.622 7.25h6.128a5.5 5.5 0 1 1 0 11H2.75a.75.75 0 0 1 0-1.5h7a4 4 0 1 0 0-8H3.622l4.146 3.957a.75.75 0 0 1-1.036 1.085l-5.5-5.25a.75.75 0 0 1 0-1.085l5.5-5.25a.75.75 0 0 1 1.06.025Z" clip-rule="evenodd" />
+    </svg>
+    <span>Reply to message:</span>
+  </div>
+  <div class="reply-preview-content">
+    <strong class="reply-sender">{{ replyingToMessage.senderName }}</strong>
+    <p class="reply-text">{{ replyingToMessage.content | slice:0:100 }}{{ replyingToMessage.content.length > 100 ? '...' : '' }}</p>
+  </div>
+  <button (click)="cancelReply()" class="cancel-reply-btn" title="Cancel reply">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+      <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+    </svg>
+  </button>
+</div>
+
   <!-- Input -->
   <div class="message-input-container">
     <app-message-input
       [chatId]="chatId"
-      (messageSent)="sendMessage($event)"
+      (sendMessageEvent)="onMessageSend($event)"
       (inputChange)="onInputChange($event)"
     ></app-message-input>
   </div>
