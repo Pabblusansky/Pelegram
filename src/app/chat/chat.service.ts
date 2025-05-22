@@ -3,7 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { io, Socket } from 'socket.io-client';
 import { Router } from '@angular/router';
 import { catchError, Observable, Observer, retry, share, Subject, throwError, map, tap } from 'rxjs';
-import { Chat, Message, Reaction } from './chat.model';
+import { Chat, Message, Reaction, User } from './chat.model';
 import { BehaviorSubject, interval } from 'rxjs';
 import { shareReplay, takeUntil } from 'rxjs/operators';
 
@@ -14,6 +14,20 @@ interface MessageDeletedEvent {
   updatedChat: any;
 }
 
+interface ChatDeletedGloballyData {
+  chatId: string;
+  deletedBy?: string; // Optional field to indicate who deleted the chat
+}
+
+interface NewChatCreatedData {
+  _id: string;
+  participants: User[];
+  messages: any[];
+  type: string;
+  createdAt?: string;
+  updatedAt?: string;
+  lastMessage?: any;
+}
 @Injectable({
   providedIn: 'root',
 })
@@ -32,7 +46,10 @@ export class ChatService implements OnDestroy {
   public chatUpdated$ = this.chatUpdatedSubject.asObservable();
   private messageReactionUpdatedSubject = new Subject<{ messageId: string; reactions: Reaction[] }>();
   public messageReactionUpdated$ = this.messageReactionUpdatedSubject.asObservable();
-
+  private chatDeletedGloballySubject = new Subject<ChatDeletedGloballyData>();
+  public chatDeletedGlobally$ = this.chatDeletedGloballySubject.asObservable();
+  private newChatCreatedSubject = new Subject<Chat>();
+  public newChatCreated$ = this.newChatCreatedSubject.asObservable();
   constructor(private http: HttpClient, private router: Router) {
     this.initializeSocket();
   }
@@ -67,6 +84,21 @@ export class ChatService implements OnDestroy {
     if (token) {
       this.socket = io(this.apiUrl, {
         auth: { token },
+      });
+
+      this.socket.on('chat_deleted_globally', (data: ChatDeletedGloballyData) => {
+        console.log('FRONTEND SERVICE: Received chat_deleted_globally event:', data);
+        this.chatDeletedGloballySubject.next(data);
+      });
+
+      this.socket.on('new_chat_created', (chatData: Chat) => {
+            console.log('FRONTEND SERVICE: Received new_chat_created event:', chatData);
+            this.newChatCreatedSubject.next(chatData);
+
+            if (this.socket && chatData && chatData._id) {
+              console.log(`FRONTEND SERVICE: Auto-joining room for newly created chat: ${chatData._id}`);
+              this.socket.emit('join_chat', chatData._id);
+            }
       });
 
       this.socket.on('message_reaction_updated', (data: { messageId: string; reactions: Reaction[] }) => {
@@ -543,4 +575,14 @@ export class ChatService implements OnDestroy {
     console.warn('Socket not connected. Cannot toggle reaction.');
   }
 }
+
+  deleteChat(chatId: string): Observable<any> {
+    const headers = this.getHeaders();
+    if (!headers) {
+      this.router.navigate(['/login']);
+      return throwError(() => new Error('Not authorized for deleteChat'));
+    }
+    // URL will be: http://localhost:3000/chats/:chatId
+    return this.http.delete(`${this.apiUrl}/chats/${chatId}`, { headers });
+  }
 }

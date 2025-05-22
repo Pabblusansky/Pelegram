@@ -1,3 +1,12 @@
+<div class="chat-room-wrapper">
+  <div *ngIf="isChatEffectivelyDeleted" class="chat-deleted-message">
+    <h2>This chat has been deleted.</h2>
+    <p>You can no longer send or receive messages in this chat. Redirecting in 5 seconds...</p>
+    <p>If you are not redirected, please click the button below.</p>
+    <button (click)="goBack()">Return to home</button>
+  </div>
+
+<ng-container *ngIf="!isChatEffectivelyDeleted">
 <div class="chat-room">
   <!-- Header -->
   <div class="chat-header">
@@ -76,7 +85,7 @@
       *ngIf="item.senderId === userId"
       class="message-menu-icon"
       type="button"
-      (click)="showMenuIconClick($event, item)"
+      (click)="showContextMenu($event, item)"
       >⋮</button>
       
       <span 
@@ -264,4 +273,6 @@
     (cancel)="cancelForward()"
     (forward)="confirmForward($event)"
   ></app-forward-dialog>
+</div>
+</ng-container>
 </div>

@@ -56,6 +56,21 @@ export class ChatListComponent implements OnInit, OnDestroy {
       })
     );
     
+
+    this.subscription.add(
+      this.chatService.chatDeletedGlobally$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(data => {
+          this.removeChatFromList(data.chatId, data.deletedBy);
+        })
+    );
+    this.subscription.add(
+      this.chatService.newChatCreated$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(newChat => {
+          this.addNewChatToList(newChat);
+        })
+    );
     this.subscription.add(
       this.chatService.chatUpdated$.pipe(takeUntil(this.destroy$)).subscribe(updatedChat => {
         this.handleChatUpdate(updatedChat);
@@ -395,6 +410,67 @@ loadChats() {
       }
     } else {
       chat.participantsString = 'Saved Messages';
+    }
+  }
+
+  getChatDisplayName(chat: any): string {
+    if (!chat) return 'Chat';
+    return chat.participantsString || chat.participants?.find((p: { _id: string, username: string }) => p._id !== this.currentUserId)?.username || 'Chat';
+  }
+  confirmAndDeleteChat(chatToDelete: Chat, event: MouseEvent): void {
+    event.stopPropagation();
+    event.preventDefault();
+
+    if (!chatToDelete._id) {
+      console.error('Cannot delete chat: chat ID is missing.');
+      return;
+    }
+
+    const chatName = this.getChatDisplayName(chatToDelete);
+    const confirmed = confirm(
+      `Are you sure you want to delete the chat with "${chatName}"? This action is irreversible and will delete all messages for all participants.`
+    );
+
+    if (confirmed) {
+      this.loading = true;
+      this.chatService.deleteChat(chatToDelete._id).subscribe({
+        next: (response) => {
+          console.log(`Chat ${chatToDelete._id} deletion request sent successfully. Response:`, response);
+          this.loading = false;
+        },
+        error: (err) => {
+          console.error(`Failed to delete chat ${chatToDelete._id}:`, err);
+          alert(`Error deleting chat: ${err.error?.message || err.message || 'Unknown error'}`);
+          this.loading = false;
+        }
+      });
+    }
+  }
+
+  private removeChatFromList(chatIdToRemove: string, deletedBy?: string): void {
+    const index = this.chats.findIndex(chat => chat._id === chatIdToRemove);
+    if (index > -1) {
+      const removedChat = this.chats.splice(index, 1)[0];
+      console.log(`Chat '${this.getChatDisplayName(removedChat)}' (ID: ${chatIdToRemove}) removed from list.`);
+      this.cdr.detectChanges();
+    }
+  }
+
+    private addNewChatToList(newChat: Chat): void {
+    const existingChatIndex = this.chats.findIndex(c => c._id === newChat._id);
+    if (existingChatIndex === -1) {
+      console.log(`CHAT-LIST: Adding new chat to list:`, newChat);
+      this.chats.unshift(newChat);
+      
+      this.formatSingleChat(this.chats[0]);
+      this.loadParticipantProfilesForSingleChat(this.chats[0]);
+
+      this.cdr.detectChanges();
+    } else {
+      console.log(`CHAT-LIST: New chat event for existing chat ${newChat._id}, possibly updating.`, newChat);
+      this.chats[existingChatIndex] = { ...this.chats[existingChatIndex], ...newChat };
+      this.formatSingleChat(this.chats[existingChatIndex]);
+      this.cdr.detectChanges();
     }
   }
 }

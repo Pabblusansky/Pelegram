@@ -172,6 +172,9 @@ io.on('connection', (socket) => {
     socket.user = decoded; // Save user data to socket
     console.log(`User connected: ${socket.id}`);
     if (socket.user && socket.user.id) {
+      const userRoom = socket.user.id.toString();
+      socket.join(userRoom);
+      console.log(`Socket ${socket.id} for user ${socket.user.id} joined personal room: ${userRoom}`);
       updateUserStatus(socket.user.id, true);
       
       socket.emit('user_status_update', Object.fromEntries(
@@ -218,9 +221,18 @@ io.on('connection', (socket) => {
       const sender = await User.findById(senderId);
       if (!sender) {
         console.log('Sender not found');
+        if (typeof callback === 'function') callback({ success: false, error: 'Sender not found' });
         return;
       }
       const senderName = sender.username;
+      const existingChatData = await Chat.findById(chatId);
+      if (!existingChatData) {
+        console.error(`Error sending message: Chat with ID ${chatId} not found for counting messages.`);
+        if (typeof callback === 'function') callback({ success: false, error: 'Chat not found' });
+        return;
+      }
+      const messageCountInChat = existingChatData.messages.length;
+      const isFirstMessageInChat = messageCountInChat === 0;
 
       const message = new Message({
           chatId,
@@ -241,9 +253,13 @@ io.on('connection', (socket) => {
       
       await message.save();
 
-      const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-        lastMessage: message._id,
-      }, { new: true })
+      const updatedChat = await Chat.findByIdAndUpdate(
+        chatId, 
+        {
+          lastMessage: message._id,
+        },
+        { new: true }
+      )
         .populate('participants', '_id username avatar')
         .populate({
           path: 'lastMessage',
@@ -256,6 +272,18 @@ io.on('connection', (socket) => {
 
       if (updatedChat) {
         io.to(chatId).emit('chat_updated', updatedChat.toObject());
+      }
+
+      if (isFirstMessageInChat) {
+        console.log(`Chat ${chatId} is being "activated" for participants due to the first message.`);
+        const chatDataForActivation = updatedChat.toObject();
+
+        updatedChat.participants.forEach(participant => {
+          if (participant && participant._id) {
+            io.to(participant._id.toString()).emit('new_chat_created', chatDataForActivation);
+            console.log(`Emitted 'new_chat_created' to participant ${participant._id.toString()} for chat ${chatId} after first message.`);
+          }
+        });
       }
       if (typeof callback === 'function') {
         callback({ success: true, message: messageToSend })
@@ -399,7 +427,7 @@ app.use('/uploads/avatars', (req, res, next) => {
 
 app.use('/api/auth', authRoutes);
 app.use(authenticateToken);
-app.use('/chats', chatRoutes);
+app.use('/chats', chatRoutes(io));
 app.use('/messages', messageRoutes(io));
 app.use('/api/profile', profileRoutes);
 

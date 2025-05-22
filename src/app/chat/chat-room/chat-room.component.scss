@@ -1017,4 +1017,71 @@ html, body {
   align-items: center;
   padding: 2px 6px 2px 10px;
 }
+
+.chat-room-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.chat-deleted-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  margin: auto;
+  max-width: 500px;
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  
+  h2 {
+    color: #dc3545;
+    margin-bottom: 1rem;
+    font-weight: 600;
+  }
+  
+  p {
+    color: #6c757d;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+  }
+  
+  button {
+    padding: 0.5rem 1.25rem;
+    background-color: #4a76a8;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
     
+    &:hover {
+      background-color: #3a5a7d;
+    }
+    
+    &:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(74, 118, 168, 0.3);
+    }
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .chat-deleted-message {
+    background-color: #2d3748;
+    
+    h2 {
+      color: #f56565;
+    }
+    
+    p {
+      color: #e2e8f0;
+    }
+  }
+}

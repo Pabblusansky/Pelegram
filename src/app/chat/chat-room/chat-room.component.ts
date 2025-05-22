@@ -70,7 +70,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   messagetoForward: any = null;
   replyingToMessage: Message | null = null;
   availableReactions: string[] = ['👍', '❤️', '😂', '😮', '😢', '🙏']; // Available reactions, alpha test (1.0)
-  
+  isChatEffectivelyDeleted: boolean = false; 
 
   constructor(
     private route: ActivatedRoute,
@@ -91,6 +91,15 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       this.executeLoadMoreMessages();
     });
   
+
+    this.chatService.chatDeletedGlobally$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.chatId && this.chatId === data.chatId) {
+          this.handleCurrentChatWasDeleted(data.deletedBy);
+        }
+    });
+
   this.chatService.messageReactionUpdated$
     .pipe(takeUntil(this.destroy$))
     .subscribe(update => {
@@ -155,6 +164,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       const routeChatId = params.get('chatId');
       this.chatId = routeChatId || this.selectedChatId;
       if (this.chatId) {
+        this.isChatEffectivelyDeleted = false;
         this.loadMessages();
         this.loadChatDetails();
         this.markMessagesAsRead();
@@ -162,6 +172,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     });
   
     this.userId = localStorage.getItem('userId');
+    
+
     
     this.chatService.getUsers().subscribe({
       next: (users: any[]) => {
@@ -662,24 +674,6 @@ navigateToUserProfile(userId: string, event?: Event): void {
     console.log('Menu position set to:', this.menuPosition);
   }
   
-  showMenuIconClick(event: MouseEvent, message: any): void {
-
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    event.preventDefault();
-    
-    this.setMenuPosition(event);
-
-    this.activeContextMenuId = message._id;
-    this.selectedMessageId = message._id;
-    
-    this.cdr.detectChanges();
-    setTimeout(() => {
-      console.log('After update: activeContextMenuId =', this.activeContextMenuId);
-      console.log('Context menu visible:', !!document.querySelector('.context-menu'));
-    }, 0);
-  }
-  
   startEdit(message: any): void {
     this.activeContextMenuId = null;
     
@@ -864,7 +858,7 @@ navigateToUserProfile(userId: string, event?: Event): void {
     });
   }
 
-    private showToast(message: string, duration: number = 3000): void {
+  public showToast(message: string, duration: number = 3000): void {
     console.log('Showing toast:', message);
     
     const existingToasts = document.querySelectorAll('.toast-notification');
@@ -1224,6 +1218,7 @@ navigateToUserProfile(userId: string, event?: Event): void {
         messageElement.classList.remove('highlighted-reply');
       }, 2000);
     } else {
+      this.showToast('Original message not found', 5000);
       console.warn(`Message element with ID 'message-${messageId}' not found for scrolling.`);
     }
   }
@@ -1269,4 +1264,21 @@ navigateToUserProfile(userId: string, event?: Event): void {
     this.chatService.toggleReaction(messageId, reactionType);
     this.activeContextMenuId = null; 
   }
+
+  private handleCurrentChatWasDeleted(deletedBy?: string): void {
+    console.log(`CHAT ROOM: Current chat ${this.chatId} was deleted.`);
+    this.isChatEffectivelyDeleted = true;
+    this.messages = [];
+    this.messagesWithDividers = [];
+    this.chatDetails = null;
+    this.otherParticipant = null;
+    const deleter = deletedBy === this.userId ? 'you' : (deletedBy ? 'another participant' : 'one of the participants');
+    this.showToast(`Chat was deleted by ${deleter}. Redirecting to home...`, 5000);
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      this.router.navigate(['/home']);
+    }, 3000);
+  }
+
+  
 }
