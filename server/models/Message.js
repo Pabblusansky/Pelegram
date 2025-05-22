@@ -1,5 +1,10 @@
 import mongoose from "mongoose";
 
+const reactionSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    reaction: { type: String, required: true },
+}, { _id: false });
+
 const messageSchema = new mongoose.Schema({
     chatId: { type: mongoose.Schema.Types.ObjectId, ref: 'Chat', required: true },
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -33,10 +38,7 @@ const messageSchema = new mongoose.Schema({
       type: String,
       default: null
     },
-    reactions: [{
-      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-      reaction: { type: String }
-    }],
+    reactions: [reactionSchema],
     replyTo: {
       _id: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
       senderName: { type: String },

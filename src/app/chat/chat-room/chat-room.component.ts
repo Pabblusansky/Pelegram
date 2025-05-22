@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { debounceTime, Observable, Subject, Subscription, takeUntil } from 'rxjs';
 import { ChatService } from '../chat.service';
-import { Message } from '../chat.model';
+import { Message, Reaction} from '../chat.model';
 import { MessageInputComponent } from "../message-input/message-input.component";
 import { Router } from '@angular/router';
 import { ForwardDialogComponent } from '../forward/forward-dialogue.component';
@@ -69,6 +69,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   showForwardDialogue = false;
   messagetoForward: any = null;
   replyingToMessage: Message | null = null;
+  availableReactions: string[] = ['👍', '❤️', '😂', '😮', '😢', '🙏']; // Available reactions, alpha test (1.0)
   
 
   constructor(
@@ -90,6 +91,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       this.executeLoadMoreMessages();
     });
   
+  this.chatService.messageReactionUpdated$
+    .pipe(takeUntil(this.destroy$))
+    .subscribe(update => {
+      this.handleReactionUpdate(update.messageId, update.reactions);
+    });
 
     this.chatService.onTyping().subscribe((data: any) => {
       console.log('Typing event received:', data);
@@ -542,15 +548,45 @@ navigateToUserProfile(userId: string, event?: Event): void {
       console.error('Cannot show context menu: Invalid message object', message);
       return;
     }
-    
-    console.log("showContextMenu triggered for message:", message._id);
-    const x = Math.min(event.clientX, window.innerWidth - 200);
-    const y = Math.min(event.clientY, window.innerHeight - 250);
-    
-    this.menuPosition = { x, y };
+
+    const MenuWidth = 220;  
+    const MenuHeight = 280;
+    const cursorOffset = 5;
+
+    let positionX = event.clientX;
+    let positionY = event.clientY;
+
+    if (positionX + MenuWidth + cursorOffset > window.innerWidth) {
+      positionX = positionX - MenuWidth - cursorOffset;
+    } else {
+      positionX = positionX + cursorOffset;
+    }
+    if (positionX < 10) {
+      positionX = 10;
+    }
+
+    if (positionY - MenuHeight - cursorOffset < 0) {
+      positionY = positionY + cursorOffset;
+
+      if (positionY + MenuHeight > window.innerHeight) {
+        positionY = window.innerHeight - MenuHeight - 10;
+      }
+    } else {
+      positionY = positionY - MenuHeight - cursorOffset;
+    }
+    if (positionY < 10) {
+      positionY = 10;
+    }
+
+    if (positionX + MenuWidth > window.innerWidth) {
+      positionX = window.innerWidth - MenuWidth - 10;
+      if (positionX < 10) positionX = 10;
+    }
+
+
+    this.menuPosition = { x: positionX, y: positionY };
     this.activeContextMenuId = message._id;
-    this.selectedMessageId = message._id;
-    
+    this.selectedMessageId = message._id; 
     this.cdr.detectChanges();
   }
   
@@ -1192,5 +1228,45 @@ navigateToUserProfile(userId: string, event?: Event): void {
     }
   }
 
-    
+    private handleReactionUpdate(messageId: string, newReactions: Reaction[]): void {
+    const messageIndex = this.messages.findIndex(m => m._id === messageId);
+    if (messageIndex !== -1) {
+      this.messages[messageIndex].reactions = newReactions;
+      this.updateMessagesWithDividers(); //
+      this.cdr.detectChanges();
+      console.log(`Reactions updated for message ${messageId}`, newReactions);
+    } else {
+      console.warn(`Message ${messageId} not found locally to update reactions.`);
+    }
+  }
+
+  getGroupedReactions(reactions: Reaction[] | undefined): { type: string; count: number; reactedByMe: boolean; userIds: string[] }[] {
+    if (!reactions || reactions.length === 0) {
+      return [];
+    }
+    const groups: { [key: string]: { count: number; userIds: string[] } } = {};
+    reactions.forEach(r => {
+      if (!groups[r.reaction]) {
+        groups[r.reaction] = { count: 0, userIds: [] };
+      }
+      groups[r.reaction].count++;
+      groups[r.reaction].userIds.push(r.userId);
+    });
+
+    return Object.keys(groups).map(reactionType => ({
+      type: reactionType,
+      count: groups[reactionType].count,
+      reactedByMe: !!this.userId && groups[reactionType].userIds.includes(this.userId),
+      userIds: groups[reactionType].userIds // For future use
+    }));
+  }
+
+  onReactionClick(messageId: string | undefined | null, reactionType: string): void {
+    if (!messageId) {
+      console.error('Cannot add reaction: messageId is null or undefined');
+      return;
+    }
+    this.chatService.toggleReaction(messageId, reactionType);
+    this.activeContextMenuId = null; 
+  }
 }

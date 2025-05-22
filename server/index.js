@@ -311,6 +311,54 @@ io.on('connection', (socket) => {
     }
   });
 
+    socket.on('toggle_reaction', async ({ messageId, reactionType }) => {
+    if (!socket.user || !socket.user.id) {
+      socket.emit('reaction_error', { messageId, error: 'User not authenticated for reaction.' });
+      return;
+    }
+
+    const userId = socket.user.id;
+
+    try {
+      const message = await Message.findById(messageId);
+      if (!message) {
+        socket.emit('reaction_error', { messageId, error: 'Message not found.' });
+        return;
+      }
+
+      const existingReactionIndex = message.reactions.findIndex(
+        (r) => r.userId.toString() === userId.toString()
+      );
+
+      let reactionChanged = false;
+
+      if (existingReactionIndex !== -1) {
+        if (message.reactions[existingReactionIndex].reaction === reactionType) {
+          message.reactions.splice(existingReactionIndex, 1);
+          reactionChanged = true;
+        } else {
+          message.reactions[existingReactionIndex].reaction = reactionType;
+          reactionChanged = true;
+        }
+      } else {
+        message.reactions.push({ userId, reaction: reactionType });
+        reactionChanged = true;
+      }
+
+      if (reactionChanged) {
+        await message.save();
+
+        io.to(message.chatId.toString()).emit('message_reaction_updated', {
+          messageId: message._id,
+          reactions: message.reactions, 
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling reaction:', error);
+      socket.emit('reaction_error', { messageId, error: 'Server error processing reaction.' });
+    }
+  });
+
   socket.on('logout', () => {
     if (socket.user && socket.user.id) {
       updateUserStatus(socket.user.id, false);

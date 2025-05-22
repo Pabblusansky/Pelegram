@@ -138,6 +138,18 @@
       </div>
     
       <div class="message-footer">
+        <div class="message-reactions-wrapper">
+          <div class="message-reactions" *ngIf="item.type === 'message' && item.reactions && item.reactions.length > 0">
+            <span 
+              *ngFor="let group of getGroupedReactions(item.reactions)" 
+              class="reaction-tag"
+              [class.reacted-by-me]="group.reactedByMe"
+              (click)="onReactionClick(item._id, group.type)"
+              title="{{ group.reactedByMe ? 'Remove Reaction' : 'Put Reaction ' + group.type }}">
+              {{ group.type }} <span class="reaction-count">{{ group.count }}</span>
+            </span>
+          </div>
+        </div>
         <div class="message-info">
           <span class="timestamp">{{ formatTimestamp(item.timestamp) }}</span>
           
@@ -164,39 +176,51 @@
       </div>
     </div>
   </ng-container>
-
+  
   <div 
-    *ngIf="activeContextMenuId && menuPosition"
-    class="context-menu"
-    [style.left.px]="menuPosition.x"
-    [style.top.px]="menuPosition.y"
-    @menuAnimation
+  *ngIf="activeContextMenuId && menuPosition"
+  #ContextMenuElement
+  class="context-menu"
+  [style.left.px]="menuPosition.x"
+  [style.top.px]="menuPosition.y"
+  @menuAnimation
   >
-    <div class="menu-header">
-      <div class="menu-close" (click)="activeContextMenuId = null">×</div>
-    </div>
-    <div class="menu-items">
-      <ng-container *ngIf="getSelectedMessage()?.senderId === userId">
-        <button class="menu-item" (click)="startEdit(getSelectedMessage())">
-          <span class="menu-icon">✏️</span> Edit
+  <div class="menu-top-bar">
+  <div class="reaction-bar-above-menu">
+    <span 
+    *ngFor="let emoji of availableReactions" 
+    class="reaction-emoji-option"
+    (click)="onReactionClick(activeContextMenuId, emoji); $event.stopPropagation();"
+    title="React: {{ emoji }}">
+    {{ emoji }}
+  </span>
+</div>
+</div>
+<div class="menu-header">
+  <div class="menu-close" (click)="activeContextMenuId = null">×</div>
+</div>
+<div class="menu-items">
+  <ng-container *ngIf="getSelectedMessage()?.senderId === userId">
+    <button class="menu-item" (click)="startReply(getSelectedMessage())">
+      <span class="menu-icon">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 1C4.14 1 1 4.14 1 8c0 3.86 3.14 7 7 7 1.34 0 2.6-0.38 3.66-1.03l3.45 1.24c0.38 0.14 0.78-0.17 0.75-0.58L15.44 11.31C15.8 10.3 16 9.19 16 8 16 4.14 12.86 1 9 1H8zM5 7h6c0.55 0 1 0.45 1 1s-0.45 1-1 1H5C4.45 9 4 8.55 4 8s0.45-1 1-1z"/>
+        </svg>
+      </span> Reply
+    </button>
+    <button class="menu-item" (click)="startEdit(getSelectedMessage())">
+      <span class="menu-icon">✏️</span> Edit
+    </button>
+        <button class="menu-item" (click)="copyMessageText(getSelectedMessage())">
+          <span class="menu-icon">📋</span> Copy
         </button>
-        <button class="menu-item" (click)="startReply(getSelectedMessage())">
-          <span class="menu-icon">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8 1C4.14 1 1 4.14 1 8c0 3.86 3.14 7 7 7 1.34 0 2.6-0.38 3.66-1.03l3.45 1.24c0.38 0.14 0.78-0.17 0.75-0.58L15.44 11.31C15.8 10.3 16 9.19 16 8 16 4.14 12.86 1 9 1H8zM5 7h6c0.55 0 1 0.45 1 1s-0.45 1-1 1H5C4.45 9 4 8.55 4 8s0.45-1 1-1z"/>
-            </svg>
-          </span> Reply
+        <button class="menu-item" (click)="forwardMessage(getSelectedMessage())">
+          <span class="menu-icon">↪️</span> Forward
         </button>
         <button class="menu-item delete" (click)="deleteMessage(activeContextMenuId)">
           <span class="menu-icon">🗑️</span> Delete
         </button>
       </ng-container>
-      <button class="menu-item" (click)="copyMessageText(getSelectedMessage())">
-        <span class="menu-icon">📋</span> Copy
-      </button>
-      <button class="menu-item" (click)="forwardMessage(getSelectedMessage())">
-        <span class="menu-icon">↪️</span> Forward
-      </button>
     </div>
 
   </div>

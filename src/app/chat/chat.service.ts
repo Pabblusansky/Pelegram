@@ -3,7 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { io, Socket } from 'socket.io-client';
 import { Router } from '@angular/router';
 import { catchError, Observable, Observer, retry, share, Subject, throwError, map, tap } from 'rxjs';
-import { Chat, Message } from './chat.model';
+import { Chat, Message, Reaction } from './chat.model';
 import { BehaviorSubject, interval } from 'rxjs';
 import { shareReplay, takeUntil } from 'rxjs/operators';
 
@@ -30,6 +30,8 @@ export class ChatService implements OnDestroy {
   public userStatuses$ = this.userStatusesSubject.asObservable().pipe(shareReplay(1));
   private chatUpdatedSubject = new Subject<Chat>();
   public chatUpdated$ = this.chatUpdatedSubject.asObservable();
+  private messageReactionUpdatedSubject = new Subject<{ messageId: string; reactions: Reaction[] }>();
+  public messageReactionUpdated$ = this.messageReactionUpdatedSubject.asObservable();
 
   constructor(private http: HttpClient, private router: Router) {
     this.initializeSocket();
@@ -67,6 +69,14 @@ export class ChatService implements OnDestroy {
         auth: { token },
       });
 
+      this.socket.on('message_reaction_updated', (data: { messageId: string; reactions: Reaction[] }) => {
+        console.log('SERVICE: message_reaction_updated received', data);
+        this.messageReactionUpdatedSubject.next(data);
+      });
+
+      this.socket.on('reaction_error', (data: { messageId: string; error: string }) => {
+        console.error('SERVICE: reaction_error received', data);
+      });
       this.socket.on('chat_updated', (chat: Chat) => {
         this.chatUpdatedSubject.next(chat);
       });
@@ -524,4 +534,13 @@ export class ChatService implements OnDestroy {
     }
     return { headers };
   }
+
+  toggleReaction(messageId: string, reactionType: string): void {
+  if (this.socket && this.socket.connected) {
+    console.log(`SERVICE: Emitting toggle_reaction for msg ${messageId}, reaction: ${reactionType}`);
+    this.socket.emit('toggle_reaction', { messageId, reactionType });
+  } else {
+    console.warn('Socket not connected. Cannot toggle reaction.');
+  }
+}
 }

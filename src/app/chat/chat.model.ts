@@ -3,6 +3,14 @@ export interface User {
   username: string;
 }
 
+export interface Reaction {
+  userId: string;
+  username?: string;
+  reaction: string;
+  createdAt?: string | Date;
+}
+
+
 export interface Chat {
   _id: string;
   participants: User[];
@@ -34,6 +42,9 @@ export interface Message {
   originalSenderId?: string;
   originalSenderName?: string;
 
+
+  reactions?: Reaction[];
+  
   replyTo?: {
     _id: string;
     senderName: string;
