@@ -22,10 +22,13 @@ import { ProfileService } from '../../profile/profile.service';
 export class ChatListComponent implements OnInit, OnDestroy {
   @Output() chatSelected = new EventEmitter<string>();
   chats: any[] = [];
+  filteredChats: any[] = [];
   searchQuery: string = '';
   searchResults: User[] = [];
   // selectedUserId: string | null = null;
   loading: boolean = false;
+  loadingChats: boolean = false;
+  loadingUserSearch: boolean = false;
   private searchSubject = new Subject<string>();
   private currentUserId: string | null = null;
   private subscription: Subscription = new Subscription();
@@ -211,6 +214,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
     const chatToMove = this.chats.splice(chatIndex, 1)[0];
     this.chats.unshift(chatToMove);
     this.loadParticipantProfilesForSingleChat(chatToMove);
+    this.applyChatFilter();
     this.cdr.detectChanges();
   } else {
     console.warn(`Chat with ID ${updatedChat._id} not found in local list. Reloading all chats.`);
@@ -218,27 +222,28 @@ export class ChatListComponent implements OnInit, OnDestroy {
   }
 }
 
-loadChats() {
-  this.loading = true;
-  this.chatService.getChats()?.subscribe(
-    (data: any) => {
-      console.log('Loaded chats:', data);
-        this.chats = data;
-        this.formatParticipants();
-        
-        this.loadParticipantProfiles();
-        
-        this.loading = false;
-      },
-      (error) => {
-        console.error('Failed to load chats:', error);
-        this.loading = false;
-        if (error.status === 401 || error.status === 403) {
-          this.router.navigate(['/login']);
+  loadChats() {
+    this.loadingChats = true;
+    this.chatService.getChats()?.subscribe(
+      (data: any) => {
+        console.log('Loaded chats:', data);
+          this.chats = data;
+          this.formatParticipants();
+          
+          this.applyChatFilter();
+          this.loadParticipantProfiles();
+          
+          this.loadingChats = false;
+        },
+        (error) => {
+          console.error('Failed to load chats:', error);
+          this.loadingChats = false;
+          if (error.status === 401 || error.status === 403) {
+            this.router.navigate(['/login']);
+          }
         }
-      }
-    );
-  }
+      );
+    }
   
   loadParticipantProfiles() {
     const participantIds = new Set<string>();
@@ -288,7 +293,14 @@ loadChats() {
       debounceTime(300),
       takeUntil(this.destroy$)
     ).subscribe(query => {
-      this.searchUsersInternal(query);
+      this.applyChatFilter();
+      
+      if (this.filteredChats.length === 0 && query.trim().length > 0) {
+        this.searchUsersInternal(query);
+      } else {
+        this.searchResults = []; 
+      }
+      this.cdr.detectChanges();
     });
   }
 
@@ -296,10 +308,22 @@ loadChats() {
     this.searchSubject.next(this.searchQuery);
   }
 
+  private applyChatFilter(): void {
+    const query = this.searchQuery.toLowerCase().trim();
+    if (!query) {
+      this.filteredChats = [...this.chats]; // If no query, show all chats
+    } else {
+      this.filteredChats = this.chats.filter(chat =>
+
+        chat.participantsString && chat.participantsString.toLowerCase().includes(query)
+      );
+    }
+  }
   private searchUsersInternal(query: string) { 
     const token = localStorage.getItem('token');
     if (query.trim()) {
-      this.loading = true;
+      this.loadingUserSearch = true;
+      this.searchResults = [];
       this.http.get<User[]>(`http://localhost:3000/chats/search?query=${query}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       }).subscribe({
@@ -310,18 +334,19 @@ loadChats() {
               this.loadUserProfile(user._id);
             }
           });
-          this.loading = false;
+          this.loadingUserSearch = false;
           this.cdr.detectChanges();
         },
         error: (err) => {
           console.error('Search error:', err);
           this.searchResults = [];
-          this.loading = false;
+          this.loadingUserSearch = false;
           this.cdr.detectChanges();
         }
       });
     } else {
       this.searchResults = [];
+      this.loadingUserSearch = false;
       this.cdr.detectChanges();
     }
   }
@@ -355,6 +380,10 @@ loadChats() {
   }
   formatParticipants() {
     this.chats.forEach(chat => {
+      if (!chat.participants) {
+        chat.participantsString = 'Unknown Chat';
+        return;
+      }
       const otherParticipants = chat.participants.filter(
         (participant: any) => participant._id !== this.currentUserId
       );
@@ -380,7 +409,8 @@ loadChats() {
       const chat = this.chats.splice(chatIndex, 1)[0];
       this.chats.unshift(chat);
       
-      this.formatParticipants();
+      // this.formatParticipants();
+      this.applyChatFilter();
       this.cdr.detectChanges();
     } else {
       this.loadChats();
@@ -452,6 +482,7 @@ loadChats() {
     if (index > -1) {
       const removedChat = this.chats.splice(index, 1)[0];
       console.log(`Chat '${this.getChatDisplayName(removedChat)}' (ID: ${chatIdToRemove}) removed from list.`);
+      this.applyChatFilter();
       this.cdr.detectChanges();
     }
   }
@@ -464,7 +495,7 @@ loadChats() {
       
       this.formatSingleChat(this.chats[0]);
       this.loadParticipantProfilesForSingleChat(this.chats[0]);
-
+      this.applyChatFilter();
       this.cdr.detectChanges();
     } else {
       console.log(`CHAT-LIST: New chat event for existing chat ${newChat._id}, possibly updating.`, newChat);

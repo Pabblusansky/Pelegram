@@ -5,15 +5,28 @@
       type="text" 
       [(ngModel)]="searchQuery" 
       (input)="onSearchChange()" 
-      placeholder="Search for a user..." 
+      placeholder="Search chats or users.." 
       aria-label="User Search"
     />
-    <ul *ngIf="searchQuery && searchResults.length > 0" class="search-results">
-      <li *ngFor="let user of searchResults" 
+
+    <div *ngIf="loadingUserSearch" class="loading-indicator search-loading">
+      <div class="spinner"></div>
+      <p>Searching for users...</p>
+    </div>
+
+    
+    <div *ngIf="searchQuery && searchResults.length > 0" class="search-results-container user-search-results">
+      <div class="results-header">Start a new chat:</div>
+      <div *ngFor="let user of searchResults" 
           class="search-result-item"
           (click)="startChatWithUser(user)" 
           title="Start chat with {{ user.username }}">
-        <span class="search-result-username">{{ user.username }}</span>
+        <div class="user-avatar">
+          <img [src]="getSearchResultAvatar(user)" alt="{{ user.username }} avatar" (error)="handleAvatarError($event)">
+        </div>
+        <div class="user-info">
+          <span class="user-name">{{ user.username }}</span>
+        </div>
         
         <button 
           class="view-profile-btn" 
@@ -22,14 +35,16 @@
         >
           <span class="profile-icon">👤</span>
         </button>
-      </li>
-    </ul>
-    <div *ngIf="searchQuery && searchResults.length === 0 && !loading" class="no-search-results">
-      No users found for "{{ searchQuery }}"
+      </div>
+    </div>    
+    <!-- No results at all when searching -->
+    <div *ngIf="!loadingChats && !loadingUserSearch && filteredChats.length === 0 && searchQuery.trim().length > 0 && searchResults.length === 0" class="no-results-overall">
+        <p>No chats or users found for "{{ searchQuery }}".</p>
     </div>
+  </div>
 
   <!-- Chat list -->
-  <div *ngIf="loading" class="loading-indicator">
+  <div *ngIf="loadingChats" class="loading-indicator">
     <div class="spinner">
     </div>
     Loading chats..
@@ -42,8 +57,8 @@
     <p class="no-chats-title">You have no chats yet</p>
     <p class="no-chats-subtitle">Use the search above to find friends and start chatting!</p>
   </div>
-  <div *ngIf="!loading && chats.length > 0">
-    <div *ngFor="let chat of chats" class="chat-item">
+  <div *ngIf="!loadingChats && filteredChats.length > 0">
+    <div *ngFor="let chat of filteredChats" class="chat-item">
       <a (click)="onChatClick(chat._id)" class="chat-link">
         <div class="chat-info">
           <!-- Avatar with profile view option -->
