@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { catchError, Observable, Observer, retry, share, Subject, throwError, map, tap } from 'rxjs';
 import { Chat, Message, Reaction, User } from './chat.model';
 import { BehaviorSubject, interval } from 'rxjs';
-import { shareReplay, takeUntil } from 'rxjs/operators';
+import { delay, shareReplay, takeUntil } from 'rxjs/operators';
 
 
 interface MessageDeletedEvent {
@@ -373,7 +373,7 @@ export class ChatService implements OnDestroy {
     const headers = this.getHeaders();
     if (!headers) return;
     return this.http.get(`${this.apiUrl}/chats`, { headers });
-}
+  }
 
   getMessages(chatId: string): Observable<any> | undefined {
     const headers = this.getHeaders();
