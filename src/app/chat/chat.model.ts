@@ -16,6 +16,8 @@ export interface Chat {
   participants: User[];
   messages: string[];
   lastMessage?: string;
+  displayAvatarUrl?: string;
+  isSelfChat?: boolean;
 }
 
 export interface Message {

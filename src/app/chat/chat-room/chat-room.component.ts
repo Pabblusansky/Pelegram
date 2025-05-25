@@ -337,19 +337,26 @@ navigateToUserProfile(userId: string, event?: Event): void {
     this.chatService.getChat(this.chatId).subscribe({
       next: (chat) => {
         this.chatDetails = chat;
-        
-        if (chat.participants && chat.participants.length > 0) {
-          this.otherParticipant = chat.participants.find(
-            (p: any) => p._id !== this.userId
-          );
-          
-          if (this.otherParticipant) {
-            this.otherParticipantStatus$ = this.chatService.getUserStatusText(this.otherParticipant._id);
-            this.isOtherParticipantOnline$ = this.chatService.isUserOnline(this.otherParticipant._id);
-          }
+      const isSavedMessages = chat.participants && chat.participants.length === 1 && chat.participants[0]._id === this.userId;
+
+      if (!isSavedMessages && chat.participants && chat.participants.length > 0) { 
+        this.otherParticipant = chat.participants.find(
+          (p: any) => p._id !== this.userId
+        );
+
+        if (this.otherParticipant) {
+          this.otherParticipantStatus$ = this.chatService.getUserStatusText(this.otherParticipant._id);
+          this.isOtherParticipantOnline$ = this.chatService.isUserOnline(this.otherParticipant._id);
+        } else {
+          this.otherParticipantStatus$ = null;
+          this.isOtherParticipantOnline$ = null;
         }
-        
-        this.cdr.detectChanges();
+      } else {
+        this.otherParticipant = null;
+        this.otherParticipantStatus$ = null;
+        this.isOtherParticipantOnline$ = null;
+      }
+      this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Error loading chat details:', err);
@@ -358,6 +365,9 @@ navigateToUserProfile(userId: string, event?: Event): void {
   }
   
   getChatName(): string {
+    if (this.chatDetails?.participants?.length === 1 && this.chatDetails.participants[0]._id === this.userId) {
+      return 'Saved Messages';
+    }
     if (!this.chatDetails || !this.chatDetails.participants) {
       return 'Chat';
     }
@@ -366,8 +376,9 @@ navigateToUserProfile(userId: string, event?: Event): void {
       (p: any) => p._id !== this.userId
     );
     
-    if (otherParticipants.length === 0) {
-      return 'Saved Messages';
+    if (!otherParticipants || otherParticipants.length === 0) {
+    // This case should ideally be caught by the self-chat check above
+      return this.chatDetails?.participants?.[0]?.username || 'Chat';
     }
     
     return otherParticipants.map((p: any) => p.username).join(', ');
@@ -785,16 +796,44 @@ navigateToUserProfile(userId: string, event?: Event): void {
       });
   }
   
+
+
   get getAvatarUrl(): string {
-    if (!this.otherParticipant || !this.otherParticipant.avatar) {
+    if (!this.chatDetails || !this.userId || !this.users || this.users.length === 0) {
       return 'assets/images/default-avatar.png';
     }
-  
-    if (this.otherParticipant.avatar.startsWith('/uploads')) {
-      return `http://localhost:3000${this.otherParticipant.avatar}`;
+
+    const isSavedMessagesChat =
+      this.chatDetails.participants &&
+      this.chatDetails.participants.length === 1 &&
+      this.chatDetails.participants[0]._id === this.userId;
+
+    if (isSavedMessagesChat) {
+      return 'assets/images/saved-messages-icon.png'; 
     }
-  
-    return this.otherParticipant.avatar;
+
+    if (this.otherParticipant && this.otherParticipant.avatar) {
+      const avatarPath = this.otherParticipant.avatar;
+      if (avatarPath.startsWith('/uploads/')) { 
+        return `${this.chatService.getApiUrl()}${avatarPath}`;
+      }
+      return avatarPath; 
+    }
+        return 'assets/images/default-avatar.png';
+  }
+
+  get getOtherParticipantAvatarUrl(): string {
+    if (!this.otherParticipant || !this.otherParticipant.avatar) {
+        return 'assets/images/default-avatar.png';
+      }
+    
+      if (this.otherParticipant.avatar.startsWith('/uploads')) {
+        return `${this.chatService.getApiUrl()}${this.otherParticipant.avatar}`;
+      }
+
+      return this.otherParticipant.avatar.startsWith('/uploads')
+      ? `${this.chatService.getApiUrl()}${this.otherParticipant.avatar}`
+      : this.otherParticipant.avatar;
   }
 
   handleAvatarError(event: Event): void {

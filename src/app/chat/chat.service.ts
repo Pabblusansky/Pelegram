@@ -380,6 +380,18 @@ export class ChatService implements OnDestroy {
     if (!headers) return;
     return this.http.get(`${this.apiUrl}/messages/${chatId}`, { headers });
   }
+
+  getSavedMessagesChat(): Observable<Chat> {
+  const headers = this.getHeaders();
+  if (!headers) {
+    return throwError(() => new Error('Not authorized to get Saved Messages chat.'));
+  }
+  return this.http.get<Chat>(`${this.apiUrl}/chats/me/saved-messages`, { headers })
+    .pipe(
+      tap(chat => console.log('ChatService: Fetched Saved Messages chat:', chat)),
+      catchError(this.handleError)
+    );
+  }
   joinChat(chatId: string) {
     if (this.socket) {
       this.socket.emit('join_chat', chatId);
@@ -567,6 +579,9 @@ export class ChatService implements OnDestroy {
     return { headers };
   }
 
+  getApiUrl(): string {
+    return this.apiUrl;
+  }
   toggleReaction(messageId: string, reactionType: string): void {
   if (this.socket && this.socket.connected) {
     console.log(`SERVICE: Emitting toggle_reaction for msg ${messageId}, reaction: ${reactionType}`);

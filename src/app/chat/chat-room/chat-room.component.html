@@ -34,7 +34,8 @@
     >
       {{ getChatName() }}
     </div>
-    <div class="chat-status" *ngIf="otherParticipantStatus$ | async as status">
+    <div class="chat-status"    
+    *ngIf="chatDetails?.participants?.length > 1 && (otherParticipantStatus$ | async) as status">
       {{ status }}
     </div>
     </div>

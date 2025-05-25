@@ -30,7 +30,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
   loadingChats: boolean = false;
   loadingUserSearch: boolean = false;
   private searchSubject = new Subject<string>();
-  private currentUserId: string | null = null;
+  public currentUserId: string | null = null;
   private subscription: Subscription = new Subscription();
   private destroy$ = new Subject<void>();
   participantStatuses: Map<string, boolean> = new Map();
@@ -38,19 +38,21 @@ export class ChatListComponent implements OnInit, OnDestroy {
   private userProfilesCache = new Map<string, UserProfile>();
   
   loadingAvatars = new Set<string>();
+
+  savedMessagesChat: Chat | null = null; 
   
 
   constructor(
     private chatService: ChatService, 
     private http: HttpClient, 
-    private router: Router, 
+    public router: Router, 
     private cdr: ChangeDetectorRef,
     private profileService: ProfileService
   ) {}
 
   ngOnInit(): void {
     this.currentUserId = localStorage.getItem('userId');
-    this.loadChats();
+    this.loadInitialChats(); // Changed from loadChats()
     this.setupSearch();
 
     this.subscription.add(
@@ -59,7 +61,6 @@ export class ChatListComponent implements OnInit, OnDestroy {
       })
     );
     
-
     this.subscription.add(
       this.chatService.chatDeletedGlobally$
         .pipe(takeUntil(this.destroy$))
@@ -67,13 +68,15 @@ export class ChatListComponent implements OnInit, OnDestroy {
           this.removeChatFromList(data.chatId, data.deletedBy);
         })
     );
+    
     this.subscription.add(
       this.chatService.newChatCreated$
         .pipe(takeUntil(this.destroy$))
         .subscribe(newChat => {
-          this.addNewChatToList(newChat);
+          this.handleNewChatCreated(newChat);
         })
     );
+    
     this.subscription.add(
       this.chatService.chatUpdated$.pipe(takeUntil(this.destroy$)).subscribe(updatedChat => {
         this.handleChatUpdate(updatedChat);
@@ -81,52 +84,143 @@ export class ChatListComponent implements OnInit, OnDestroy {
     );
 
     this.chatService.userStatuses$
-    .pipe(takeUntil(this.destroy$))
-    .subscribe(statuses => {
-      this.chats.forEach(chat => {
-        const otherParticipant = chat.participants.find(
-          (p: any) => p._id !== this.currentUserId
-        );
-        
-        if (otherParticipant) {
-          const userId = otherParticipant._id;
-          const userStatus = statuses[userId];
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(statuses => {
+        this.chats.forEach(chat => {
+          const otherParticipant = chat.participants.find(
+            (p: any) => p._id !== this.currentUserId
+          );
           
-          this.participantStatuses.set(userId, userStatus ? userStatus.online : false);
-        }
+          if (otherParticipant) {
+            const userId = otherParticipant._id;
+            const userStatus = statuses[userId];
+            
+            this.participantStatuses.set(userId, userStatus ? userStatus.online : false);
+          }
+        });
+        
+        this.cdr.detectChanges();
       });
-      
+  }
+
+loadInitialChats(): void {
+  this.loadingChats = true;
+  console.log("CHAT-LIST: Attempting to load Saved Messages chat...");
+  this.chatService.getSavedMessagesChat().subscribe({
+    next: (smChat) => {
+      console.log("CHAT-LIST: Received Saved Messages chat data:", smChat);
+      if (smChat && smChat._id) {
+        this.savedMessagesChat = this.formatChatForDisplay(smChat, true);
+        console.log("LOAD_INIT: SavedMessagesChat object AFTER format:", JSON.parse(JSON.stringify(this.savedMessagesChat)));
+      } else {
+        console.warn("CHAT-LIST: Saved Messages chat data is invalid or missing _id.");
+        this.savedMessagesChat = null;
+      } 
+      this.loadRegularChats(); 
+    },
+    error: (err) => {
+      console.error('CHAT-LIST: Error loading Saved Messages chat, proceeding with regular chats:', err);
+      this.savedMessagesChat = null; 
+      this.savedMessagesChat = null;
+      this.loadRegularChats();
+    }
+  });
+}
+
+loadRegularChats(): void {
+  this.chatService.getChats()?.subscribe({
+    next: (regularChatsData: any) => {
+      let regularChats: Chat[] = Array.isArray(regularChatsData) ? regularChatsData : [];
+      console.log("LOAD_REGULAR: Fetched regular chats. Count:", regularChats.length, "SavedMessagesChat ID to filter:", this.savedMessagesChat);
+
+      this.chats = regularChats
+        .filter(chat => {
+          const shouldKeep = !(this.savedMessagesChat && chat._id === this.savedMessagesChat._id);
+          if (!shouldKeep) {
+            console.log(`LOAD_REGULAR: Filtering out Saved Messages chat (ID: ${chat._id}) from regular list.`);
+          }
+          return shouldKeep;
+        })
+        .map(chat => {
+          return this.formatChatForDisplay(chat, false); 
+        });
+
+      console.log("LOAD_REGULAR: Chats array AFTER filtering and formatting regular chats. Count:", this.chats.length);
+
+      if (this.savedMessagesChat) {
+        const alreadyExistsIndex = this.chats.findIndex(c => c._id === this.savedMessagesChat!._id);
+        if (alreadyExistsIndex !== -1) {
+            console.warn("LOAD_REGULAR: SavedMessagesChat was already in the list. Replacing.", this.savedMessagesChat);
+            this.chats.splice(alreadyExistsIndex, 1);
+        }
+        console.log("LOAD_REGULAR: Unshifting pre-formatted SavedMessagesChat:", JSON.parse(JSON.stringify(this.savedMessagesChat)));
+        this.chats.unshift(this.savedMessagesChat);
+      }
+
+      this.sortChatsInPlace();
+      this.applyChatFilter();
+      this.loadParticipantProfiles();
+      this.loadingChats = false;
       this.cdr.detectChanges();
+      console.log("LOAD_REGULAR: Final this.chats count:", this.chats.length, "Final this.filteredChats count:", this.filteredChats.length);
+      console.log("LOAD_REGULAR: First chat in filteredChats:", this.filteredChats.length > 0 ? JSON.parse(JSON.stringify(this.filteredChats[0])) : "None");
+    },
+      error: (error) => {
+        console.error('Failed to load regular chats:', error);
+        this.loadingChats = false;
+        if (error.status === 401 || error.status === 403) {
+          this.router.navigate(['/login']);
+        }
+      }
     });
   }
 
+  // General method to format a chat (both regular and Saved Messages)
+
+  formatChatForDisplay(chat: Chat, isSelf: boolean): any {
+    const id = chat._id || 'unknown_id';
+    console.log(`FORMAT_CHAT (${id}): Called. isSelf: ${isSelf}, Original chat participants: ${chat.participants?.length}`);
+    const formatted: any = { ...chat, isSelfChat: isSelf };
+
+    if (isSelf) {
+      formatted.participantsString = 'Saved Messages'; 
+      formatted.displayAvatarUrl = 'assets/images/saved-messages-icon.png'; 
+      console.log(`FORMAT_CHAT (${id}): Formatted as SELF. displayAvatarUrl: ${formatted.displayAvatarUrl}`);
+    } else {
+      const otherParticipants = chat.participants?.filter(p => p._id !== this.currentUserId);
+
+      if (otherParticipants && otherParticipants.length > 0) {
+        if (otherParticipants.length > 1) {
+          formatted.participantsString = otherParticipants.map(p => p.username || 'User').join(', ');
+        } else {
+          formatted.participantsString = otherParticipants[0]?.username || 'Chat User';
+        }
+
+        const mainOtherParticipant = otherParticipants[0];
+        if (mainOtherParticipant && mainOtherParticipant._id) { 
+          const userProfile = this.userProfilesCache.get(mainOtherParticipant._id);
+          if (userProfile && userProfile.avatar) {
+            formatted.displayAvatarUrl = getFullAvatarUrl(userProfile.avatar);
+          } else {
+            formatted.displayAvatarUrl = 'assets/images/default-avatar.png';
+            if (!userProfile && !this.loadingAvatars.has(mainOtherParticipant._id)) {
+              this.loadUserProfile(mainOtherParticipant._id);
+            }
+          }
+        } else {
+          formatted.displayAvatarUrl = 'assets/images/default-avatar.png';
+        }
+      } else {
+
+        formatted.participantsString = chat.participants || 'Chat';
+        formatted.displayAvatarUrl = 'assets/images/default-avatar.png';
+      }
+    }
+    return formatted;
+  }
+
   getUserAvatar(chat: any): string {
-    if (!chat || !chat.participants) {
-      return 'assets/images/default-avatar.png';
-    }
-    
-    const otherParticipant = chat.participants.find(
-      (p: any) => p._id !== this.currentUserId
-    );
-    
-    if (!otherParticipant) {
-      return 'assets/images/default-avatar.png';
-    }
-    
-    const userId = otherParticipant._id;
-    
-    if (this.userProfilesCache.has(userId)) {
-      const profile = this.userProfilesCache.get(userId);
-      return getFullAvatarUrl(profile?.avatar);
-    }
-    
-    if (this.loadingAvatars.has(userId)) {
-      return 'assets/images/avatar-loading.png';
-    }
-    
-    this.loadUserProfile(userId);
-    
-    return 'assets/images/default-avatar.png';
+    return chat.displayAvatarUrl || 'assets/images/default-avatar.png';
   }
 
   getSearchResultAvatar(user: User): string {
@@ -138,7 +232,6 @@ export class ChatListComponent implements OnInit, OnDestroy {
       const profile = this.userProfilesCache.get(user._id);
       return getFullAvatarUrl(profile?.avatar);
     }
-    
     
     this.loadUserProfile(user._id);
     
@@ -194,6 +287,10 @@ export class ChatListComponent implements OnInit, OnDestroy {
       return null;
     }
     
+    if (chat.isSelfChat) {
+      return this.currentUserId; // For saved messages, it's the current user
+    }
+    
     const otherParticipant = chat.participants.find(
       (p: any) => p._id !== this.currentUserId
     );
@@ -201,60 +298,93 @@ export class ChatListComponent implements OnInit, OnDestroy {
     return otherParticipant ? otherParticipant._id : null;
   }
   
-  private handleChatUpdate(updatedChat: Chat): void {
-    const chatIndex = this.chats.findIndex(chat => chat._id === updatedChat._id);
-    
-    if (chatIndex !== -1) {
-    this.chats[chatIndex] = {
-      ...this.chats[chatIndex],
-      ...updatedChat,
-    };
-    this.formatSingleChat(this.chats[chatIndex]); 
-
-    const chatToMove = this.chats.splice(chatIndex, 1)[0];
-    this.chats.unshift(chatToMove);
-    this.loadParticipantProfilesForSingleChat(chatToMove);
-    this.applyChatFilter();
-    this.cdr.detectChanges();
-  } else {
-    console.warn(`Chat with ID ${updatedChat._id} not found in local list. Reloading all chats.`);
-    this.loadChats();
+  sortChatsInPlace(): void {
+    this.chats.sort((a, b) => {
+      if (a.isSelfChat && !b.isSelfChat) return -1;
+      if (!a.isSelfChat && b.isSelfChat) return 1;
+      const timeA = new Date(a.lastMessage?.timestamp || a.updatedAt || 0).getTime();
+      const timeB = new Date(b.lastMessage?.timestamp || b.updatedAt || 0).getTime();
+      return timeB - timeA;
+    });
   }
-}
 
-  loadChats() {
-    this.loadingChats = true;
-    this.chatService.getChats()?.subscribe(
-      (data: any) => {
-        console.log('Loaded chats:', data);
-          this.chats = data;
-          this.formatParticipants();
-          
-          this.applyChatFilter();
-          this.loadParticipantProfiles();
-          
-          this.loadingChats = false;
-        },
-        (error) => {
-          console.error('Failed to load chats:', error);
-          this.loadingChats = false;
-          if (error.status === 401 || error.status === 403) {
-            this.router.navigate(['/login']);
-          }
-        }
-      );
+  handleNewChatCreated(newChat: Chat): void {
+    const isSelfChat = newChat.participants.length === 1 && newChat.participants[0]._id === this.currentUserId;
+    const formattedNewChat = this.formatChatForDisplay(newChat, isSelfChat);
+
+    const existingIndex = this.chats.findIndex(c => c._id === newChat._id);
+    if (existingIndex !== -1) {
+      this.chats[existingIndex] = formattedNewChat; 
+    } else {
+      this.chats.unshift(formattedNewChat);
+      if (isSelfChat) {
+        this.savedMessagesChat = formattedNewChat; 
+      }
     }
-  
+    this.sortChatsInPlace();
+    this.applyChatFilter();
+    this.loadParticipantProfilesForSingleChat(formattedNewChat);
+    this.cdr.detectChanges();
+  }
+
+  private handleChatUpdate(updatedChatFromServer: Chat): void {
+    const id = updatedChatFromServer._id || 'unknown_id';
+    const chatIndex = this.chats.findIndex(chat => chat._id === updatedChatFromServer._id);
+    if (chatIndex !== -1) {
+      const isSelf = this.chats[chatIndex].isSelfChat; 
+      console.log(`HANDLE_CHAT_UPDATE (${id}): Existing chat isSelfChat: ${isSelf}. Re-formatting.`);
+      this.chats[chatIndex] = {
+        ...this.formatChatForDisplay(updatedChatFromServer, isSelf),
+        isSelfChat: isSelf,
+        displayAvatarUrl: isSelf ? this.chats[chatIndex].displayAvatarUrl : undefined 
+      };
+      console.log(`HANDLE_CHAT_UPDATE (${id}): Chat in list AFTER update:`, JSON.parse(JSON.stringify(this.chats[chatIndex])));
+      if (!isSelf) {
+        const formatted = this.formatChatForDisplay(updatedChatFromServer, false);
+        this.chats[chatIndex].displayAvatarUrl = formatted.displayAvatarUrl;
+        this.chats[chatIndex].participantsString = formatted.participantsString;
+      }
+
+      this.sortChatsInPlace();
+      this.applyChatFilter();
+      this.cdr.detectChanges();
+    } else {
+      console.warn(`Received 'chat_updated' for a chat not in the list: ${updatedChatFromServer._id}. Adding it.`);
+      this.handleNewChatCreated(updatedChatFromServer);
+    }
+  }
+
+  handleNewMessage(message: Message): void {
+    const chatIndex = this.chats.findIndex(chat => chat._id === message.chatId);
+    if (chatIndex !== -1) {
+      this.chats[chatIndex].lastMessage = message;
+      
+      this.sortChatsInPlace();
+      this.applyChatFilter();
+      this.cdr.detectChanges();
+    } else {
+      console.warn(`Chat for new message (ID: ${message.chatId}) not found. Consider reloading or investigating.`);
+      this.loadInitialChats(); 
+    }
+  }
+
   loadParticipantProfiles() {
     const participantIds = new Set<string>();
     
     this.chats.forEach(chat => {
-      chat.participants.forEach((participant: any) => {
-        if (participant._id !== this.currentUserId && !this.userProfilesCache.has(participant._id)) {
-          participantIds.add(participant._id);
-        }
-      });
+      if (!chat.isSelfChat) {
+        chat.participants.forEach((participant: any) => {
+          if (participant._id !== this.currentUserId && !this.userProfilesCache.has(participant._id)) {
+            participantIds.add(participant._id);
+          }
+        });
+      }
     });
+    
+    // Also load current user's profile for Saved Messages
+    if (this.currentUserId && !this.userProfilesCache.has(this.currentUserId)) {
+      participantIds.add(this.currentUserId);
+    }
     
     console.log('Loading profiles for participants:', Array.from(participantIds));
     
@@ -276,16 +406,33 @@ export class ChatListComponent implements OnInit, OnDestroy {
         
         this.userProfilesCache.set(userId, profile);
         
-        this.loadingAvatars.delete(userId);
+
         
+        this.loadingAvatars.delete(userId);
         this.cdr.detectChanges();
       },
       error: (err) => {
         console.error(`Failed to load profile for user ${userId}:`, err);
-        
         this.loadingAvatars.delete(userId);
       }
     });
+  }
+
+  private loadParticipantProfilesForSingleChat(chat: any): void {
+    if (!chat || !chat.participants) return;
+    
+    if (chat.isSelfChat) {
+      // For Saved Messages, load current user's profile
+      if (this.currentUserId && !this.userProfilesCache.has(this.currentUserId)) {
+        this.loadUserProfile(this.currentUserId);
+      }
+    } else {
+      chat.participants.forEach((participant: any) => {
+        if (participant._id !== this.currentUserId && !this.userProfilesCache.has(participant._id)) {
+          this.loadUserProfile(participant._id);
+        }
+      });
+    }
   }
 
   setupSearch() {
@@ -314,11 +461,11 @@ export class ChatListComponent implements OnInit, OnDestroy {
       this.filteredChats = [...this.chats]; // If no query, show all chats
     } else {
       this.filteredChats = this.chats.filter(chat =>
-
         chat.participantsString && chat.participantsString.toLowerCase().includes(query)
       );
     }
   }
+  
   private searchUsersInternal(query: string) { 
     const token = localStorage.getItem('token');
     if (query.trim()) {
@@ -351,10 +498,6 @@ export class ChatListComponent implements OnInit, OnDestroy {
     }
   }
 
-  // selectUser(user: User) {
-  //   this.selectedUserId = user._id;
-  // }
-
   startChatWithUser(user: User) {
     if (!user || !user._id) return;
 
@@ -369,7 +512,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
           this.searchResults = [];
           this.router.navigate(['/chats', newChat._id]);
           if (!this.chats.find(c => c._id === newChat._id)) {
-            this.loadChats();
+            this.loadInitialChats(); // Changed from loadChats()
           }
         },
         error: (error) => {
@@ -378,81 +521,29 @@ export class ChatListComponent implements OnInit, OnDestroy {
         }
       });
   }
-  formatParticipants() {
-    this.chats.forEach(chat => {
-      if (!chat.participants) {
-        chat.participantsString = 'Unknown Chat';
-        return;
-      }
-      const otherParticipants = chat.participants.filter(
-        (participant: any) => participant._id !== this.currentUserId
-      );
-      if (otherParticipants.length > 1) {
-        chat.participantsString = otherParticipants.map((participant: any) => participant.username).join(', ');
-      } else {     
-        chat.participantsString = otherParticipants[0]?.username || 'Unknown'; 
-      }
-    });
-  }
   
   onChatClick(chatId: string) {
     this.chatSelected.emit(chatId);
     this.router.navigate([`/chats/${chatId}`]);
   }
 
-  handleNewMessage(message: Message): void {
-    const chatIndex = this.chats.findIndex(chat => chat._id === message.chatId);
-    
-    if (chatIndex !== -1) {
-      this.chats[chatIndex].lastMessage = message;
-      
-      const chat = this.chats.splice(chatIndex, 1)[0];
-      this.chats.unshift(chat);
-      
-      // this.formatParticipants();
-      this.applyChatFilter();
-      this.cdr.detectChanges();
-    } else {
-      this.loadChats();
-    }
-  }
-
-  private loadParticipantProfilesForSingleChat(chat: any): void {
-    if (chat && chat.participants) {
-      chat.participants.forEach((participant: any) => {
-        if (participant._id !== this.currentUserId && !this.userProfilesCache.has(participant._id)) {
-          this.loadUserProfile(participant._id);
-        }
-      });
-    }
-  }
-
-  private formatSingleChat(chat: any): void {
-    if (!chat || !chat.participants) return;
-    const otherParticipants = chat.participants.filter(
-      (participant: any) => participant._id !== this.currentUserId
-    );
-    if (otherParticipants.length > 0) {
-      if (otherParticipants.length > 1) {
-          chat.participantsString = otherParticipants.map((participant: any) => participant.username || 'User').join(', ');
-      } else {
-          chat.participantsString = otherParticipants[0]?.username || 'Saved Messages'; 
-      }
-    } else {
-      chat.participantsString = 'Saved Messages';
-    }
-  }
-
   getChatDisplayName(chat: any): string {
     if (!chat) return 'Chat';
-    return chat.participantsString || chat.participants?.find((p: { _id: string, username: string }) => p._id !== this.currentUserId)?.username || 'Chat';
+    return chat.participantsString || 'Chat';
   }
+  
   confirmAndDeleteChat(chatToDelete: Chat, event: MouseEvent): void {
     event.stopPropagation();
     event.preventDefault();
 
     if (!chatToDelete._id) {
       console.error('Cannot delete chat: chat ID is missing.');
+      return;
+    }
+
+    // Don't allow deleting Saved Messages
+    if (chatToDelete.isSelfChat) {
+      alert('You cannot delete your Saved Messages.');
       return;
     }
 
@@ -467,6 +558,9 @@ export class ChatListComponent implements OnInit, OnDestroy {
         next: (response) => {
           console.log(`Chat ${chatToDelete._id} deletion request sent successfully. Response:`, response);
           this.loading = false;
+          
+          // Manually remove the chat from the lists to prevent waiting for the server event
+          this.removeChatFromList(chatToDelete._id);
         },
         error: (err) => {
           console.error(`Failed to delete chat ${chatToDelete._id}:`, err);
@@ -482,25 +576,43 @@ export class ChatListComponent implements OnInit, OnDestroy {
     if (index > -1) {
       const removedChat = this.chats.splice(index, 1)[0];
       console.log(`Chat '${this.getChatDisplayName(removedChat)}' (ID: ${chatIdToRemove}) removed from list.`);
+      
+      // If this was the Saved Messages chat, clear the reference
+      if (removedChat.isSelfChat) {
+        this.savedMessagesChat = null;
+      }
+      
       this.applyChatFilter();
       this.cdr.detectChanges();
     }
   }
 
-    private addNewChatToList(newChat: Chat): void {
+  private addNewChatToList(newChat: Chat): void {
     const existingChatIndex = this.chats.findIndex(c => c._id === newChat._id);
     if (existingChatIndex === -1) {
       console.log(`CHAT-LIST: Adding new chat to list:`, newChat);
-      this.chats.unshift(newChat);
       
-      this.formatSingleChat(this.chats[0]);
-      this.loadParticipantProfilesForSingleChat(this.chats[0]);
+      const isSelfChat = newChat.participants.length === 1 && 
+                         newChat.participants[0]._id === this.currentUserId;
+      const formattedChat = this.formatChatForDisplay(newChat, isSelfChat);
+      
+      this.chats.unshift(formattedChat);
+      
+      if (isSelfChat) {
+        this.savedMessagesChat = formattedChat;
+      }
+      
+      this.sortChatsInPlace();
       this.applyChatFilter();
+      this.loadParticipantProfilesForSingleChat(formattedChat);
       this.cdr.detectChanges();
     } else {
       console.log(`CHAT-LIST: New chat event for existing chat ${newChat._id}, possibly updating.`, newChat);
-      this.chats[existingChatIndex] = { ...this.chats[existingChatIndex], ...newChat };
-      this.formatSingleChat(this.chats[existingChatIndex]);
+      const isSelf = this.chats[existingChatIndex].isSelfChat;
+      this.chats[existingChatIndex] = { 
+        ...this.formatChatForDisplay(newChat, isSelf),
+        isSelfChat: isSelf
+      };
       this.cdr.detectChanges();
     }
   }

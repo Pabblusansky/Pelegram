@@ -80,9 +80,13 @@ export default (io) => {
 
   router.get('/', authenticateToken, async (req, res) => {
       try {
-          const chats = await Chat.find({ participants: req.user.id })
-          .populate('participants', 'username')
-          .populate('lastMessage')
+          const userId = req.user.id;
+          const chats = await Chat.find({ participants: userId })
+          .populate('participants', '_id username avatar name')
+          .populate({
+            path: 'lastMessage',
+            populate: { path: 'senderId', select: '_id username avatar name' }
+          })
           .sort({ updatedAt: -1 });
 
           res.json(chats);
@@ -154,5 +158,47 @@ export default (io) => {
     }
   });
 
+
+    router.get('/me/saved-messages', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user.id;
+
+      let savedMessagesChat = await Chat.findOne({
+        participants: { $eq: [userId], $size: 1 }
+      })
+      .populate('participants', '_id username avatar')
+      .populate({
+          path: 'lastMessage',
+          populate: { path: 'senderId', select: '_id username avatar name' }
+      });
+
+      let isNewChat = false;
+      if (!savedMessagesChat) {
+        isNewChat = true;
+        const newChatDoc = new Chat({
+          participants: [userId],
+          messages: [],
+          type: 'self'
+        });
+        savedMessagesChat = await newChatDoc.save();
+        savedMessagesChat = await Chat.findById(savedMessagesChat._id)
+          .populate('participants', '_id username avatar')
+          .populate({
+              path: 'lastMessage',
+              populate: { path: 'senderId', select: '_id username avatar name' }
+          });
+      }
+
+      if (isNewChat && savedMessagesChat) {
+        io.to(userId.toString()).emit('new_chat_created', savedMessagesChat.toObject());
+      }
+
+      res.status(isNewChat ? 201 : 200).json(savedMessagesChat);
+
+    } catch (error) {
+      console.error('Error getting/creating saved messages chat:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
   return router;
 };
