@@ -257,7 +257,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   }
 
   onInputChange(isTyping: boolean): void {
-    console.log("onInputChange triggered:", isTyping);
     if (this.chatId) {
       this.chatService.sendTyping(this.chatId, isTyping);
       this.isTyping = isTyping;
