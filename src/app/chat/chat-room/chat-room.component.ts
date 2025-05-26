@@ -1,7 +1,7 @@
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { debounceTime, Observable, Subject, Subscription, takeUntil } from 'rxjs';
@@ -10,6 +10,7 @@ import { Message, Reaction} from '../chat.model';
 import { MessageInputComponent } from "../message-input/message-input.component";
 import { Router } from '@angular/router';
 import { ForwardDialogComponent } from '../forward/forward-dialogue.component';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-chat-room',
@@ -71,12 +72,22 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   replyingToMessage: Message | null = null;
   availableReactions: string[] = ['👍', '❤️', '😂', '😮', '😢', '🙏']; // Available reactions, alpha test (1.0)
   isChatEffectivelyDeleted: boolean = false; 
+  
+  // Search functionality
+  isSearchActive: boolean = false;
+  searchQuery: string = '';
+  searchResults: Message[] = [];
+  currentSearchResultIndex: number = 0;
+  isSearching: boolean = false;
+  @ViewChild('searchInputEl') searchInputEl!: ElementRef;
+  private searchDebounce = new Subject<string>();
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private chatService: ChatService,
     private cdr: ChangeDetectorRef,
+    private sanitizer: DomSanitizer
   ) {
     this.markAsReadDebounce.pipe(debounceTime(500)).subscribe(() => {
       this.markMessagesAsRead();
@@ -89,6 +100,17 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(() => {
       this.executeLoadMoreMessages();
+    });
+    
+    this.searchDebounce.pipe(
+      debounceTime(400),
+      takeUntil(this.destroy$)
+    ).subscribe(query => {
+      if (this.isSearchActive && query.trim().length > 0) {
+        this.performActualSearch(query.trim());
+      } else if (this.isSearchActive && query.trim().length === 0) {
+        this.clearSearchResultsLocally(false);
+      }
     });
   
 
@@ -1247,16 +1269,28 @@ navigateToUserProfile(userId: string, event?: Event): void {
   }
 
         
-  scrollToMessage(messageId: string): void {
+  scrollToMessage(messageId: string, block: ScrollLogicalPosition = 'center', forceScroll: boolean = false): void {
+    if (!forceScroll && !this.isAtBottom && !this.isSearchActive) {
+      console.log('ScrollToMessage: Not scrolling, user is not at bottom and not a search scroll.');
+      return;
+    }
+
     const messageElement = document.getElementById('message-' + messageId);
     if (messageElement) {
-      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      messageElement.classList.add('highlighted-reply');
-      setTimeout(() => {
-        messageElement.classList.remove('highlighted-reply');
-      }, 2000);
+      // If this is not a search result scroll, use the regular reply highlighting logic
+      if (!this.isSearchActive || !messageElement.classList.contains('current-search-result')) {
+        document.querySelectorAll('.message.highlighted-reply').forEach(el => 
+          el.classList.remove('highlighted-reply')
+        );
+        messageElement.classList.add('highlighted-reply');
+        setTimeout(() => {
+          messageElement.classList.remove('highlighted-reply');
+        }, 2000);
+      }
+
+      messageElement.scrollIntoView({ behavior: 'smooth', block: block });
     } else {
-      this.showToast('Original message not found', 5000);
+      this.showToast('Message not found in current view', 3000);
       console.warn(`Message element with ID 'message-${messageId}' not found for scrolling.`);
     }
   }
@@ -1318,5 +1352,253 @@ navigateToUserProfile(userId: string, event?: Event): void {
     }, 3000);
   }
 
+  // Search functionality
+  onSearchQueryChange(): void {
+    this.searchQuery = this.searchQuery.trim();
+    
+    if (!this.searchQuery) {
+      this.clearSearchResultsLocally(true);
+      return;
+    }
+    
+    this.searchDebounce.next(this.searchQuery);
+  }
+
+  performActualSearch(query: string): void {
+    if (!this.chatId) return;
+    this.isSearching = true;
+    this.resetMessageHighlights(); 
+    
+    this.chatService.searchMessages(this.chatId!, query).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (results) => {
+        this.isSearching = false;
+        this.searchResults = results.sort((a, b) => 
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+        this.isSearchActive = true;
+        
+        if (this.searchResults.length > 0) {
+          this.currentSearchResultIndex = 0;
+          this.applyHighlightsToMessages(); 
+          this.navigateToSearchResult(this.currentSearchResultIndex, true);
+        } else {
+          this.currentSearchResultIndex = -1;
+          this.showToast('No messages found', 3000);
+        }
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.isSearching = false;
+        console.error('Search error:', err);
+        this.searchResults = [];
+        this.currentSearchResultIndex = -1;
+        this.showToast('Search failed, please try again', 3000);
+        this.resetMessageHighlights();
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  clearSearchResultsLocally(resetQuery: boolean = true): void {
+    this.searchResults = [];
+    this.currentSearchResultIndex = -1;
+    if (resetQuery) {
+      this.searchQuery = '';
+    }
+    if (!this.isSearchActive) { 
+      this.resetMessageHighlights();
+    }
+    this.cdr.detectChanges();
+  }
+
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.isSearchActive = false;
+    this.searchResults = [];
+    this.currentSearchResultIndex = 0;
+    this.resetMessageHighlights();
+    this.scrollToBottom();
+  }
+
+  onSearchInputFocus(): void {
+    this.isSearching = true;
+  }
+
+  onSearchInputBlur(): void {
+    setTimeout(() => {
+      this.isSearching = false;
+    }, 200);
+  }
+
+  navigateToSearchResult(index: number, isInitialSearch: boolean = false): void {
+    if (index < 0 || index >= this.searchResults.length) return;
+    
+    const targetMessage = this.searchResults[index];
+    if (!targetMessage?._id) return;
+    
+    this.messages.forEach(m => m.isCurrentSearchResult = false);
+    
+    const messageInView = this.messages.find(m => m._id === targetMessage._id);
+    
+    if (messageInView) {
+      messageInView.isCurrentSearchResult = true; 
+      this.updateMessagesWithDividers(); 
+      this.cdr.detectChanges();
+      
+      setTimeout(() => {
+        if (targetMessage._id) {
+          this.scrollToMessage(targetMessage._id, 'center', true); 
+        }
+      }, 50);
+    } else {
+      console.warn(`Search result message ${targetMessage._id} not found in current view.`);
+      this.showToast('Message is not currently loaded, scrolling to approximate position.', 3000);
+    }
+  }
+
+  scrollToSearchResult(index: number): void {
+    if (index < 0 || index >= this.searchResults.length) return;
+    
+    const messageId = this.searchResults[index]._id;
+    if (messageId) {
+      this.scrollToMessage(messageId, 'center', true);
+    }
+  }
+
+  nextSearchResult(): void {
+    if (this.searchResults.length === 0) {
+      if (this.searchQuery.trim()) this.performActualSearch(this.searchQuery.trim());
+      return;
+    }
+    
+    if (this.currentSearchResultIndex < this.searchResults.length - 1) {
+      this.currentSearchResultIndex++;
+    } else {
+      this.currentSearchResultIndex = 0; // Loop back to first result
+    }
+    
+    this.navigateToSearchResult(this.currentSearchResultIndex);
+  }
+
+  prevSearchResult(): void {
+    if (this.searchResults.length === 0) return;
+    
+    if (this.currentSearchResultIndex > 0) {
+      this.currentSearchResultIndex--;
+    } else {
+      this.currentSearchResultIndex = this.searchResults.length - 1; // Loop to last result
+    }
+    
+    this.navigateToSearchResult(this.currentSearchResultIndex);
+  }
+
+  // Methods for text highlighting
+  private escapeRegExp(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+getHighlightedText(text: string, query: string): SafeHtml {
+  if (!query || !text) {
+    return this.formatMessageContent(text);
+  }
   
+  const safeQuery = this.escapeRegExp(query.trim());
+  try {
+    const re = new RegExp(`(${safeQuery})`, 'gi');
+    const textWithBreaks = text.replace(/\n/g, '<br>');
+    const finalHighlighted = textWithBreaks.replace(re, '<span class="highlighted-search-term">$1</span>');
+    
+    return this.sanitizer.bypassSecurityTrustHtml(finalHighlighted);
+  } catch (error) {
+    console.error('Error highlighting text:', error);
+    return this.formatMessageContent(text);
+  }
 }
+
+  private applyHighlightsToMessages(): void {
+    const query = this.searchQuery.trim();
+    
+    // Reset all flags
+    this.messages.forEach(msg => {
+      msg.isSearchResult = false;
+      msg.isCurrentSearchResult = false;
+    });
+    
+    if (query && this.searchResults.length > 0) {
+      // Mark all search results
+      this.searchResults.forEach(foundMsg => {
+        const msgInView = this.messages.find(m => m._id === foundMsg._id);
+        if (msgInView) {
+          msgInView.isSearchResult = true;
+        }
+      });
+      
+      // Mark current result if any
+      if (this.currentSearchResultIndex >= 0 && this.currentSearchResultIndex < this.searchResults.length) {
+        const currentResultId = this.searchResults[this.currentSearchResultIndex]._id;
+        const currentMsgInView = this.messages.find(m => m._id === currentResultId);
+        if (currentMsgInView) {
+          currentMsgInView.isCurrentSearchResult = true;
+        }
+      }
+    }
+    
+    this.updateMessagesWithDividers(); // Update to apply classes
+    this.cdr.detectChanges();
+  }
+
+  private resetMessageHighlights(): void {
+    this.messages.forEach(msg => {
+      msg.isSearchResult = false;
+      msg.isCurrentSearchResult = false;
+    });
+    this.updateMessagesWithDividers();
+  }
+
+  // Search functionality methods
+  toggleSearch(): void {
+    this.isSearchActive = !this.isSearchActive;
+    
+    if (this.isSearchActive) {
+      this.searchQuery = '';
+      this.clearSearchResultsLocally(true);
+      
+      // Focus the search input after the DOM updates
+      setTimeout(() => {
+        if (this.searchInputEl) {
+          this.searchInputEl.nativeElement.focus();
+        }
+      }, 0);
+    } else {
+      this.clearSearch();
+    }
+  }
+  
+  closeSearch(): void {
+    this.isSearchActive = false;
+    this.searchQuery = '';
+    this.searchResults = [];
+    this.currentSearchResultIndex = 0;
+    this.resetMessageHighlights();
+  }
+  
+  navigateToNextSearchResult(): void {
+    this.nextSearchResult();
+  }
+  
+  navigateToPreviousSearchResult(): void {
+    this.prevSearchResult();
+  }
+
+
+  formatMessageContent(content: string): SafeHtml {
+    if (!content) return this.sanitizer.bypassSecurityTrustHtml('');
+    
+    const formattedContent = content.replace(/\n/g, '<br>');
+    
+    return this.sanitizer.bypassSecurityTrustHtml(formattedContent);
+  }
+}
+

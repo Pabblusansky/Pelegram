@@ -1,5 +1,5 @@
 import { Injectable, OnDestroy } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { io, Socket } from 'socket.io-client';
 import { Router } from '@angular/router';
 import { catchError, Observable, Observer, retry, share, Subject, throwError, map, tap } from 'rxjs';
@@ -600,4 +600,35 @@ export class ChatService implements OnDestroy {
     // URL will be: http://localhost:3000/chats/:chatId
     return this.http.delete(`${this.apiUrl}/chats/${chatId}`, { headers });
   }
+
+// chat.service.ts
+
+searchMessages(chatId: string, query: string): Observable<Message[]> { 
+  const headers = this.getHeaders();
+  if (!headers) {
+    console.error('SearchMessages: Not authorized');
+    return throwError(() => new Error('Not authorized'));
+  }
+  
+  let params = new HttpParams();
+  params = params.append('query', query);
+
+  const url = `${this.apiUrl}/messages/search/${chatId}`; // Правильный путь
+  
+  console.log(`Searching messages with URL: ${url} and query: ${query}`); 
+
+  return this.http.get<Message[]>(url, { headers, params })
+    .pipe(
+      map(messages => {
+        return messages.map(msg => ({
+            ...msg,
+            timestamp: typeof msg.timestamp === 'string' ? msg.timestamp : new Date(msg.timestamp).toISOString()
+        }));
+      }),
+      catchError(error => {
+        console.error('Error searching messages in service:', error);
+        return this.handleError(error);
+      })
+    );
+}
 }

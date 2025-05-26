@@ -167,6 +167,48 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/search/:chatId', authenticateToken, async (req, res) => {
+  const { chatId } = req.params;
+  const { query, limit = 50, page = 1 } = req.query;
+  const userId = req.user.id;
+
+  if (!query) {
+    return res.status(400).json({ message: 'Search query is required' });
+  }
+
+  try {
+    const chat = await Chat.findOne({ _id: chatId, participants: userId });
+    if (!chat) {
+      return res.status(403).json({ message: 'Access denied to this chat or chat not found' });
+    }
+
+    const searchRegex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); // 'i' for case-insensitive
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const messages = await Message.find({
+      chatId: chatId,
+      content: searchRegex,
+    })
+    .sort({ timestamp: -1 }) 
+    .skip(skip) 
+    .limit(parseInt(limit))
+    .populate('senderId', 'username avatar')
+    .populate({ 
+        path: 'replyTo',
+        select: 'content senderName senderId _id', 
+        populate: { path: 'senderId', select: 'username _id'}
+    })
+    .lean();
+
+    res.json(messages);
+
+  } catch (error) {
+    console.error('Error searching messages:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 router.route('/:id')
   .patch(authenticateToken, async (req, res) => {
     try {

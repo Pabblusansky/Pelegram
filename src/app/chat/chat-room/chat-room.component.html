@@ -39,6 +39,60 @@
       {{ status }}
     </div>
     </div>
+    <div class="chat-header-actions">
+      <button class="action-button search-button" (click)="toggleSearch()" title="Search messages">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+          <path fill-rule="evenodd" d="M10.5 3.75a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5ZM2.25 10.5a8.25 8.25 0 1 1 14.59 5.28l4.69 4.69a.75.75 0 1 1-1.06 1.06l-4.69-4.69A8.25 8.25 0 0 1 2.25 10.5Z" clip-rule="evenodd" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Message Search Bar -->
+  <div class="message-search-bar" *ngIf="isSearchActive">
+    <input 
+      type="text" 
+      class="search-input" 
+      placeholder="Search messages..."
+      [(ngModel)]="searchQuery"
+      (ngModelChange)="onSearchQueryChange()"
+      (keydown.enter)="navigateToNextSearchResult()"
+      (keydown.escape)="closeSearch()"
+      #searchInputEl
+    >
+    <div class="search-results-info" *ngIf="searchQuery && searchResults.length > 0">
+      <span>{{ currentSearchResultIndex + 1 }} of {{ searchResults.length }}</span>
+    </div>
+    <div class="search-results-info" *ngIf="searchQuery && !isSearching && searchResults.length === 0">
+      <span>No results</span>
+    </div>
+    <div class="search-navigation">
+      <button 
+        class="nav-button" 
+        (click)="navigateToPreviousSearchResult()" 
+        [disabled]="searchResults.length === 0 || currentSearchResultIndex === 0"
+        title="Previous result"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+          <path fill-rule="evenodd" d="M14.77 12.79a.75.75 0 0 1-1.06-.02L10 8.832 6.29 12.77a.75.75 0 0 1-1.08-1.04l4.25-4.5a.75.75 0 0 1 1.08 0l4.25 4.5a.75.75 0 0 1-.02 1.06Z" clip-rule="evenodd" />
+        </svg>
+      </button>
+      <button 
+        class="nav-button" 
+        (click)="navigateToNextSearchResult()" 
+        [disabled]="searchResults.length === 0 || currentSearchResultIndex === searchResults.length - 1"
+        title="Next result"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+          <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" />
+        </svg>
+      </button>
+    </div>
+    <button class="close-search-button" (click)="closeSearch()" title="Close search">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+        <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+      </svg>
+    </button>
   </div>
 
   <!-- Messages -->
@@ -72,7 +126,9 @@
         'their-message': item.senderId !== userId,
         'selected': selectedMessageId === item._id,
         'edited-recently': item.editedRecently,
-        'forwarded': item.forwarded
+        'forwarded': item.forwarded,
+        'is-search-result': item.isSearchResult,
+        'current-search-result': item.isCurrentSearchResult
       }"
       (contextmenu)="showContextMenu($event, item)"
       (touchstart)="startLongPress($event, item)"
@@ -120,12 +176,11 @@
       </div>
           
       <!-- Message containing (normal mode) -->
-      <span class="content" *ngIf="!item.isEditing"
-      [ngClass]="{'highlight-edit': item.editedRecently}">
-      <ng-container *ngFor="let line of item.content.split('\n'); let i = index">
-        {{ line }}<br *ngIf="i < item.content.split('\n').length - 1">
-      </ng-container>
-      </span>
+      <div class="content" *ngIf="!item.isEditing"
+        [ngClass]="{'highlight-edit': item.editedRecently}"
+        [innerHTML]="isSearchActive && item.isSearchResult ? getHighlightedText(item.content, searchQuery) : formatMessageContent(item.content)"
+      >
+      </div>
       
       <!-- Edit mode -->
       <div class="edit-container" *ngIf="item.isEditing">

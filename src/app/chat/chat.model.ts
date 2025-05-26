@@ -47,6 +47,10 @@ export interface Message {
 
   reactions?: Reaction[];
   
+  // Search-related properties
+  isSearchResult?: boolean;
+  isCurrentSearchResult?: boolean;
+  
   replyTo?: {
     _id: string;
     senderName: string;
