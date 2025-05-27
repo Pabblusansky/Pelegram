@@ -75,11 +75,6 @@ router.post('/:messageId/forward', authenticateToken, async (req, res) => {
 
     
     if (updatedTargetChat) {
-      console.log('--- DEBUG FORWARD BACKEND ---');
-      console.log('Original Message ID:', messageId);
-      console.log('Target Chat ID:', targetChatId);
-      console.log('Saved Forwarded Message:', JSON.stringify(savedMessage, null, 2));
-      console.log('Updated Target Chat for emit (includes lastMessage):', JSON.stringify(updatedTargetChat, null, 2));
       io.to(targetChatId).emit('chat_updated', updatedTargetChat);
       io.to(targetChatId).emit('message', savedMessage);
       const populatedSavedMessage = await Message.findById(savedMessage._id)
@@ -164,6 +159,63 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
     } catch (error) {
       console.error('Error fetching messages:', error);
       res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/:chatId/context/:messageId', authenticateToken, async (req, res) => {
+  const { chatId, messageId: targetMessageId } = req.params;
+  const userId = req.user.id;
+  const contextLimit = parseInt(req.query.limit) || 15; 
+
+  try {
+    const chat = await Chat.findOne({ _id: chatId, participants: userId });
+    if (!chat) {
+      return res.status(403).json({ message: 'Access denied or chat not found' });
+    }
+
+    const targetMessage = await Message.findById(targetMessageId).lean();
+    if (!targetMessage) {
+      return res.status(404).json({ message: 'Target message not found' });
+    }
+
+    const targetTimestamp = targetMessage.createdAt || targetMessage.timestamp;
+
+    const messagesBefore = await Message.find({
+      chatId: chatId,
+      createdAt: { $lt: targetTimestamp }
+    })
+    .sort({ createdAt: -1 }) 
+    .limit(contextLimit)
+    .populate('senderId', 'username avatar _id')
+    .populate({ path: 'replyTo', select: 'content senderName senderId _id', populate: { path: 'senderId', select: 'username _id'}})
+    .lean();
+
+    const messagesAfterAndTarget = await Message.find({
+      chatId: chatId,
+      createdAt: { $gte: targetTimestamp }
+    })
+    .sort({ createdAt: 1 })
+    .limit(contextLimit + 1)
+    .populate('senderId', 'username avatar _id')
+    .populate({ path: 'replyTo', select: 'content senderName senderId _id', populate: { path: 'senderId', select: 'username _id'}})
+    .lean();
+
+    // Combine messages before the target and the target message with messages after it
+    let combinedMessages = [
+      ...messagesBefore.reverse(),
+      ...messagesAfterAndTarget
+    ];
+    
+    const uniqueMessages = Array.from(new Map(combinedMessages.map(msg => [msg._id.toString(), msg])).values());
+    
+    // Sort by createdAt or timestamp to maintain chronological order
+    uniqueMessages.sort((a, b) => new Date(a.createdAt || a.timestamp) - new Date(b.createdAt || b.timestamp));
+
+    res.json(uniqueMessages);
+
+  } catch (error) {
+    console.error('Error fetching message context:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 

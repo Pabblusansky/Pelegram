@@ -81,6 +81,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   isSearching: boolean = false;
   @ViewChild('searchInputEl') searchInputEl!: ElementRef;
   private searchDebounce = new Subject<string>();
+  isLoadingContext: boolean = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -451,12 +452,20 @@ navigateToUserProfile(userId: string, event?: Event): void {
       this.noMoreMessages = false;
 
       this.chatService.getMessages(this.chatId)!.subscribe({
-        next: (messages: Message[]) => {
-          this.messages = messages.map((msg) => ({
-            ...msg,
-            isMyMessage: msg.senderId === this.userId,
-            status: msg.status || 'sent'
-          }));
+        next: (messagesFromServer: Message[]) => {
+          this.messages = messagesFromServer.map((msg) => {
+            let senderIdValue: string | undefined;
+            if (msg.senderId && typeof msg.senderId === 'object' && (msg.senderId as any)._id) {
+              senderIdValue = (msg.senderId as any)._id;
+            } else if (typeof msg.senderId === 'string') {
+              senderIdValue = msg.senderId;
+            }
+            return {
+              ...msg,
+              ismyMessage: senderIdValue === this.userId,
+              status: msg.status || 'sent'
+            };
+          });
           this.updateMessagesWithDividers();
           this.scrollToBottom();
           this.triggerMarkAsRead();
@@ -1155,11 +1164,20 @@ navigateToUserProfile(userId: string, event?: Event): void {
         
         console.log(`Loaded ${olderMessages.length} older messages`);
         
-        const newMessages = olderMessages.map(msg => ({
-          ...msg,
-          isMyMessage: msg.senderId === this.userId,
-          status: msg.status || 'sent'
-        }));
+        const newMessages = olderMessages.map(msg => {
+          let senderIdValue: string | undefined;
+          if (msg.senderId && typeof msg.senderId === 'object' && (msg.senderId as any)._id) {
+            senderIdValue = (msg.senderId as any)._id;
+          } else if (typeof msg.senderId === 'string') {
+            senderIdValue = msg.senderId;
+          }
+          return {
+            ...msg,
+            ismyMessage: senderIdValue === this.userId, 
+            status: msg.status || 'sent'
+          };
+        });
+      
         
         this.messages = [...newMessages, ...this.messages];
         this.updateMessagesWithDividers();
@@ -1432,31 +1450,107 @@ navigateToUserProfile(userId: string, event?: Event): void {
     }, 200);
   }
 
-  navigateToSearchResult(index: number, isInitialSearch: boolean = false): void {
-    if (index < 0 || index >= this.searchResults.length) return;
-    
-    const targetMessage = this.searchResults[index];
-    if (!targetMessage?._id) return;
-    
+  async navigateToSearchResult(index: number, isInitialSearch: boolean = false): Promise<void> {
+    if (this.isLoadingContext || index < 0 || index >= this.searchResults.length) return;
+
+    const targetMessageSearchResult = this.searchResults[index];
+    if (!targetMessageSearchResult?._id) return;
+
+    this.currentSearchResultIndex = index;
+
     this.messages.forEach(m => m.isCurrentSearchResult = false);
-    
-    const messageInView = this.messages.find(m => m._id === targetMessage._id);
-    
+
+    let messageInView = this.messages.find(m => m._id === targetMessageSearchResult._id);
+
     if (messageInView) {
-      messageInView.isCurrentSearchResult = true; 
-      this.updateMessagesWithDividers(); 
-      this.cdr.detectChanges();
-      
-      setTimeout(() => {
-        if (targetMessage._id) {
-          this.scrollToMessage(targetMessage._id, 'center', true); 
-        }
-      }, 50);
+      // Message is already loaded
+      messageInView.isCurrentSearchResult = true;
+      if (targetMessageSearchResult._id) {
+        this.updateMessagesAndScroll(targetMessageSearchResult._id, 'center');
+      }
     } else {
-      console.warn(`Search result message ${targetMessage._id} not found in current view.`);
-      this.showToast('Message is not currently loaded, scrolling to approximate position.', 3000);
+      // Message not in view, we need to load its context
+      console.log(`Message ${targetMessageSearchResult._id} not in view. Loading context...`);
+      this.isLoadingContext = true;
+      this.showToast('Loading message context...', 5000);
+
+      this.chatService.loadMessageContext(this.chatId!, targetMessageSearchResult._id)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: (contextMessages) => {
+            this.isLoadingContext = false;
+            if (contextMessages && contextMessages.length > 0) {
+              this.mergeMessages(contextMessages);
+              
+              const newlyLoadedMessage = this.messages.find(m => m._id === targetMessageSearchResult._id);
+              if (newlyLoadedMessage) {
+                newlyLoadedMessage.isCurrentSearchResult = true;
+              } else {
+                console.error('Target message still not found after loading context!');
+              }
+              this.applyHighlightsToMessages();
+              if (targetMessageSearchResult._id) {
+                this.updateMessagesAndScroll(targetMessageSearchResult._id, 'center');
+              } else {
+                console.error('Cannot scroll to message: Missing message ID');
+                this.cdr.detectChanges();
+              }
+            } else {
+              this.showToast('Could not load message context.', 3000);
+              this.applyHighlightsToMessages();
+              this.cdr.detectChanges();
+            }
+          },
+          error: (err) => {
+            this.isLoadingContext = false;
+            console.error('Error loading message context:', err);
+            this.showToast('Failed to load message context.', 3000);
+            this.applyHighlightsToMessages();
+            this.cdr.detectChanges();
+          }
+        });
     }
   }
+
+  private mergeMessages(newMessages: Message[]): void {
+    const existingMessageIds = new Set(this.messages.map(m => m._id));
+    const messagesToAdd = newMessages
+      .filter(nm => nm._id && !existingMessageIds.has(nm._id)) 
+      .map(nm => {
+        // Check if senderId is an object and extract _id, or we are dealing with a string directly
+        const senderIdFromMessage = nm.senderId && typeof nm.senderId === 'object' && (nm.senderId as any)._id 
+          ? (nm.senderId as any)._id 
+          : (typeof nm.senderId === 'string' ? nm.senderId : undefined);
+
+        return {
+          ...nm,
+          ismyMessage: senderIdFromMessage === this.userId 
+        };
+      });
+
+      if (messagesToAdd.length > 0) {
+        this.messages.push(...messagesToAdd);
+        this.messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        console.log(`Merged ${messagesToAdd.length} new messages. Total messages now: ${this.messages.length}`);
+        messagesToAdd.forEach(msg => {
+          if (msg.senderId && 
+            ((typeof msg.senderId === 'object' && msg.senderId !== null && 'id' in msg.senderId && (msg.senderId as any)._id === this.userId) || 
+            (typeof msg.senderId === 'string' && msg.senderId === this.userId))) {
+            console.log(`DEBUG MERGE: Message ${msg._id} by ME, ismyMessage: ${msg.ismyMessage}`);
+          }
+        });
+      }
+  }
+
+  private updateMessagesAndScroll(messageId: string, block: ScrollLogicalPosition): void {
+    this.updateMessagesWithDividers();
+    this.cdr.detectChanges();
+
+    setTimeout(() => {
+      this.scrollToMessage(messageId, block, true); // Force scroll to the message
+    }, 100); 
+  }
+
 
   scrollToSearchResult(index: number): void {
     if (index < 0 || index >= this.searchResults.length) return;
@@ -1520,32 +1614,21 @@ getHighlightedText(text: string, query: string): SafeHtml {
   private applyHighlightsToMessages(): void {
     const query = this.searchQuery.trim();
     
-    // Reset all flags
     this.messages.forEach(msg => {
       msg.isSearchResult = false;
-      msg.isCurrentSearchResult = false;
     });
     
     if (query && this.searchResults.length > 0) {
-      // Mark all search results
-      this.searchResults.forEach(foundMsg => {
-        const msgInView = this.messages.find(m => m._id === foundMsg._id);
-        if (msgInView) {
-          msgInView.isSearchResult = true;
+      const searchResultIds = new Set(this.searchResults.map(sr => sr._id));
+      this.messages.forEach(msg => {
+        if (msg._id && searchResultIds.has(msg._id)) {
+          msg.isSearchResult = true;
         }
       });
-      
-      // Mark current result if any
-      if (this.currentSearchResultIndex >= 0 && this.currentSearchResultIndex < this.searchResults.length) {
-        const currentResultId = this.searchResults[this.currentSearchResultIndex]._id;
-        const currentMsgInView = this.messages.find(m => m._id === currentResultId);
-        if (currentMsgInView) {
-          currentMsgInView.isCurrentSearchResult = true;
-        }
-      }
+
     }
     
-    this.updateMessagesWithDividers(); // Update to apply classes
+    this.updateMessagesWithDividers();
     this.cdr.detectChanges();
   }
 
@@ -1580,7 +1663,7 @@ getHighlightedText(text: string, query: string): SafeHtml {
     this.isSearchActive = false;
     this.searchQuery = '';
     this.searchResults = [];
-    this.currentSearchResultIndex = 0;
+    this.currentSearchResultIndex = -1;
     this.resetMessageHighlights();
   }
   

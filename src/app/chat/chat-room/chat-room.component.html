@@ -122,8 +122,8 @@
       [id]="'message-' + item._id"
       [ngClass]="{
         'message': true,
-        'my-message': item.senderId === userId,
-        'their-message': item.senderId !== userId,
+        'my-message': item.ismyMessage,
+        'their-message': !item.ismyMessage,
         'selected': selectedMessageId === item._id,
         'edited-recently': item.editedRecently,
         'forwarded': item.forwarded,

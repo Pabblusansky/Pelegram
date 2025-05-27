@@ -631,4 +631,20 @@ searchMessages(chatId: string, query: string): Observable<Message[]> {
       })
     );
 }
+
+  loadMessageContext(chatId: string, messageId: string, limitPerSide: number = 15): Observable<Message[]> {
+    const headers = this.getHeaders();
+    if (!headers) return throwError(() => new Error('Not authorized'));
+
+    const params = new HttpParams().set('limit', limitPerSide.toString());
+
+    return this.http.get<Message[]>(`${this.apiUrl}/messages/${chatId}/context/${messageId}`, { headers, params })
+      .pipe(
+        map(messages => messages.map(msg => ({ 
+            ...msg,
+            timestamp: new Date(msg.timestamp).toISOString()
+        }))),
+        catchError(this.handleError)
+      );
+  }
 }
