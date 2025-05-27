@@ -1353,6 +1353,8 @@ navigateToUserProfile(userId: string, event?: Event): void {
     }
     this.chatService.toggleReaction(messageId, reactionType);
     this.activeContextMenuId = null; 
+    this.selectedMessageId = null;
+    this.cdr.detectChanges();        
   }
 
   private handleCurrentChatWasDeleted(deletedBy?: string): void {
