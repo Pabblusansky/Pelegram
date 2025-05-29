@@ -159,7 +159,7 @@ export default (io) => {
   });
 
 
-    router.get('/me/saved-messages', authenticateToken, async (req, res) => {
+  router.get('/me/saved-messages', authenticateToken, async (req, res) => {
     try {
       const userId = req.user.id;
 
@@ -199,6 +199,77 @@ export default (io) => {
       console.error('Error getting/creating saved messages chat:', error);
       res.status(500).json({ message: 'Server error' });
     }
+  });
+
+  router.patch('/:chatId/pin/:messageId', authenticateToken, async (req, res) => {
+    const { chatId, messageId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        const chat = await Chat.findOne({ _id: chatId, participants: userId });
+        if (!chat) {
+            return res.status(404).json({ message: 'Chat not found or you are not a participant.' });
+        }
+
+        const messageExists = await Message.findOne({ _id: messageId, chatId: chatId });
+        if (!messageExists) {
+            return res.status(404).json({ message: 'Message not found in this chat.' });
+        }
+
+        chat.pinnedMessage = messageId;
+        await chat.save();
+
+        const updatedChat = await Chat.findById(chatId)
+            .populate('participants', 'username avatar _id')
+            .populate('lastMessage')
+            .populate({
+                path: 'pinnedMessage',
+                populate: { path: 'senderId', select: 'username avatar _id' }
+            });
+        
+        if (updatedChat) {
+            io.to(chatId.toString()).emit('chat_updated', updatedChat);
+        }
+        
+        res.json(updatedChat);
+
+    } catch (error) {
+        console.error('Error pinning message:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+  router.patch('/:chatId/unpin', authenticateToken, async (req, res) => {
+      const { chatId } = req.params;
+      const userId = req.user.id;
+
+      try {
+          const chat = await Chat.findOne({ _id: chatId, participants: userId });
+          if (!chat) {
+              return res.status(404).json({ message: 'Chat not found or you are not a participant.' });
+          }
+
+          if (!chat.pinnedMessage) {
+              return res.status(400).json({ message: 'No message is currently pinned in this chat.' });
+          }
+
+          chat.pinnedMessage = null;
+          await chat.save();
+
+          const updatedChat = await Chat.findById(chatId)
+              .populate('participants', 'username avatar _id')
+              .populate('lastMessage');
+
+          if (updatedChat) {
+              io.to(chatId.toString()).emit('chat_updated', updatedChat);
+          }
+
+          res.json(updatedChat);
+
+      } catch (error) {
+          console.error('Error unpinning message:', error);
+          res.status(500).json({ message: 'Internal server error' });
+      }
   });
   return router;
 };

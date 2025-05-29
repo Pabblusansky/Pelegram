@@ -72,6 +72,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   replyingToMessage: Message | null = null;
   availableReactions: string[] = ['👍', '❤️', '😂', '😮', '😢', '🙏']; // Available reactions, alpha test (1.0)
   isChatEffectivelyDeleted: boolean = false; 
+  pinnedMessageDetails: Message | null = null; 
   
   // Search functionality
   isSearchActive: boolean = false;
@@ -122,10 +123,19 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
           this.handleCurrentChatWasDeleted(data.deletedBy);
         }
     });
-
-  this.chatService.messageReactionUpdated$
-    .pipe(takeUntil(this.destroy$))
-    .subscribe(update => {
+    
+    this.chatService.chatUpdated$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(updatedChat => {
+        if (updatedChat._id === this.chatId) {
+          this.chatDetails = { ...this.chatDetails, ...updatedChat };
+          this.updatePinnedMessageDetails();
+          this.cdr.detectChanges();
+        }
+    });
+    this.chatService.messageReactionUpdated$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(update => {
       this.handleReactionUpdate(update.messageId, update.reactions);
     });
 
@@ -360,26 +370,27 @@ navigateToUserProfile(userId: string, event?: Event): void {
     this.chatService.getChat(this.chatId).subscribe({
       next: (chat) => {
         this.chatDetails = chat;
-      const isSavedMessages = chat.participants && chat.participants.length === 1 && chat.participants[0]._id === this.userId;
+        this.updatePinnedMessageDetails();
+        const isSavedMessages = chat.participants && chat.participants.length === 1 && chat.participants[0]._id === this.userId;
 
-      if (!isSavedMessages && chat.participants && chat.participants.length > 0) { 
-        this.otherParticipant = chat.participants.find(
-          (p: any) => p._id !== this.userId
-        );
+        if (!isSavedMessages && chat.participants && chat.participants.length > 0) { 
+          this.otherParticipant = chat.participants.find(
+            (p: any) => p._id !== this.userId
+          );
 
-        if (this.otherParticipant) {
-          this.otherParticipantStatus$ = this.chatService.getUserStatusText(this.otherParticipant._id);
-          this.isOtherParticipantOnline$ = this.chatService.isUserOnline(this.otherParticipant._id);
+          if (this.otherParticipant) {
+            this.otherParticipantStatus$ = this.chatService.getUserStatusText(this.otherParticipant._id);
+            this.isOtherParticipantOnline$ = this.chatService.isUserOnline(this.otherParticipant._id);
+          } else {
+            this.otherParticipantStatus$ = null;
+            this.isOtherParticipantOnline$ = null;
+          }
         } else {
+          this.otherParticipant = null;
           this.otherParticipantStatus$ = null;
           this.isOtherParticipantOnline$ = null;
         }
-      } else {
-        this.otherParticipant = null;
-        this.otherParticipantStatus$ = null;
-        this.isOtherParticipantOnline$ = null;
-      }
-      this.cdr.detectChanges();
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Error loading chat details:', err);
@@ -1641,7 +1652,83 @@ getHighlightedText(text: string, query: string): SafeHtml {
     });
     this.updateMessagesWithDividers();
   }
+  
+  // Pinned message handling
+  private updatePinnedMessageDetails(): void {
+    if (this.chatDetails && this.chatDetails.pinnedMessage) {
+      if (typeof this.chatDetails.pinnedMessage === 'object' && this.chatDetails.pinnedMessage._id) {
+        this.pinnedMessageDetails = this.chatDetails.pinnedMessage as Message;
+      }
+      else if (typeof this.chatDetails.pinnedMessage === 'string') {
+        this.pinnedMessageDetails = this.messages.find(m => m._id === this.chatDetails.pinnedMessage) || null;
+        if (!this.pinnedMessageDetails) {
+            if (this.isSearchActive && this.searchResults.length > 0) {
+                this.pinnedMessageDetails = this.searchResults.find(m => m._id === this.chatDetails.pinnedMessage) || null;
+            }
+            if (!this.pinnedMessageDetails) {
+                console.warn('Pinned message (ID) not found in current messages list. Consider fetching it.');
+            }
+        }
+      } else {
+        this.pinnedMessageDetails = null;
+      }
+    } else {
+      this.pinnedMessageDetails = null;
+    }
+  }
+  
+  pinSelectedMessage(): void {
+    const messageToPin = this.getSelectedMessage();
+    if (messageToPin && messageToPin._id && this.chatId) {
+      this.chatService.pinMessage(this.chatId, messageToPin._id).subscribe({
+        next: (updatedChat) => {
+          this.showToast('Message pinned!');
+          this.activeContextMenuId = null;
+        },
+        error: (err) => {
+          console.error('Error pinning message:', err);
+          this.showToast('Failed to pin message.');
+        }
+      });
+    }
+  }
 
+  unpinCurrentMessage(): void {
+    if (this.chatId && this.chatDetails?.pinnedMessage) {
+      this.chatService.unpinMessage(this.chatId).subscribe({
+        next: (updatedChat) => {
+          this.showToast('Message unpinned!');
+        },
+        error: (err) => {
+          console.error('Error unpinning message:', err);
+          this.showToast('Failed to unpin message.');
+        }
+      });
+    }
+  }
+
+  isMessagePinned(messageId: string | undefined): boolean {
+    if (!messageId || !this.chatDetails || !this.chatDetails.pinnedMessage) {
+        return false;
+    }
+    const pinnedId = typeof this.chatDetails.pinnedMessage === 'string' 
+        ? this.chatDetails.pinnedMessage 
+        : (this.chatDetails.pinnedMessage as Message)._id;
+    return pinnedId === messageId;
+  }
+
+  scrollToPinnedMessage(): void {
+    if (this.pinnedMessageDetails && this.pinnedMessageDetails._id) {
+      if (this.isSearchActive) {
+        this.closeSearch();
+        setTimeout(() => {
+          this.scrollToMessage(this.pinnedMessageDetails!._id!, 'center', true);
+        }, 100);
+      } else {
+        this.scrollToMessage(this.pinnedMessageDetails._id, 'center', true);
+      }
+    }
+  }
   // Search functionality methods
   toggleSearch(): void {
     this.isSearchActive = !this.isSearchActive;

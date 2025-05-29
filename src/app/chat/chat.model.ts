@@ -16,6 +16,7 @@ export interface Chat {
   participants: User[];
   messages: string[];
   lastMessage?: string;
+  pinnedMessage?: Message | string | null;
   displayAvatarUrl?: string;
   isSelfChat?: boolean;
 }

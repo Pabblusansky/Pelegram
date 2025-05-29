@@ -601,36 +601,34 @@ export class ChatService implements OnDestroy {
     return this.http.delete(`${this.apiUrl}/chats/${chatId}`, { headers });
   }
 
-// chat.service.ts
+  searchMessages(chatId: string, query: string): Observable<Message[]> { 
+    const headers = this.getHeaders();
+    if (!headers) {
+      console.error('SearchMessages: Not authorized');
+      return throwError(() => new Error('Not authorized'));
+    }
+    
+    let params = new HttpParams();
+    params = params.append('query', query);
 
-searchMessages(chatId: string, query: string): Observable<Message[]> { 
-  const headers = this.getHeaders();
-  if (!headers) {
-    console.error('SearchMessages: Not authorized');
-    return throwError(() => new Error('Not authorized'));
+    const url = `${this.apiUrl}/messages/search/${chatId}`; // Правильный путь
+    
+    console.log(`Searching messages with URL: ${url} and query: ${query}`); 
+
+    return this.http.get<Message[]>(url, { headers, params })
+      .pipe(
+        map(messages => {
+          return messages.map(msg => ({
+              ...msg,
+              timestamp: typeof msg.timestamp === 'string' ? msg.timestamp : new Date(msg.timestamp).toISOString()
+          }));
+        }),
+        catchError(error => {
+          console.error('Error searching messages in service:', error);
+          return this.handleError(error);
+        })
+      );
   }
-  
-  let params = new HttpParams();
-  params = params.append('query', query);
-
-  const url = `${this.apiUrl}/messages/search/${chatId}`; // Правильный путь
-  
-  console.log(`Searching messages with URL: ${url} and query: ${query}`); 
-
-  return this.http.get<Message[]>(url, { headers, params })
-    .pipe(
-      map(messages => {
-        return messages.map(msg => ({
-            ...msg,
-            timestamp: typeof msg.timestamp === 'string' ? msg.timestamp : new Date(msg.timestamp).toISOString()
-        }));
-      }),
-      catchError(error => {
-        console.error('Error searching messages in service:', error);
-        return this.handleError(error);
-      })
-    );
-}
 
   loadMessageContext(chatId: string, messageId: string, limitPerSide: number = 15): Observable<Message[]> {
     const headers = this.getHeaders();
@@ -646,5 +644,20 @@ searchMessages(chatId: string, query: string): Observable<Message[]> {
         }))),
         catchError(this.handleError)
       );
+  }
+
+  // Pin and unpin message methods
+  pinMessage(chatId: string, messageId: string): Observable<Chat> {
+    const headers = this.getHeaders();
+    if (!headers) return throwError(() => new Error('Not authorized'));
+    return this.http.patch<Chat>(`${this.apiUrl}/chats/${chatId}/pin/${messageId}`, {}, { headers })
+      .pipe(catchError(this.handleError));
+  }
+
+  unpinMessage(chatId: string): Observable<Chat> {
+    const headers = this.getHeaders();
+    if (!headers) return throwError(() => new Error('Not authorized'));
+    return this.http.patch<Chat>(`${this.apiUrl}/chats/${chatId}/unpin`, {}, { headers })
+      .pipe(catchError(this.handleError));
   }
 }
