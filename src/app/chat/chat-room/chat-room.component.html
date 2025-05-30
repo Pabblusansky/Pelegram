@@ -117,152 +117,164 @@
   </div>
 
   <!-- Messages -->
-  <div class="messages" (scroll)="onScroll()">
-    <div *ngIf="messagesWithDividers.length === 0" class="no-messages">
-      No messages yet. Start the conversation!
-    </div>
-
-    
-    <div *ngIf="isLoadingMore" class="loading-indicator">
-      <div class="spinner"></div>
-      <span>Loading older messages...</span>
-    </div>
-
-    <div *ngIf="noMoreMessages && messages.length > 0" class="no-more-messages">
-      <span>Beginning of conversation</span>
-    </div>
-    <ng-container *ngFor="let item of messagesWithDividers; trackBy: trackByMessageId">
-      <!-- Date Divider -->
-      <div *ngIf="item.type === 'divider'" class="date-divider">
-        <span>{{ item.date }}</span>
+  <div class="messages-container-wrapper">
+    <div class="messages" (scroll)="onScroll()">
+      <div *ngIf="messagesWithDividers.length === 0" class="no-messages">
+        No messages yet. Start the conversation!
       </div>
 
-      <!-- Message -->
-      <div
-      *ngIf="item.type === 'message'"
-      [id]="'message-' + item._id"
-      [ngClass]="{
-        'message': true,
-        'my-message': item.ismyMessage,
-        'their-message': !item.ismyMessage,
-        'selected': selectedMessageId === item._id,
-        'edited-recently': item.editedRecently,
-        'forwarded': item.forwarded,
-        'is-search-result': item.isSearchResult,
-        'current-search-result': item.isCurrentSearchResult
-      }"
-      (contextmenu)="showContextMenu($event, item)"
-      (touchstart)="startLongPress($event, item)"
-      (touchend)="endLongPress()"
-      (touchmove)="endLongPress()"
-      (touchcancel)="endLongPress()"
-      (click)="onMessageClick(item)"
-    >
-      <!-- Menu icon -->
-      <button
-      *ngIf="item.senderId === userId"
-      class="message-menu-icon"
-      type="button"
-      (click)="showContextMenu($event, item)"
-      >⋮</button>
       
-      <span 
-      class="sender" 
-      [class.clickable]="item.senderId"
-      (click)="item.senderId && navigateToUserProfile(item.senderId, $event)"
-      [title]="item.senderId ? 'View profile' : ''"
-    >
-      {{ item.senderName }}
-    </span>
+      <div *ngIf="isLoadingMore" class="loading-indicator">
+        <div class="spinner"></div>
+        <span>Loading older messages...</span>
+      </div>
 
-      <div *ngIf="item.replyTo && item.replyTo._id" class="reply-quote-block" (click)="scrollToMessage(item.replyTo._id)">
-        <div class="reply-quote-sender">{{ item.replyTo.senderName }}</div>
-        <div class="reply-quote-content">{{ item.replyTo.content | slice:0:70 }}{{ item.replyTo.content?.length > 70 ? '...' : '' }}</div>
+      <div *ngIf="noMoreMessages && messages.length > 0" class="no-more-messages">
+        <span>Beginning of conversation</span>
       </div>
-      <div *ngIf="item.forwarded && item.originalSenderName" class="forwarded-info">
-        <span class="forwarded-icon">↪️</span>
-        <span class="forwarded-text">
-          Forwarded from 
-          <strong 
-            class="clickable-sender-name" 
-            (click)="navigateToUserProfile(item.originalSenderId, $event)"
-            [title]="'View ' + item.originalSenderName + '\'s profile'"
-            *ngIf="item.originalSenderId">
-            {{ item.originalSenderName }}
-          </strong>
-          <span *ngIf="!item.originalSenderId">
-            {{ item.originalSenderName }}
-          </span>
-        </span>
-      </div>
-          
-      <!-- Message containing (normal mode) -->
-      <div class="content" *ngIf="!item.isEditing"
-        [ngClass]="{'highlight-edit': item.editedRecently}"
-        [innerHTML]="isSearchActive && item.isSearchResult ? getHighlightedText(item.content, searchQuery) : formatMessageContent(item.content)"
+      <ng-container *ngFor="let item of messagesWithDividers; trackBy: trackByMessageId">
+        <!-- Date Divider -->
+        <div *ngIf="item.type === 'divider'" class="date-divider">
+          <span>{{ item.date }}</span>
+        </div>
+
+        <!-- Message -->
+        <div
+        *ngIf="item.type === 'message'"
+        [id]="'message-' + item._id"
+        [ngClass]="{
+          'message': true,
+          'my-message': item.ismyMessage,
+          'their-message': !item.ismyMessage,
+          'selected': selectedMessageId === item._id,
+          'edited-recently': item.editedRecently,
+          'forwarded': item.forwarded,
+          'is-search-result': item.isSearchResult,
+          'current-search-result': item.isCurrentSearchResult
+        }"
+        (contextmenu)="showContextMenu($event, item)"
+        (touchstart)="startLongPress($event, item)"
+        (touchend)="endLongPress()"
+        (touchmove)="endLongPress()"
+        (touchcancel)="endLongPress()"
+        (click)="onMessageClick(item)"
       >
-      </div>
-      
-      <!-- Edit mode -->
-      <div class="edit-container" *ngIf="item.isEditing">
-        <textarea 
-          class="edit-textarea"
-          [(ngModel)]="item.editedContent"
-          #editTextarea
-          (keydown.enter)="saveMessageEdit(item)"
-          (keydown.meta.enter)="saveMessageEdit(item)"
-          (keydown.escape)="cancelEdit(item)"
-          autofocus
-        ></textarea>
-        <div class="edit-actions">
-          <div class="edit-keyboard-hints">
-            Press <kbd>Enter</kbd> to save, <kbd>Shift</kbd>+<kbd>Enter</kbd> for new line, <kbd>Esc</kbd> to cancel
-          </div>
-          <button class="edit-btn cancel" (click)="cancelEdit(item)">Cancel</button>
-          <button class="edit-btn save" (click)="saveMessageEdit(item)">Save</button>
+        <!-- Menu icon -->
+        <button
+        *ngIf="item.senderId === userId"
+        class="message-menu-icon"
+        type="button"
+        (click)="showContextMenu($event, item)"
+        >⋮</button>
+        
+        <span 
+        class="sender" 
+        [class.clickable]="item.senderId"
+        (click)="item.senderId && navigateToUserProfile(item.senderId, $event)"
+        [title]="item.senderId ? 'View profile' : ''"
+      >
+        {{ item.senderName }}
+      </span>
+
+        <div *ngIf="item.replyTo && item.replyTo._id" class="reply-quote-block" (click)="scrollToMessage(item.replyTo._id)">
+          <div class="reply-quote-sender">{{ item.replyTo.senderName }}</div>
+          <div class="reply-quote-content">{{ item.replyTo.content | slice:0:70 }}{{ item.replyTo.content?.length > 70 ? '...' : '' }}</div>
         </div>
-      </div>
-    
-      <div class="message-footer">
-        <div class="message-reactions-wrapper">
-          <div class="message-reactions" *ngIf="item.type === 'message' && item.reactions && item.reactions.length > 0">
-            <span 
-              *ngFor="let group of getGroupedReactions(item.reactions)" 
-              class="reaction-tag"
-              [class.reacted-by-me]="group.reactedByMe"
-              (click)="onReactionClick(item._id, group.type)"
-              title="{{ group.reactedByMe ? 'Remove Reaction' : 'Put Reaction ' + group.type }}">
-              {{ group.type }} <span class="reaction-count">{{ group.count }}</span>
+        <div *ngIf="item.forwarded && item.originalSenderName" class="forwarded-info">
+          <span class="forwarded-icon">↪️</span>
+          <span class="forwarded-text">
+            Forwarded from 
+            <strong 
+              class="clickable-sender-name" 
+              (click)="navigateToUserProfile(item.originalSenderId, $event)"
+              [title]="'View ' + item.originalSenderName + '\'s profile'"
+              *ngIf="item.originalSenderId">
+              {{ item.originalSenderName }}
+            </strong>
+            <span *ngIf="!item.originalSenderId">
+              {{ item.originalSenderName }}
             </span>
-          </div>
-        </div>
-        <div class="message-info">
-          <span class="timestamp">{{ formatTimestamp(item.timestamp) }}</span>
-          
-          <!-- Edited indicator -->
-          <span 
-            *ngIf="item.edited" 
-            class="edited-indicator"
-            [title]="'Edited: ' + formatEditedTime(item.editedAt)"
-          >
-            <span class="edited-icon">✎</span>
-            <span class="edited-text">edited</span>
           </span>
+        </div>
+            
+        <!-- Message containing (normal mode) -->
+        <div class="content" *ngIf="!item.isEditing"
+          [ngClass]="{'highlight-edit': item.editedRecently}"
+          [innerHTML]="isSearchActive && item.isSearchResult ? getHighlightedText(item.content, searchQuery) : formatMessageContent(item.content)"
+        >
         </div>
         
-        <!-- Message status -->
-        <span *ngIf="item.senderId === userId" class="status">
-          <img
-            [src]="getMessageStatusIcon(item.status ?? 'sent')"
-            [alt]="item.status || 'Sent'"
-            class="status-icon"
-          />
-          {{ item.status || 'Sent' }}
-        </span>
+        <!-- Edit mode -->
+        <div class="edit-container" *ngIf="item.isEditing">
+          <textarea 
+            class="edit-textarea"
+            [(ngModel)]="item.editedContent"
+            #editTextarea
+            (keydown.enter)="saveMessageEdit(item)"
+            (keydown.meta.enter)="saveMessageEdit(item)"
+            (keydown.escape)="cancelEdit(item)"
+            autofocus
+          ></textarea>
+          <div class="edit-actions">
+            <div class="edit-keyboard-hints">
+              Press <kbd>Enter</kbd> to save, <kbd>Shift</kbd>+<kbd>Enter</kbd> for new line, <kbd>Esc</kbd> to cancel
+            </div>
+            <button class="edit-btn cancel" (click)="cancelEdit(item)">Cancel</button>
+            <button class="edit-btn save" (click)="saveMessageEdit(item)">Save</button>
+          </div>
+        </div>
+      
+        <div class="message-footer">
+          <div class="message-reactions-wrapper">
+            <div class="message-reactions" *ngIf="item.type === 'message' && item.reactions && item.reactions.length > 0">
+              <span 
+                *ngFor="let group of getGroupedReactions(item.reactions)" 
+                class="reaction-tag"
+                [class.reacted-by-me]="group.reactedByMe"
+                (click)="onReactionClick(item._id, group.type)"
+                title="{{ group.reactedByMe ? 'Remove Reaction' : 'Put Reaction ' + group.type }}">
+                {{ group.type }} <span class="reaction-count">{{ group.count }}</span>
+              </span>
+            </div>
+          </div>
+          <div class="message-info">
+            <span class="timestamp">{{ formatTimestamp(item.timestamp) }}</span>
+            
+            <!-- Edited indicator -->
+            <span 
+              *ngIf="item.edited" 
+              class="edited-indicator"
+              [title]="'Edited: ' + formatEditedTime(item.editedAt)"
+            >
+              <span class="edited-icon">✎</span>
+              <span class="edited-text">edited</span>
+            </span>
+          </div>
+          
+          <!-- Message status -->
+          <span *ngIf="item.senderId === userId" class="status">
+            <img
+              [src]="getMessageStatusIcon(item.status ?? 'sent')"
+              [alt]="item.status || 'Sent'"
+              class="status-icon"
+            />
+            {{ item.status || 'Sent' }}
+          </span>
+        </div>
       </div>
-    </div>
-  </ng-container>
-  
+    </ng-container>
+  </div>
+  <button
+      *ngIf="!isAtBottom && messages.length > 0"
+      class="scroll-to-bottom-button"
+      (click)="scrollToBottom(true)" 
+      title="Scroll to bottom"
+      @scrollToBottomButtonAnimation 
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+          <path fill-rule="evenodd" d="M5.22 14.77a.75.75 0 0 1 1.06 0L10 18.44l3.72-3.67a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 15.83a.75.75 0 0 1 0-1.06ZM5.22 8.77a.75.75 0 0 1 1.06 0L10 12.44l3.72-3.67a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.83a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+        </svg>
+  </button>
   <div 
   *ngIf="activeContextMenuId && menuPosition"
   #ContextMenuElement

@@ -27,6 +27,15 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
       transition(':leave', [
         animate('100ms ease-in', style({ opacity: 0, transform: 'scale(0.9)' }))
       ])
+    ]),
+    trigger('scrollToBottomButtonAnimation', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(20px) scale(0.8)' }),
+        animate('200ms ease-out', style({ opacity: 1, transform: 'translateY(0) scale(1)' }))
+      ]),
+      transition(':leave', [
+        animate('150ms ease-in', style({ opacity: 0, transform: 'translateY(20px) scale(0.8)' }))
+      ])
     ])
   ]
 })
@@ -48,7 +57,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   messagesWithDividers: any = [];
   userId: string | null = null;
   activeContextMenuId: string | null = null;
-  private isAtBottom = true;
+  public isAtBottom = true;
   users: any[] = [];
   menuPosition: { x: number; y: number } = { x: 0, y: 0 };
   private markAsReadDebounce = new Subject<void>();
