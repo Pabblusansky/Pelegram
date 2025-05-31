@@ -82,6 +82,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   availableReactions: string[] = ['👍', '❤️', '😂', '😮', '😢', '🙏']; // Available reactions, alpha test (1.0)
   isChatEffectivelyDeleted: boolean = false; 
   pinnedMessageDetails: Message | null = null; 
+  public unreadMessagesCount: number = 0;
+  private newMessagesWhileScrolledUp: Message[] = []; 
   
   // Search functionality
   isSearchActive: boolean = false;
@@ -158,7 +160,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
           this.typingUsers.delete(data.senderId);
         }
         this.cdr.detectChanges();
-        if (this.isTyping) {
+        if (this.isTyping && this.isAtBottom) {
           setTimeout(() => this.scrollToBottom(), 100);
         }
       }
@@ -265,14 +267,17 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   onScroll(): void {
     const messageContainer = document.querySelector('.messages');
     if (!messageContainer) return;
-    
-    const isNearBottom = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.clientHeight + 50;
-    this.isAtBottom = isNearBottom;
-    
-    if (isNearBottom) {
+
+    const threshold = 50;
+    const newIsAtBottom = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.clientHeight + threshold;
+
+    if (newIsAtBottom && !this.isAtBottom) {
+      console.log('Scrolled to bottom by user.');
+      this.clearUnreadMessagesIndicator();
       this.triggerMarkAsRead();
     }
-    
+    this.isAtBottom = newIsAtBottom;
+
     if (messageContainer.scrollTop < 100 && !this.isLoadingMore && !this.noMoreMessages && this.messages.length > 0) {
       const now = Date.now();
       if (now - this.lastLoadTimestamp > 1000) {
@@ -281,6 +286,14 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     }
   }
 
+  private clearUnreadMessagesIndicator(): void {
+    if (this.unreadMessagesCount > 0) {
+      console.log('Clearing unread messages indicator.');
+      this.unreadMessagesCount = 0;
+      this.newMessagesWhileScrolledUp = [];
+      this.cdr.detectChanges();
+    }
+  }
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();    
@@ -534,19 +547,22 @@ navigateToUserProfile(userId: string, event?: Event): void {
   // Under possible deleting (05.2025)
 
   scrollToBottom(force: boolean = false): void {
-    if (!force && !this.isAtBottom) {
-      console.log('ScrollToBottom: Not scrolling, user is not at bottom.');
+    if (!force && !this.isAtBottom && this.unreadMessagesCount === 0) {
+      console.log('ScrollToBottom: Not scrolling, user is not at bottom and no unread.');
       return;
     }
 
     try {
       const messageContainer = document.querySelector('.messages');
       if (messageContainer) {
+        this.clearUnreadMessagesIndicator();
+
         setTimeout(() => {
           messageContainer.scrollTop = messageContainer.scrollHeight;
+          this.isAtBottom = true;
           console.log(`Scrolled to bottom. New scrollTop: ${messageContainer.scrollTop}, scrollHeight: ${messageContainer.scrollHeight}`);
-          this.isAtBottom = true; 
-        }, 0); 
+          this.triggerMarkAsRead();
+        }, 0);
       } else {
         console.warn('ScrollToBottom: Message container not found.');
       }
@@ -1224,28 +1240,44 @@ navigateToUserProfile(userId: string, event?: Event): void {
   }
 
   private addOrUpdateMessage(message: Message, forceScrollForMyMessage: boolean = false): void {
+    console.log('addOrUpdateMessage - isAtBottom:', this.isAtBottom, 'message sender:', message.senderId, 'my id:', this.userId);
     message.ismyMessage = message.senderId === this.userId; 
     const existingMessageIndex = this.messages.findIndex(m => m._id === message._id);
 
+    let isNewMessageAdded = false;
     if (existingMessageIndex > -1) {
       this.messages[existingMessageIndex] = { ...this.messages[existingMessageIndex], ...message };
     } else {
       this.messages.push(message);
+      isNewMessageAdded = true;
     }
 
     this.updateMessagesWithDividers();
-    this.cdr.detectChanges(); 
+    this.cdr.detectChanges();
 
-    if (forceScrollForMyMessage && message.ismyMessage) {
-      console.log('Forcing scroll to bottom for my just sent message.');
-      this.scrollToBottom(true);
-    } else if (!message.ismyMessage && this.isAtBottom) {
-      console.log('Scrolling to bottom for their message while at bottom.');
-      this.scrollToBottom();
-    } else if (message.ismyMessage && this.isAtBottom) {
-      console.log('Scrolling to bottom for my message echo while at bottom.');
-      this.scrollToBottom();
+    if (isNewMessageAdded && !message.ismyMessage && message._id) {
+        if (!this.isAtBottom) {
+          if (!this.newMessagesWhileScrolledUp.find(m => m._id === message._id)) {
+            this.newMessagesWhileScrolledUp.push(message);
+            this.unreadMessagesCount = this.newMessagesWhileScrolledUp.length;
+            console.log(`New unread message. Count: ${this.unreadMessagesCount}`);
+          }
+        } else {
+          if (document.hasFocus()) {
+            this.triggerMarkAsRead();
+          }
+        }
     }
+    // if (forceScrollForMyMessage && message.ismyMessage) {
+    //   console.log('Forcing scroll to bottom for my just sent message.');
+    //   this.scrollToBottom(true);
+    // } else if (!message.ismyMessage && this.isAtBottom) {
+    //   console.log('Scrolling to bottom for their message while at bottom.');
+    //   this.scrollToBottom();
+    // } else if (message.ismyMessage && this.isAtBottom) {
+    //   console.log('Scrolling to bottom for my message echo while at bottom.');
+    //   this.scrollToBottom();
+    // }
 
 
     if (message.senderId !== this.userId) {

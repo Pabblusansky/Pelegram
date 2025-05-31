@@ -1193,7 +1193,7 @@ html, body {
 
 .scroll-to-bottom-button {
   position: absolute;
-  bottom: 15px;
+  bottom: 25px;
   right: 15px;
   z-index: 100;
   background-color: var(--button-secondary-bg, var(--card-background));
@@ -1239,9 +1239,23 @@ html, body {
     align-items: center;
     justify-content: center;
     line-height: 1;
+    animation: bounceInBadge 0.3s ease-out;
   }
 }
 
+@keyframes bounceInBadge {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
 
 .message-input-container {
   flex-shrink: 0;

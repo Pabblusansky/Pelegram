@@ -274,6 +274,9 @@
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
           <path fill-rule="evenodd" d="M5.22 14.77a.75.75 0 0 1 1.06 0L10 18.44l3.72-3.67a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 15.83a.75.75 0 0 1 0-1.06ZM5.22 8.77a.75.75 0 0 1 1.06 0L10 12.44l3.72-3.67a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.83a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
         </svg>
+        <span *ngIf="unreadMessagesCount > 0" class="unread-badge">
+          {{ unreadMessagesCount > 99 ? '99+' : unreadMessagesCount }}
+        </span>
   </button>
   <div 
   *ngIf="activeContextMenuId && menuPosition"
