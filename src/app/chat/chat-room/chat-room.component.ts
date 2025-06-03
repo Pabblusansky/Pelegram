@@ -1239,8 +1239,7 @@ navigateToUserProfile(userId: string, event?: Event): void {
     });  
   }
 
-  private addOrUpdateMessage(message: Message, forceScrollForMyMessage: boolean = false): void {
-    console.log('addOrUpdateMessage - isAtBottom:', this.isAtBottom, 'message sender:', message.senderId, 'my id:', this.userId);
+  private addOrUpdateMessage(message: Message, isMyOwnMessageJustSent: boolean = false): void {
     message.ismyMessage = message.senderId === this.userId; 
     const existingMessageIndex = this.messages.findIndex(m => m._id === message._id);
 
@@ -1255,32 +1254,25 @@ navigateToUserProfile(userId: string, event?: Event): void {
     this.updateMessagesWithDividers();
     this.cdr.detectChanges();
 
-    if (isNewMessageAdded && !message.ismyMessage && message._id) {
-        if (!this.isAtBottom) {
-          if (!this.newMessagesWhileScrolledUp.find(m => m._id === message._id)) {
-            this.newMessagesWhileScrolledUp.push(message);
-            this.unreadMessagesCount = this.newMessagesWhileScrolledUp.length;
-            console.log(`New unread message. Count: ${this.unreadMessagesCount}`);
-          }
-        } else {
-          if (document.hasFocus()) {
-            this.triggerMarkAsRead();
-          }
+    if (isMyOwnMessageJustSent) {
+      console.log('My own message just sent, forcing scroll to bottom.');
+      this.scrollToBottom(true); // true - это force
+    } else if (isNewMessageAdded && !message.ismyMessage) {
+      if (!this.isAtBottom) {
+        if (!this.newMessagesWhileScrolledUp.find(m => m._id === message._id)) {
+          this.newMessagesWhileScrolledUp.push(message);
+          this.unreadMessagesCount = this.newMessagesWhileScrolledUp.length;
+          console.log(`New unread message. Count: ${this.unreadMessagesCount}`);
         }
+      } else {
+        console.log('Incoming message, user is at bottom. Scrolling and marking read.');
+        this.scrollToBottom();
+        if (document.hasFocus()) {
+          this.triggerMarkAsRead();
+        }
+      }
     }
-    // if (forceScrollForMyMessage && message.ismyMessage) {
-    //   console.log('Forcing scroll to bottom for my just sent message.');
-    //   this.scrollToBottom(true);
-    // } else if (!message.ismyMessage && this.isAtBottom) {
-    //   console.log('Scrolling to bottom for their message while at bottom.');
-    //   this.scrollToBottom();
-    // } else if (message.ismyMessage && this.isAtBottom) {
-    //   console.log('Scrolling to bottom for my message echo while at bottom.');
-    //   this.scrollToBottom();
-    // }
-
-
-    if (message.senderId !== this.userId) {
+    if (message.senderId !== this.userId && this.isAtBottom && document.hasFocus()) {
       this.triggerMarkAsRead();
     }
   }
