@@ -266,7 +266,6 @@ router.route('/:id')
     try {
       const now = new Date();
       const messageId = req.params.id;
-      const userId = req.user.id;
       
       const existingMessage = await Message.findById(req.params.id);
       
@@ -287,11 +286,11 @@ router.route('/:id')
         },
         { new: true }
       ).populate('senderId', '_id username avatar name');
+
       if (!updatedMessage) {
         return res.status(404).json({ error: 'Message not found' });
       }
-      io.to(updatedMessage.chatId.toString()).emit('message_edited', updatedMessage);
-      console.log(`Emitted message_edited event to chat ${updatedMessage.chatId}:`, updatedMessage);
+      io.to(updatedMessage.chatId.toString()).emit('message_edited', updatedMessage.toObject());
 
       const chat = await Chat.findById(updatedMessage.chatId)
       
@@ -303,13 +302,12 @@ router.route('/:id')
             populate: { path: 'senderId', select: '_id username avatar name' }
           });
           if (updatedChatForEmit) {
-            console.log('Emitting chat_updated event:', updatedChatForEmit);
-            io.to(updatedMessage.chatId.toString()).emit('chat_updated', updatedChatForEmit);
+            io.to(updatedMessage.chatId.toString()).emit('chat_updated', updatedChatForEmit.toObject());
           } else {
             console.error(`Chat with ID ${chat._id} not found after update for emitting chat_updated event.`);
           }
         }
-      res.json(updatedMessage);
+      res.json(updatedMessage.toObject());
     } catch (err) {
       console.error('Error editing message:', err);
       res.status(500).json({ error: err.message });

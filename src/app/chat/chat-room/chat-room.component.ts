@@ -85,6 +85,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   public unreadMessagesCount: number = 0;
   private newMessagesWhileScrolledUp: Message[] = []; 
   
+  @ViewChild(MessageInputComponent) messageInputComponent?: MessageInputComponent; 
+  
   // Search functionality
   isSearchActive: boolean = false;
   searchQuery: string = '';
@@ -196,6 +198,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
         editedContent
       };
       
+      this.messages[index].isEditing = false;
+      delete this.messages[index].editedContent;
+
       if (editedMessage.senderId !== this.userId) {
         this.applyEditAnimation(editedMessage._id!);
       }
@@ -751,64 +756,123 @@ navigateToUserProfile(userId: string, event?: Event): void {
     console.log('Menu position set to:', this.menuPosition);
   }
   
-  startEdit(message: any): void {
+  startEdit(message: Message): void {
     this.activeContextMenuId = null;
-    
-    if (message.senderId !== this.userId) return;
-    
-    message.isEditing = true;
-    message.editedContent = message.content;
-    
+    const messageInArray = this.messages.find(m => m._id === message._id);
+    if (!messageInArray || messageInArray.senderId !== this.userId) return;
+      messageInArray.isEditing = true;
+      messageInArray.editedContent = messageInArray.content; 
+
+    const messageInDividers = this.messagesWithDividers.find(
+      (item: any) => item.type === 'message' && item._id === message._id
+    );
+    if (messageInDividers) {
+      messageInDividers.isEditing = true;
+      messageInDividers.editedContent = messageInDividers.content;
+    }
     this.selectedMessageId = null;
-  }
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      const textarea = document.querySelector(`#message-${messageInArray._id} .edit-textarea`) as HTMLTextAreaElement;
+      if (textarea) {
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+      }
+    }, 50);
+}
   
   cancelEdit(message: any): void {
     message.isEditing = false;
     delete message.editedContent;
+    this.messageInputComponent?.focusInput();
+    this.cdr.detectChanges();
   }
   
-  saveMessageEdit(message: Message): void {
-    if (!message.editedContent?.trim()) return;
-    
-    if (message.content === message.editedContent.trim()) {
-      message.isEditing = false;
-      delete message.editedContent;
+  saveMessageEdit(messageFromUI: any): void { 
+    const messageId = messageFromUI._id;
+    const messageInArray = this.messages.find(m => m._id === messageId);
+
+    if (!messageInArray) {
+      console.error('Message to save not found in main messages array:', messageId);
+      this.cancelEdit(messageFromUI);
       return;
     }
+
+    const editedContentFromUI = messageFromUI.editedContent;
+
+    if (!editedContentFromUI?.trim()) {
+        this.cancelEdit(messageFromUI);
+        return;
+    }
+
+    const newContent = editedContentFromUI.trim();
+
+    if (messageInArray.content === newContent) {
+      messageInArray.isEditing = false;
+      delete messageInArray.editedContent;
+      messageFromUI.isEditing = false;
+      delete messageFromUI.editedContent;
+      this.cdr.detectChanges(); 
+      return;
+    }
+
+    const originalContent = messageInArray.content;
+
+    messageInArray.content = newContent;
+    messageInArray.isEditing = false;
+    messageInArray.edited = true;
+    messageInArray.editedAt = new Date();
+    delete messageInArray.editedContent;
+
+    messageFromUI.content = newContent;
+    messageFromUI.isEditing = false;
+    messageFromUI.edited = true;
+    messageFromUI.editedAt = messageInArray.editedAt;
+    delete messageFromUI.editedContent;
     
-    const originalContent = message.content;
-    const originalEditingState = message.isEditing;
-    
-    message.content = message.editedContent.trim();
-    message.isEditing = false;
-    message.edited = true;
-    message.editedAt = new Date();
-    
-    this.chatService.editMessage(message._id!, message.editedContent.trim()).subscribe({
-      next: (updatedMessage) => {
-        console.log('Message successfully edited:', updatedMessage);
-        
-        this.messages = this.messages.map(m => 
-          m._id === message._id ? {
-            ...m,
-            content: updatedMessage.content,
-            edited: updatedMessage.edited,
-            editedAt: updatedMessage.editedAt
-          } : m
-        );
-        
+    this.updateMessagesWithDividers();
+    this.cdr.detectChanges();
+
+    this.chatService.editMessage(messageInArray._id!, newContent).subscribe({
+      next: (updatedMessageFromServer) => {
+        console.log('Message successfully edited on server:', updatedMessageFromServer);
+        const finalMessageIndex = this.messages.findIndex(m => m._id === updatedMessageFromServer._id);
+        if (finalMessageIndex !== -1) {
+          this.messages[finalMessageIndex] = {
+            ...this.messages[finalMessageIndex],
+            content: updatedMessageFromServer.content,
+            edited: updatedMessageFromServer.edited,
+            editedAt: updatedMessageFromServer.editedAt,
+            isEditing: false, 
+          };
+          delete this.messages[finalMessageIndex].editedContent;
+        }
         this.updateMessagesWithDividers();
+        this.messageInputComponent?.focusInput();
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error('Failed to edit message:', err);
-        
-        message.content = originalContent;
-        message.isEditing = originalEditingState;
+        console.error('Failed to edit message on server:', err);
+        const messageToRevert = this.messages.find(m => m._id === messageId);
+        if (messageToRevert) {
+          messageToRevert.content = originalContent;
+          messageToRevert.isEditing = false;
+          messageToRevert.edited = messageFromUI.edited; 
+          messageToRevert.editedAt = messageFromUI.editedAt;
+          delete messageToRevert.editedContent;
+        }
+        messageFromUI.content = originalContent;
+        messageFromUI.isEditing = true;
+        messageFromUI.editedContent = editedContentFromUI;
+
+        this.updateMessagesWithDividers();
+        this.messageInputComponent?.focusInput();
         this.cdr.detectChanges();
+        this.showToast('Failed to save edit. Please try again.');
       }
     });
   }
+
 
   
   deleteMessage(messageId: string | undefined): void {
@@ -1804,6 +1868,51 @@ getHighlightedText(text: string, query: string): SafeHtml {
     const formattedContent = content.replace(/\n/g, '<br>');
     
     return this.sanitizer.bypassSecurityTrustHtml(formattedContent);
+  }
+
+  startEditById(messageId: string): void {
+    const messageToEdit = this.messages.find(m => m._id === messageId);
+    if (messageToEdit) {
+      this.startEdit(messageToEdit);
+   }
+  }
+
+  onEditLastMessageRequested(): void {
+    if (!this.userId || this.messages.length === 0) {
+      console.log('EditLast: No user or no messages.');
+      return;
+    }
+    console.log('EditLast: Request received. Searching for last own message.');
+    for (let i = this.messages.length - 1; i >= 0; i--) {
+      const message = this.messages[i];
+      const messageSenderId = (typeof message.senderId === 'object' && message.senderId !== null) 
+                              ? (message.senderId as any)._id 
+                              : message.senderId;
+      // console.log(`EditLast: Checking message ${i}, sender: ${messageSenderId}, isEditing: ${message.isEditing}`);
+      if (messageSenderId === this.userId) {
+        console.log(`EditLast: Found last own message to edit:`, message);
+        if (message.isEditing) {
+          console.log('EditLast: Message is already being edited.');
+          return;
+        }
+        this.startEdit(message); 
+        return;
+      }
+    }
+    console.log('EditLast: No own message found to edit from ArrowUp.');
+  }
+
+  onEditTextareaKeydown(event: KeyboardEvent, messageItemFromUI: any): void { 
+    if (event.key === 'Enter') {
+      if (event.shiftKey) { 
+        return; 
+      }
+      event.preventDefault();
+      this.saveMessageEdit(messageItemFromUI);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelEdit(messageItemFromUI);
+    }
   }
 }
 

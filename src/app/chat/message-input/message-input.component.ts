@@ -1,6 +1,7 @@
-import { Component, EventEmitter, Output, Input, ViewChild, ElementRef } from '@angular/core';
+import { Component, EventEmitter, Output, Input, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+
 @Component({
   selector: 'app-message-input',
   standalone: true,
@@ -22,6 +23,7 @@ export class MessageInputComponent {
   @Input() chatId: string | null = null;
   @Output() sendMessageEvent = new EventEmitter<string>(); 
   @Output() inputChange = new EventEmitter<boolean>(); 
+  @Output() editLastMessageRequest = new EventEmitter<void>();
 
   newMessage: string = '';
   @ViewChild('messageTextarea') messageTextarea!: ElementRef<HTMLTextAreaElement>;
@@ -41,8 +43,11 @@ export class MessageInputComponent {
   }
 
   onEnterPress(event: Event): void {
-    const keyboardEvent = event as KeyboardEvent;
-    if (!keyboardEvent.shiftKey && this.newMessage.trim()) {
+    const keyEvent = event as KeyboardEvent;
+    if (keyEvent.shiftKey) {
+      return;
+    }
+    if (this.newMessage.trim()) {
       event.preventDefault(); 
       this.send();
     }
@@ -59,5 +64,26 @@ export class MessageInputComponent {
 
   public focusInput(): void {
     this.messageTextarea.nativeElement.focus();
+  }
+
+  @HostListener('keydown', ['$event'])
+  handleKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'ArrowUp') {
+      if (this.newMessage.trim() === '' && this.messageTextarea.nativeElement.selectionStart === 0) {
+        event.preventDefault();
+        this.editLastMessageRequest.emit();
+      }
+    }
+  }
+
+  public setInputValue(text: string): void {
+    this.newMessage = text;
+    this.onInput();
+    setTimeout(() => {
+      if (this.messageTextarea) {
+        this.messageTextarea.nativeElement.focus();
+        this.messageTextarea.nativeElement.selectionStart = this.messageTextarea.nativeElement.selectionEnd = text.length;
+      }
+    }, 0);
   }
 }

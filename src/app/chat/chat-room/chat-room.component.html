@@ -210,9 +210,7 @@
             class="edit-textarea"
             [(ngModel)]="item.editedContent"
             #editTextarea
-            (keydown.enter)="saveMessageEdit(item)"
-            (keydown.meta.enter)="saveMessageEdit(item)"
-            (keydown.escape)="cancelEdit(item)"
+            (keydown)="onEditTextareaKeydown($event, item)"
             autofocus
           ></textarea>
           <div class="edit-actions">
@@ -309,7 +307,7 @@
         </svg>
       </span> Reply
     </button>
-    <button class="menu-item" (click)="startEdit(getSelectedMessage())">
+    <button class="menu-item" (click)="startEditById(getSelectedMessage()._id)">
       <span class="menu-icon">✏️</span> Edit
     </button>
     <button class="menu-item" (click)="copyMessageText(getSelectedMessage())">
@@ -367,6 +365,7 @@
       [chatId]="chatId"
       (sendMessageEvent)="onMessageSend($event)"
       (inputChange)="onInputChange($event)"
+      (editLastMessageRequest)="onEditLastMessageRequested()"
     ></app-message-input>
   </div>
   <app-forward-dialog
