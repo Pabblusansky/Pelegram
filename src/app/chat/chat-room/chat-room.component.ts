@@ -756,7 +756,7 @@ navigateToUserProfile(userId: string, event?: Event): void {
     console.log('Menu position set to:', this.menuPosition);
   }
   
-  startEdit(message: Message): void {
+  startEdit(message: Message, isLastMessageEdit: boolean = false): void {
     this.activeContextMenuId = null;
     const messageInArray = this.messages.find(m => m._id === message._id);
     if (!messageInArray || messageInArray.senderId !== this.userId) return;
@@ -772,18 +772,64 @@ navigateToUserProfile(userId: string, event?: Event): void {
     }
     this.selectedMessageId = null;
     this.cdr.detectChanges();
+
     setTimeout(() => {
-      const textarea = document.querySelector(`#message-${messageInArray._id} .edit-textarea`) as HTMLTextAreaElement;
+      const messageId = messageInArray._id;
+      if (!messageId) return;
+      const messageElement = document.getElementById('message-' + messageInArray._id);
+          const editContainerElement = messageElement?.querySelector('.edit-container') as HTMLElement;
+      const textarea = messageElement?.querySelector('.edit-textarea') as HTMLTextAreaElement;
       if (textarea) {
         textarea.focus();
         textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
       }
+      if (messageElement && editContainerElement) {
+        const messagesContainer = document.querySelector('.messages');
+        if (messagesContainer) {
+          const containerRect = messagesContainer.getBoundingClientRect();
+          const editContainerRect = editContainerElement.getBoundingClientRect();
+          const isFullyVisible = 
+              editContainerRect.top >= containerRect.top &&
+              editContainerRect.bottom <= containerRect.bottom;
+
+          if (!isFullyVisible || isLastMessageEdit) {
+            let scrollAdjustment = 0;
+
+            if (editContainerRect.bottom > containerRect.bottom) {
+              scrollAdjustment = (editContainerRect.bottom - containerRect.bottom) + 40;
+            }
+            else if (editContainerRect.top < containerRect.top) {
+              scrollAdjustment = (editContainerRect.top - containerRect.top) - 15;
+            }
+            
+            if (scrollAdjustment !== 0 || (isLastMessageEdit && messagesContainer.scrollTop + messagesContainer.clientHeight < messagesContainer.scrollHeight - 5)) {
+              messagesContainer.scrollTop += scrollAdjustment;
+              if (isLastMessageEdit && Math.abs(messagesContainer.scrollTop + messagesContainer.clientHeight - messagesContainer.scrollHeight) < 5) {
+                  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+              }
+              // console.log(`Scrolled messages container by: ${scrollAdjustment}. New scrollTop: ${messagesContainer.scrollTop}`);
+            }
+          }
+        }
+      }
     }, 50);
 }
   
-  cancelEdit(message: any): void {
-    message.isEditing = false;
-    delete message.editedContent;
+  cancelEdit(messageFromUI: any): void {
+    const messageId = messageFromUI._id;
+
+    messageFromUI.isEditing = false;
+    delete messageFromUI.editedContent;
+
+    const messageInArray = this.messages.find(m => m._id === messageId);
+    if (messageInArray) {
+      messageInArray.isEditing = false;
+      delete messageInArray.editedContent;
+      // console.log(`CancelEdit: Message ${messageId} in this.messages updated, isEditing: ${messageInArray.isEditing}`);
+    } else {
+      console.warn(`CancelEdit: Message ${messageId} not found in this.messages to reset isEditing state.`);
+    }
+
     this.messageInputComponent?.focusInput();
     this.cdr.detectChanges();
   }
@@ -1886,8 +1932,8 @@ getHighlightedText(text: string, query: string): SafeHtml {
     for (let i = this.messages.length - 1; i >= 0; i--) {
       const message = this.messages[i];
       const messageSenderId = (typeof message.senderId === 'object' && message.senderId !== null) 
-                              ? (message.senderId as any)._id 
-                              : message.senderId;
+                            ? (message.senderId as any)._id 
+                            : message.senderId;
       // console.log(`EditLast: Checking message ${i}, sender: ${messageSenderId}, isEditing: ${message.isEditing}`);
       if (messageSenderId === this.userId) {
         console.log(`EditLast: Found last own message to edit:`, message);
