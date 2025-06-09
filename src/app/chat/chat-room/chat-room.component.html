@@ -176,7 +176,7 @@
         {{ item.senderName }}
       </span>
 
-        <div *ngIf="item.replyTo && item.replyTo._id" class="reply-quote-block" (click)="scrollToMessage(item.replyTo._id)">
+        <div *ngIf="item.replyTo && item.replyTo._id" class="reply-quote-block" (click)="scrollToMessage(item.replyTo._id, 'center', true)">
           <div class="reply-quote-sender">{{ item.replyTo.senderName }}</div>
           <div class="reply-quote-content">{{ item.replyTo.content | slice:0:70 }}{{ item.replyTo.content?.length > 70 ? '...' : '' }}</div>
         </div>

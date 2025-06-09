@@ -1449,21 +1449,64 @@ navigateToUserProfile(userId: string, event?: Event): void {
 
     const messageElement = document.getElementById('message-' + messageId);
     if (messageElement) {
-      // If this is not a search result scroll, use the regular reply highlighting logic
-      if (!this.isSearchActive || !messageElement.classList.contains('current-search-result')) {
-        document.querySelectorAll('.message.highlighted-reply').forEach(el => 
-          el.classList.remove('highlighted-reply')
-        );
+      document.querySelectorAll('.message.highlighted-reply').forEach(el => 
+        el.classList.remove('highlighted-reply')
+      );
+      const isSearchResult = this.isSearchActive && this.messages.some(m => m._id === messageId && m.isCurrentSearchResult);
+    
+      if (!isSearchResult) {
         messageElement.classList.add('highlighted-reply');
         setTimeout(() => {
           messageElement.classList.remove('highlighted-reply');
         }, 2000);
+        messageElement.animate([
+          { backgroundColor: 'transparent' },
+          { backgroundColor: 'rgba(74, 118, 168, 0.2)' },
+          { backgroundColor: 'transparent' }
+        ], {
+          duration: 1500,
+          easing: 'ease-in-out'
+        });
+        setTimeout(() => {
+          messageElement.classList.remove('highlighted-reply');
+        }, 2000);
       }
-
       messageElement.scrollIntoView({ behavior: 'smooth', block: block });
     } else {
-      this.showToast('Message not found in current view', 3000);
-      console.warn(`Message element with ID 'message-${messageId}' not found for scrolling.`);
+    this.showToast('Loading message context...', 2000);
+    console.warn(`Message element with ID 'message-${messageId}' not found. Attempting to load.`);
+    
+    if (this.chatId) {
+      this.chatService.loadMessageContext(this.chatId, messageId)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: (contextMessages) => {
+            if (contextMessages && contextMessages.length > 0) {
+              this.mergeMessages(contextMessages);
+              this.updateMessagesWithDividers();
+              this.cdr.detectChanges();
+              setTimeout(() => {
+                const newMessageElement = document.getElementById('message-' + messageId);
+                if (newMessageElement) {
+                  newMessageElement.scrollIntoView({ behavior: 'smooth', block: block });
+                  newMessageElement.classList.add('highlighted-reply');
+                  setTimeout(() => {
+                    newMessageElement.classList.remove('highlighted-reply');
+                  }, 2000);
+                } else {
+                  this.showToast('Cannot find the original message', 3000);
+                }
+              }, 100);
+            } else {
+              this.showToast('Original message not found', 3000);
+            }
+          },
+          error: (err) => {
+            console.error('Error loading message context:', err);
+            this.showToast('Failed to load original message', 3000);
+          }
+        });
+    }
     }
   }
 
