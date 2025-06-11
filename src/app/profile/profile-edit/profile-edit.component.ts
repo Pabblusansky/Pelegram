@@ -6,6 +6,7 @@ import { ThemeService } from '../../services/theme.service';
 import { NotificationService } from '../../services/notifications.service';
 import { SoundService } from '../../services/sound.service';
 import { getFullAvatarUrl } from '../../utils/url-utils';
+import { ProfileService } from '../profile.service';
 
 @Component({
   selector: 'app-profile-edit',
@@ -15,12 +16,14 @@ import { getFullAvatarUrl } from '../../utils/url-utils';
   imports: [CommonModule, FormsModule]
 })
 export class ProfileEditComponent implements OnInit {
-[x: string]: any;
+  [x: string]: any;
   @Input() profile: UserProfile | null = null;
   @Output() save = new EventEmitter<ProfileUpdateDto>();
   @Output() cancel = new EventEmitter<void>();
   @Output() avatarUpload = new EventEmitter<File>();
-  
+  @Output() profileUpdated = new EventEmitter<UserProfile>();
+  isDeletingAvatar = false;
+
   editableProfile: ProfileUpdateDto = {
     settings: {
       theme: 'system',
@@ -34,7 +37,8 @@ export class ProfileEditComponent implements OnInit {
   constructor(
     private themeService: ThemeService,
     private notificationService: NotificationService,
-    private soundService: SoundService
+    private soundService: SoundService,
+    private profileService: ProfileService
   ) {}
   
   ngOnInit(): void {
@@ -68,7 +72,19 @@ export class ProfileEditComponent implements OnInit {
   
   onSubmit(): void {
     console.log('Submitting profile update with settings:', this.editableProfile.settings);
-    this.save.emit(this.editableProfile);
+    // this.save.emit(this.editableProfile);
+      this.profileService.updateProfile(this.editableProfile).subscribe({
+      next: (updatedUser) => {
+        this.profileUpdated.emit(updatedUser);
+        this.save.emit(this.editableProfile);
+      }, error: (err) => {
+        console.error('Error updating profile:', err);
+        this.notificationService.showNotification('Profile update failed', {
+          body: 'There was an error updating your profile. Please try again later.',
+          icon: 'assets/logo.png'
+        });
+      }
+    });
   }
   
   onCancel(): void {
@@ -167,5 +183,38 @@ export class ProfileEditComponent implements OnInit {
     }
     
     console.log('Sound ' + (enabled ? 'enabled' : 'disabled'));
+  }
+
+  onDeleteAvatar(): void {
+        if (!this.profile || !this.profile.avatar) {
+      console.warn('No avatar to delete or profile not loaded.');
+      return;
+    }
+
+    if (confirm('Are you sure you want to delete your current avatar?')) {
+      this.isDeletingAvatar = true;
+      this.profileService.deleteAvatar().subscribe({
+        next: (response) => {
+          this.isDeletingAvatar = false;
+          if (response.success && response.user) {
+            if (this.profile) {
+              this.profile.avatar = response.user.avatar;
+            }
+            this.previewAvatarUrl = null;
+
+            if (this.profile) this.initializeEditableProfile();
+            this.profileUpdated.emit(response.user);
+
+            console.log('Avatar deleted successfully. New profile state:', this.profile);
+          } else {
+            console.error('Failed to delete avatar:', response.message);
+          }
+        },
+        error: (err) => {
+          this.isDeletingAvatar = false;
+          console.error('Error deleting avatar:', err);
+        }
+      });
+    }
   }
 }

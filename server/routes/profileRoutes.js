@@ -73,6 +73,7 @@ router.get('/:userId', authenticateToken, async (req, res) => {
   }
 });
 
+
 // Profile update
 router.patch('/me', authenticateToken, async (req, res) => {
     try {
@@ -157,4 +158,50 @@ router.post('/avatar', authenticateToken, upload.single('avatar'), async (req, r
   }
 });
   
-  export { router as profileRoutes };
+
+router.delete('/avatar', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.avatar) {
+      return res.status(400).json({ error: 'User does not have an avatar to delete' });
+    }
+
+    const avatarPathToDelete = user.avatar;
+    const fullPathToDelete = path.join(__dirname, '..', avatarPathToDelete);
+
+    user.avatar = null; // or user.avatar = '';
+    user.updatedAt = new Date();
+    await user.save();
+
+    fs.access(fullPathToDelete, fs.constants.F_OK, (err) => {
+      if (!err) {
+        fs.unlink(fullPathToDelete, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error(`Failed to delete avatar file ${fullPathToDelete}: ${unlinkErr.message}`);
+          } else {
+            console.log(`Successfully deleted avatar file: ${fullPathToDelete}`);
+          }
+        });
+      } else {
+        console.warn(`Avatar file not found for deletion, but removed from DB: ${fullPathToDelete}`);
+      }
+    });
+
+    const updatedUser = await User.findById(req.user.id).select('-password');
+    res.json({ 
+        success: true, 
+        message: 'Avatar deleted successfully',
+        user: updatedUser
+    });
+
+  } catch (err) {
+    console.error('Error deleting avatar:', err);
+    res.status(500).json({ error: 'Server error while deleting avatar' });
+  }
+});
+export { router as profileRoutes };

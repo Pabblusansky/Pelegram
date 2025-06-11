@@ -17,9 +17,22 @@
           id="avatar-upload"
           class="file-input"
         >
-        <label for="avatar-upload" class="upload-button">
-          Change Avatar
-        </label>
+        <div class="avatar-buttons">
+          <label for="avatar-upload" class="avatar-btn upload-button">
+            Change Avatar
+          </label>
+          <button 
+            type="button" 
+            *ngIf="profile?.avatar || previewAvatarUrl" 
+            (click)="onDeleteAvatar()"
+            class="avatar-btn delete-button"
+            [disabled]="isDeletingAvatar"
+            title="Delete current avatar"
+          >
+            <span *ngIf="!isDeletingAvatar">Delete Avatar</span>
+            <span *ngIf="isDeletingAvatar">Deleting...</span>
+          </button>
+        </div>
       </div>
     </div>
     

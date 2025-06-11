@@ -103,6 +103,7 @@
         <app-profile-edit 
           [profile]="profile"
           (save)="saveProfile($event)"
+          (profileUpdated)="handleProfileUpdateFromEdit($event)"
           (cancel)="cancelEditing()"
           (avatarUpload)="uploadAvatar($event)"
         ></app-profile-edit>

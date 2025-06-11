@@ -259,4 +259,9 @@ export class ProfileComponent implements OnInit {
     
     return defaultMessage;
   }
+
+  handleProfileUpdateFromEdit(updatedProfile: UserProfile): void {
+    this.profile = updatedProfile;
+    this.isEditing = false;
+  }
 }
