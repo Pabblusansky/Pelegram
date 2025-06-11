@@ -196,7 +196,7 @@ export class ChatService implements OnDestroy {
         this.userStatusesSubject.next(formattedStatuses);
       });
       this.setupActivityPing();
-      this.loadInitialUserStatuses();
+      // this.loadInitialUserStatuses();
     }
     
   }
@@ -292,24 +292,42 @@ export class ChatService implements OnDestroy {
   private loadInitialUserStatuses(): void {
     const headers = this.getHeaders();
     if (!headers) return;
-    
-    this.http.get<Record<string, string>>(`${this.apiUrl}/api/users/status`, { headers })
-    .subscribe({
-      next: (statuses) => {
-        console.log('Loaded initial user statuses:', Object.keys(statuses).length);
-        const formattedStatuses: Record<string, { lastActive: string, online: boolean }> = {};
-        for (const [userId, status] of Object.entries(statuses)) {
-          formattedStatuses[userId] = {
-            lastActive: status || new Date().toISOString(),
-            online: false
-          };
+
+    this.http.get<Record<string, { lastActive: string, online: boolean }>>(`${this.apiUrl}/api/users/status`, { headers })
+      .subscribe({
+        next: (httpUserStatuses) => {
+          console.log('ChatService: HTTP response for initial user statuses:', httpUserStatuses);
+          
+          const currentStatusesInSubject = { ...this.userStatusesSubject.value };
+          let changed = false;
+
+          for (const [userId, httpStatus] of Object.entries(httpUserStatuses)) {
+            const existingStatus = currentStatusesInSubject[userId];
+            
+            const hasStatusChanged = !existingStatus || 
+                                    existingStatus.lastActive !== (httpStatus.lastActive || new Date().toISOString()) ||
+                                    existingStatus.online !== (httpStatus.online || false);
+
+            if (hasStatusChanged) {
+              currentStatusesInSubject[userId] = {
+                lastActive: httpStatus.lastActive || new Date().toISOString(),
+                online: httpStatus.online || false 
+              };
+              changed = true;
+            }
+          }
+          
+          if (changed) {
+            console.log('ChatService: Emitting updated statuses after merging HTTP statuses:', currentStatusesInSubject);
+            this.userStatusesSubject.next(currentStatusesInSubject);
+          } else {
+            console.log('ChatService: No changes to user statuses after merging HTTP statuses.');
+          }
+        },
+        error: (err) => {
+          console.error('Error loading initial user statuses from HTTP:', err);
         }
-        this.userStatusesSubject.next(formattedStatuses);
-      },
-      error: (err) => {
-        console.error('Error loading user statuses:', err);
-      }
-    });
+      });
   }
   
   private setupActivityPing(): void {

@@ -86,20 +86,30 @@ export class ChatListComponent implements OnInit, OnDestroy {
     this.chatService.userStatuses$
       .pipe(takeUntil(this.destroy$))
       .subscribe(statuses => {
+        console.log('CHAT-LIST: Received userStatuses in component:', JSON.parse(JSON.stringify(statuses)));
+        let changed = false;
         this.chats.forEach(chat => {
+          if (chat.isSelfChat || !chat.participants || chat.participants.length < 2) {
+            return;
+          }
           const otherParticipant = chat.participants.find(
             (p: any) => p._id !== this.currentUserId
           );
           
-          if (otherParticipant) {
+          if (otherParticipant && otherParticipant._id) {
             const userId = otherParticipant._id;
             const userStatus = statuses[userId];
-            
-            this.participantStatuses.set(userId, userStatus ? userStatus.online : false);
+            const newOnlineStatus = userStatus ? userStatus.online : false;
+            console.log(`CHAT-LIST: Chat ${chat._id}, otherP: ${userId}, newStatus: ${newOnlineStatus}, currentMapStatus: ${this.participantStatuses.get(userId)}`);
+            if (this.participantStatuses.get(userId) !== newOnlineStatus) {
+              this.participantStatuses.set(userId, newOnlineStatus);
+              changed = true;
+            }
           }
         });
-        
+        if (changed) {
         this.cdr.detectChanges();
+        }
       });
   }
 
@@ -255,7 +265,9 @@ loadRegularChats(): void {
   }
 
   isParticipantOnline(userId: string): boolean {
-    return this.participantStatuses.get(userId) || false;
+    const status = this.participantStatuses.get(userId) || false;
+    console.log(`CHAT-LIST: isParticipantOnline for ${userId}: ${status}`);
+    return status;
   }
 
   viewUserProfile(userId: string | null): void {
