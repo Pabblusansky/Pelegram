@@ -2,11 +2,11 @@ import { Injectable, OnDestroy } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { io, Socket } from 'socket.io-client';
 import { Router } from '@angular/router';
-import { catchError, Observable, Observer, retry, share, Subject, throwError, map, tap } from 'rxjs';
+import { catchError, Observable, Subject, throwError, map, tap } from 'rxjs';
 import { Chat, Message, Reaction, User } from './chat.model';
 import { BehaviorSubject, interval } from 'rxjs';
-import { delay, shareReplay, takeUntil } from 'rxjs/operators';
-
+import { shareReplay, takeUntil } from 'rxjs/operators';
+import { SoundService } from '../services/sound.service'; 
 
 interface MessageDeletedEvent {
   messageId: string;
@@ -50,7 +50,11 @@ export class ChatService implements OnDestroy {
   public chatDeletedGlobally$ = this.chatDeletedGloballySubject.asObservable();
   private newChatCreatedSubject = new Subject<Chat>();
   public newChatCreated$ = this.newChatCreatedSubject.asObservable();
-  constructor(private http: HttpClient, private router: Router) {
+  constructor(
+    private http: HttpClient, 
+    private router: Router,
+    private soundService: SoundService
+  ) {
     this.initializeSocket();
   }
   ngOnDestroy() {
@@ -87,22 +91,20 @@ export class ChatService implements OnDestroy {
       });
 
       this.socket.on('chat_deleted_globally', (data: ChatDeletedGloballyData) => {
-        console.log('FRONTEND SERVICE: Received chat_deleted_globally event:', data);
         this.chatDeletedGloballySubject.next(data);
       });
 
       this.socket.on('new_chat_created', (chatData: Chat) => {
-            console.log('FRONTEND SERVICE: Received new_chat_created event:', chatData);
             this.newChatCreatedSubject.next(chatData);
 
             if (this.socket && chatData && chatData._id) {
-              console.log(`FRONTEND SERVICE: Auto-joining room for newly created chat: ${chatData._id}`);
+              // console.log(`FRONTEND SERVICE: Auto-joining room for newly created chat: ${chatData._id}`);
               this.socket.emit('join_chat', chatData._id);
             }
       });
 
       this.socket.on('message_reaction_updated', (data: { messageId: string; reactions: Reaction[] }) => {
-        console.log('SERVICE: message_reaction_updated received', data);
+        // console.log('SERVICE: message_reaction_updated received', data);
         this.messageReactionUpdatedSubject.next(data);
       });
 
@@ -115,6 +117,10 @@ export class ChatService implements OnDestroy {
 
       this.socket.on('receive_message', (message: Message) => {
         this.newMessageSubject.next(message);
+        // const currentUserId = localStorage.getItem('userId');
+        // if (message.senderId !== currentUserId) {
+        //   this.soundService.playSound('message');
+        // }
       });
 
       this.socket.on('connect', () => {

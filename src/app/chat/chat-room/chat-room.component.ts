@@ -11,6 +11,7 @@ import { MessageInputComponent } from "../message-input/message-input.component"
 import { Router } from '@angular/router';
 import { ForwardDialogComponent } from '../forward/forward-dialogue.component';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { SoundService } from '../../services/sound.service';
 
 @Component({
   selector: 'app-chat-room',
@@ -49,6 +50,16 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       this.markMessagesAsRead();
     }
   }
+  @HostListener('window:focus', ['$event'])
+  onFocus(event: FocusEvent): void {
+      this.isWindowFocused = true;
+  }
+
+  @HostListener('window:blur', ['$event'])
+  onBlur(event: FocusEvent): void {
+    this.isWindowFocused = false;
+  }
+  
   isTyping = false;
   @Input() selectedChatId: string | null = null;
   typingUsers: Set<string> = new Set();
@@ -84,6 +95,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   pinnedMessageDetails: Message | null = null; 
   public unreadMessagesCount: number = 0;
   private newMessagesWhileScrolledUp: Message[] = []; 
+  private isWindowFocused: boolean = document.hasFocus();
   
   @ViewChild(MessageInputComponent) messageInputComponent?: MessageInputComponent; 
   
@@ -102,7 +114,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     private router: Router,
     private chatService: ChatService,
     private cdr: ChangeDetectorRef,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private soundService: SoundService
   ) {
     this.markAsReadDebounce.pipe(debounceTime(500)).subscribe(() => {
       this.markMessagesAsRead();
@@ -243,10 +256,19 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.chatService.newMessage$.pipe(takeUntil(this.destroy$)).subscribe(message => {
-      if (this.chatId === message.chatId) {
-        const isMyOwnMessageJustSent = message.senderId === this.userId && !this.messages.find(m => m._id === message._id);
+    this.chatService.newMessage$
+    .pipe(takeUntil(this.destroy$))
+    .subscribe(message => {
+      const isCurrentChat = this.chatId === message.chatId;
+      const isMyMessage = message.senderId === this.userId;
+      if (isCurrentChat) {
+        const isMyOwnMessageJustSent = isMyMessage && !this.messages.find(m => m._id === message._id);
         this.addOrUpdateMessage(message, isMyOwnMessageJustSent);
+      }
+      if (!isMyMessage) {
+        if (!isCurrentChat || (isCurrentChat && !this.isWindowFocused)) {
+          this.soundService.playSound('message');
+        }
       }
     });
 
@@ -2003,5 +2025,7 @@ getHighlightedText(text: string, query: string): SafeHtml {
       this.cancelEdit(messageItemFromUI);
     }
   }
+
+
 }
 
