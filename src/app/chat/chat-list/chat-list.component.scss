@@ -24,7 +24,7 @@
   --warning-border: rgba(255, 193, 7, 0.2);
 }
 
-// Dark mode styles - you can modify or add to these
+
 :host-context([data-theme="dark"]) {
   --text-color: #e8eaed;
   --text-color-on-active: #ffffff;
@@ -413,7 +413,11 @@
       transform: scale(1) translateX(0);
     }
   }
-
+  &.has-unread {
+    .chat-name, .chat-last-message {
+      font-weight: bold;
+    }
+  }
   &.active {
     background-color: var(--active-background);
     .chat-name, .chat-time, .chat-last-message {
@@ -466,6 +470,7 @@
   flex-direction: column;
   justify-content: center;
   gap: 2px;
+  position: relative;
 }
 
 .chat-name-time {
@@ -586,4 +591,23 @@
     opacity: 1;
     transform: scale(1) translateX(0);
   }
+}
+
+.chat-unread-badge {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  background-color: var(--primary-color, #4a76a8);
+  color: white;
+  border-radius: 50%; 
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  z-index: 1;
 }

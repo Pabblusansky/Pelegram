@@ -225,14 +225,14 @@ io.on('connection', (socket) => {
         return;
       }
       const senderName = sender.username;
-      const existingChatData = await Chat.findById(chatId);
-      if (!existingChatData) {
-        console.error(`Error sending message: Chat with ID ${chatId} not found for counting messages.`);
+      const chatBeforeMessage = await Chat.findById(chatId);
+      if (!chatBeforeMessage) {
+        console.error(`Error sending message: Chat with ID ${chatId} not found.`);
         if (typeof callback === 'function') callback({ success: false, error: 'Chat not found' });
         return;
       }
-      const messageCountInChat = existingChatData.messages.length;
-      const isFirstMessageInChat = messageCountInChat === 0;
+      const isFirstMessageInChat = chatBeforeMessage.messages.length === 0;
+
 
       const message = new Message({
           chatId,
@@ -253,6 +253,30 @@ io.on('connection', (socket) => {
       
       await message.save();
 
+      chatBeforeMessage.lastMessage = message._id;
+      chatBeforeMessage.updatedAt = new Date();
+      
+      if (chatBeforeMessage.participants && Array.isArray(chatBeforeMessage.unreadCounts)) {
+        chatBeforeMessage.participants.forEach(participantObjectId => {
+          const participantIdString = participantObjectId.toString();
+          if (participantIdString !== senderId.toString()) {
+            let unreadEntry = chatBeforeMessage.unreadCounts.find(uc => 
+              uc.userId.toString() === participantIdString
+            );
+            
+            if (unreadEntry) {
+              unreadEntry.count = (unreadEntry.count || 0) + 1;
+            } else {
+              chatBeforeMessage.unreadCounts.push({ 
+                userId: participantObjectId, 
+                count: 1 
+              });
+            }
+          }
+        });
+      }
+
+      await chatBeforeMessage.save();
       const updatedChat = await Chat.findByIdAndUpdate(
         chatId, 
         {
@@ -274,7 +298,7 @@ io.on('connection', (socket) => {
         io.to(chatId).emit('chat_updated', updatedChat.toObject());
       }
 
-      if (isFirstMessageInChat) {
+      if (isFirstMessageInChat && updatedChat) {
         console.log(`Chat ${chatId} is being "activated" for participants due to the first message.`);
         const chatDataForActivation = updatedChat.toObject();
 
@@ -441,7 +465,7 @@ app.get('/api/users/status', authenticateToken, async (req, res) => {
     const statusesObject = {};
     
     users.forEach(user => {
-      const userId = user._id.toString();
+      const userId = user._id.toString(); 
       
       let lastActiveStr;
       try {

@@ -61,6 +61,7 @@
     *ngFor="let chat of filteredChats"
     class="chat-item"
     [class.active]="router.url.includes(chat._id)"
+    [class.has-unread]="getUnreadCountForChat(chat) > 0"
     (click)="onChatClick(chat._id)"
     [title]="'Open chat with ' + getChatDisplayName(chat)"
   >
@@ -85,6 +86,9 @@
       </div>
       <div class="chat-last-message no-message" *ngIf="!chat.lastMessage">
         No messages yet
+      </div>
+      <div class="chat-unread-badge" *ngIf="getUnreadCountForChat(chat) > 0">
+        {{ getUnreadCountForChat(chat) }}
       </div>
     </div>
       

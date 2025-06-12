@@ -391,8 +391,32 @@ router.post('/markAsRead', authenticateToken, async (req, res) => {
     );
 
     console.log(`Updated  ${messagesToUpdate.length} messages in chat: ${chatId}`);
-
-    // Sending updated messages to all clients in the chat
+    
+    const chat = await Chat.findById(chatId);
+    if (chat) {
+      const userId = req.user.id;
+      const unreadEntryIndex = chat.unreadCounts.findIndex(uc => 
+        uc.userId.toString() === userId.toString()
+      );
+      
+      if (unreadEntryIndex !== -1 && chat.unreadCounts[unreadEntryIndex].count > 0) {
+        chat.unreadCounts[unreadEntryIndex].count = 0;
+        await chat.save();
+        
+        const populatedChat = await Chat.findById(chatId)
+          .populate('participants', '_id username avatar')
+          .populate({
+            path: 'lastMessage',
+            populate: { path: 'senderId', select: '_id username avatar name' }
+          })
+          .lean();
+        
+        if (populatedChat) {
+          io.to(chatId.toString()).emit('chat_updated', populatedChat);
+        }
+      }
+    }
+    
     messagesToUpdate.forEach(msg => {
       io.to(chatId).emit('messageStatusUpdated', { messageId: msg._id, status: 'read' });
     });

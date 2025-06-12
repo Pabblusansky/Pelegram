@@ -2,7 +2,7 @@ import { Component, EventEmitter, OnInit, OnDestroy, Output } from '@angular/cor
 import { HttpClient } from '@angular/common/http';
 import { ChatService } from '../chat.service';
 import { Router, RouterModule } from '@angular/router';
-import { User, Chat, Message } from '../chat.model';
+import { User, Chat, Message, UnreadCount } from '../chat.model';
 import { debounceTime, Subject, Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -627,5 +627,19 @@ loadRegularChats(): void {
       };
       this.cdr.detectChanges();
     }
+  }
+
+  getUnreadCountForChat(chat: Chat): number {
+    if (!chat.unreadCounts || !this.currentUserId) {
+      return 0;
+    }
+    const unreadEntry = chat.unreadCounts.find((uc: UnreadCount) => {
+      if (typeof uc.userId === 'string') {
+        return uc.userId === this.currentUserId;
+      } else {
+        return (uc.userId as any)?._id === this.currentUserId;
+      }
+    });
+    return unreadEntry ? unreadEntry.count : 0;
   }
 }

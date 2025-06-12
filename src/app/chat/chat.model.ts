@@ -10,11 +10,16 @@ export interface Reaction {
   createdAt?: string | Date;
 }
 
+export interface UnreadCount {
+  userId: string;
+  count: number;
+}
 
 export interface Chat {
   _id: string;
   participants: User[];
   messages: string[];
+  unreadCounts: UnreadCount[];
   lastMessage?: string;
   pinnedMessage?: Message | string | null;
   displayAvatarUrl?: string;

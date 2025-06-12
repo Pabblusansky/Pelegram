@@ -44,7 +44,7 @@ export default (io) => {
       .populate('participants', '_id username avatar')
       .populate({
           path: 'lastMessage',
-          populate: { path: 'senderId', select: '_id username avatar' }
+          populate: { path: 'senderId', select: '_id username avatar name' }
       });
 
       let isNewChatForTheInitiator = false;
@@ -53,6 +53,7 @@ export default (io) => {
         const newChatDoc = new Chat({
           participants: [initiatorId, recipientId],
           messages: [],
+          unreadCounts: participantsArray.map(pId => ({ userId: pId, count: 0 })),
         });
         chat = await newChatDoc.save();
         chat = await Chat.findById(chat._id)
@@ -178,7 +179,8 @@ export default (io) => {
         const newChatDoc = new Chat({
           participants: [userId],
           messages: [],
-          type: 'self'
+          type: 'self',
+          unreadCounts: [{ userId: userId, count: 0 }],
         });
         savedMessagesChat = await newChatDoc.save();
         savedMessagesChat = await Chat.findById(savedMessagesChat._id)
