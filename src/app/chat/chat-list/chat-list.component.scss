@@ -310,7 +310,7 @@
   align-items: center;
   gap: 10px;
   box-sizing: border-box;
-  overflow-x: hidden;
+  // overflow-x: hidden;
 }
 
 .no-chats-placeholder {
@@ -407,22 +407,32 @@
   overflow-y: auto;
   overflow-x: hidden;
   margin-bottom: 0;
-  
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+    
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
   
   &::-webkit-scrollbar {
     width: 6px;
+    display: none;
   }
   
-  &::-webkit-scrollbar-track {
-    background: transparent;
+  &:hover {
+    scrollbar-width: thin; /* Firefox */
+    
+    &::-webkit-scrollbar {
+      display: block; /* Chrome/Safari/Opera */
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 3px;
+    }
   }
-  
-  &::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 3px;
-  }
+
 
 }
 
