@@ -29,9 +29,7 @@ html, body {
   overflow: hidden;
   background-color: var(--background-color);
   color: var(--text-color);
-
-
-
+  
   .messages {
     scroll-behavior: smooth;
     flex: 1;
@@ -47,6 +45,13 @@ html, body {
     overflow-y: auto;
     overflow-x: hidden;
     z-index: 1;
+
+    &.selection-active {
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+    }
     &::-webkit-scrollbar {
       width: 8px;
     }
@@ -227,14 +232,29 @@ html, body {
   animation: fadeIn 0.3s ease;
   position: relative;
   
+  &.message-selected, &.isSelected, &[class*="is-selected"] {
+    background-color: var(--message-selected-bg, rgba(74, 118, 168, 0.25)) !important;
+    transition: background-color 0.2s ease-in-out;
+    border: 2px solid var(--primary-color, #4a76a8);
+  }
+
+  &.selection-mode-active {
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--message-hover-bg, rgba(74, 118, 168, 0.1));
+    }
+  }
   &.my-message {
     align-self: flex-end;
     background-color: var(--chat-my-message-bg, var(--accent-color));
+    color: var(--chat-my-message-text, var(--text-color));
   }
 
   &.their-message {
     align-self: flex-start;
     background-color: var(--chat-their-message-bg, var(--card-background));
+    color: var(--chat-their-message-text, var(--text-color));
   }
   
   // &.is-search-result {
@@ -323,6 +343,8 @@ html, body {
   animation: scaleIn 0.15s ease-out;
   overflow: hidden;
   min-width: 160px;
+  max-height: 85vh;
+  overflow-y: auto;
 
   .menu-header {
     display: flex;
@@ -349,11 +371,10 @@ html, body {
   }
 }
 .menu-items {
-  max-height: 220px;
+  max-height: none;
   display: flex;
   padding: 6px 0;
   flex-direction: column;
-  // overflow-y: auto; // In case we need scrolling for long menus, not needed for now.
 }
 
 .menu-item {
@@ -674,6 +695,10 @@ html, body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   z-index: 10;
   
+  > ng-container, > ng-template {
+    display: contents;
+  }
+
   .back-button {
     display: none;
     margin-right: 12px;
@@ -1373,5 +1398,57 @@ html, body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  
+  .selection-bar-content {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 0 12px;
+    
+    .selected-count {
+      margin: 0 8px;
+      font-weight: 500;
+      font-size: 16px;
+      color: var(--text-color);
+    }
+
+    .selection-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      
+      .action-button {
+        background: none;
+        border: none;
+        color: var(--text-color);
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        &:hover:not(:disabled) {
+          background-color: var(--hover-background, rgba(255, 255, 255, 0.15));
+        }
+        
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        svg {
+          width: 20px;
+          height: 20px;
+        }
+      }
+
+      .delete-selected-button:not(:disabled):hover {
+        color: var(--danger-color, #ffcdd2)
+      }
+    }
   }
 }

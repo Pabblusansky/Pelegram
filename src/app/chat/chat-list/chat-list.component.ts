@@ -266,7 +266,6 @@ loadRegularChats(): void {
 
   isParticipantOnline(userId: string): boolean {
     const status = this.participantStatuses.get(userId) || false;
-    console.log(`CHAT-LIST: isParticipantOnline for ${userId}: ${status}`);
     return status;
   }
 

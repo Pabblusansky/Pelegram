@@ -96,7 +96,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   public unreadMessagesCount: number = 0;
   private newMessagesWhileScrolledUp: Message[] = []; 
   private isWindowFocused: boolean = document.hasFocus();
-  
+  isSelectionModeActive: boolean = false;
+  selectedMessagesMap = new Map<string, Message>();
+  private isDragging: boolean = false;
+  private lastDraggedMessageId: string | null = null;
   @ViewChild(MessageInputComponent) messageInputComponent?: MessageInputComponent; 
   
   // Search functionality
@@ -650,13 +653,29 @@ navigateToUserProfile(userId: string, event?: Event): void {
     return messageFromOriginal || null;
   }
   
-  onMessageClick(message: any): void {
-    if (this.activeContextMenuId && this.activeContextMenuId !== message._id) {
-      this.activeContextMenuId = null;
+  onMessageClick(message: Message, event?: MouseEvent): void {
+    if (this.isSelectionModeActive) {
+      if (event && (event.ctrlKey || event.metaKey)) {
+        this.toggleMessageSelection(message);
+      } else {
+        this.toggleMessageSelection(message);
+      }
+    } else {
+      if (event && (event.ctrlKey || event.metaKey)) {
+        this.activateSelectionMode(message);
+      } else {
+        if (this.activeContextMenuId && this.activeContextMenuId !== message._id) {
+          this.activeContextMenuId = null;
+        }
+      }
     }
   }
   
   showContextMenu(event: MouseEvent, message: any): void {
+    if (this.isSelectionModeActive) {
+      event.preventDefault();
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
 
@@ -666,7 +685,8 @@ navigateToUserProfile(userId: string, event?: Event): void {
     }
 
     const MenuWidth = 220;  
-    const MenuHeight = 280;
+    const itemCount = message.senderId === this.userId ? 6 : 4;
+    const MenuHeight = (itemCount * 40) + 60;
     const cursorOffset = 5;
 
     let positionX = event.clientX;
@@ -707,15 +727,21 @@ navigateToUserProfile(userId: string, event?: Event): void {
   }
   
   startLongPress(event: TouchEvent, message: any): void {
-    event.preventDefault();
+    if (this.isSelectionModeActive) {
+      this.endLongPress();
+      return;
+    }
+    
+    if (event && event.preventDefault) {
+      event.preventDefault();
+    }
     
     this.longPressTimer = setTimeout(() => {
-      this.setMenuPosition(event);
-      this.activeContextMenuId = message._id;
-      this.selectedMessageId = message._id;
-      
-      if ('vibrate' in navigator) {
-        navigator.vibrate(100);
+      if (!this.isSearchActive && !message.isEditing) {
+        this.activateSelectionMode(message);
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
       }
     }, 500);
   }
@@ -723,6 +749,7 @@ navigateToUserProfile(userId: string, event?: Event): void {
   endLongPress(): void {
     if (this.longPressTimer) {
       clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
     }
   }
 
@@ -994,7 +1021,6 @@ navigateToUserProfile(userId: string, event?: Event): void {
         this.showToast('Failed to copy message', err);
       });
   }
-  
 
 
   get getAvatarUrl(): string {
@@ -1076,23 +1102,42 @@ navigateToUserProfile(userId: string, event?: Event): void {
   }
 
   confirmForward(targetChatId: string): void {
-    if (!this.messagetoForward || !this.messagetoForward._id) {
-      this.showToast('Cannot forward message: Invalid message');
+    if (!this.messagetoForward) {
+      this.cancelSelectionMode();
       this.cancelForward();
       return;
     }
-    
-    this.chatService.forwardMessage(this.messagetoForward._id, targetChatId).subscribe({
-      next: () => {
-        this.showToast('Message forwarded successfully');
-        this.cancelForward();
-      },
-      error: (error) => {
-        console.error('Error forwarding message:', error);
-        this.showToast('Failed to forward message');
-        this.cancelForward();
+
+    if (this.messagetoForward._id === 'multiple') {
+      const selectedMessages = this.getArrayOfSelectedMessages();
+      if (selectedMessages.length > 0) {
+        this.chatService.forwardMultipleMessages(selectedMessages.map(m => m._id!), targetChatId)
+          .subscribe({
+            next: () => {
+              this.showToast(`${selectedMessages.length} messages forwarded`);
+              this.cancelSelectionMode();
+              this.cancelForward();
+            },
+            error: (err) => {
+              this.showToast('Failed to forward messages');
+              console.error("Error forwarding multiple messages", err);
+              this.cancelForward();
+            }
+          });
       }
-    });
+    } else if (this.messagetoForward._id) {
+      this.chatService.forwardMessage(this.messagetoForward._id, targetChatId).subscribe({
+        next: () => {
+          this.showToast('Message forwarded successfully');
+          this.cancelSelectionMode();
+          this.cancelForward();
+        },
+        error: (error) => {
+          this.showToast('Failed to forward message');
+          this.cancelForward();
+        }
+      });
+    }
   }
 
   public showToast(message: string, duration: number = 3000): void {
@@ -1214,17 +1259,54 @@ navigateToUserProfile(userId: string, event?: Event): void {
     this.selectedMessageId = null;
   }
   
-  @HostListener('window:keydown', ['$event'])
-  handleKeyboardEvent(event: KeyboardEvent): void {
+  @HostListener('document:keydown', ['$event'])
+  handleGlobalKeyDown(event: KeyboardEvent): void {
+    if (event.target instanceof HTMLInputElement || 
+        event.target instanceof HTMLTextAreaElement) {
+      return;
+    }
+
     if (event.key === 'Escape') {
-      this.activeContextMenuId = null;
-      this.selectedMessageId = null;
+      if (this.isSelectionModeActive) {
+        this.cancelSelectionMode();
+        event.preventDefault();
+        return;
+      }
       
-      this.messagesWithDividers.forEach((item: any) => {
-        if (item.type === 'message' && item.isEditing) {
-          this.cancelEdit(item);
-        }
-      });
+      if (this.isSearchActive) {
+        this.closeSearch();
+        event.preventDefault();
+        return;
+      }
+      
+      if (this.activeContextMenuId) {
+        this.activeContextMenuId = null;
+        this.selectedMessageId = null;
+        event.preventDefault();
+        
+        this.messagesWithDividers.forEach((item: any) => {
+          if (item.type === 'message' && item.isEditing) {
+            this.cancelEdit(item);
+          }
+        });
+        return;
+      }
+    }
+    
+    if (this.isSelectionModeActive && this.selectedMessagesMap.size > 0 && 
+        (event.ctrlKey || event.metaKey) && event.key === 'c') {
+      event.preventDefault();
+      this.copySelectedMessages();
+      return;
+    }
+
+    if (this.isSelectionModeActive && this.selectedMessagesMap.size > 0 && 
+        (event.key === 'Delete' || event.key === 'Backspace')) {
+      if (this.canDeleteSelectedMessages()) {
+        event.preventDefault();
+        this.deleteSelectedMessages();
+      }
+      return;
     }
     
     if (event.key === 'Enter' && event.ctrlKey) {
@@ -1234,6 +1316,7 @@ navigateToUserProfile(userId: string, event?: Event): void {
       
       if (editingMessage) {
         this.saveMessageEdit(editingMessage);
+        event.preventDefault();
       }
     }
   }
@@ -2026,6 +2109,253 @@ getHighlightedText(text: string, query: string): SafeHtml {
     }
   }
 
+  private activateSelectionMode(message: Message): void {
+    if (!message || !message._id) return;
+    
+    this.isSelectionModeActive = true;
+    this.selectedMessagesMap.clear();
 
+    message.isSelected = true;
+    this.selectedMessagesMap.set(message._id, message);
+
+    this.updateMessageInLocalArrays(message);
+    this.activeContextMenuId = null;
+    
+    // Apply selection-mode-active class to all messages
+    this.messages.forEach(msg => {
+      if (msg._id === message._id) {
+        msg.isSelected = true;
+      }
+    });
+    
+    this.updateMessagesWithDividers();
+    this.cdr.detectChanges();
+  }
+
+  toggleMessageSelection(message: Message, forcedState?: boolean): void {
+    if (!message || !message._id) return;
+
+    const isCurrentlySelected = this.selectedMessagesMap.has(message._id);
+    
+    if (typeof forcedState === 'boolean') {
+      if (forcedState === true && !isCurrentlySelected) {
+        message.isSelected = true;
+        this.selectedMessagesMap.set(message._id, message);
+      } else if (forcedState === false && isCurrentlySelected) {
+        message.isSelected = false;
+        this.selectedMessagesMap.delete(message._id);
+      }
+    } else {
+      if (isCurrentlySelected) {
+        message.isSelected = false;
+        this.selectedMessagesMap.delete(message._id);
+      } else {
+        message.isSelected = true;
+        this.selectedMessagesMap.set(message._id, message);
+      }
+    }
+
+    this.updateMessageInLocalArrays(message);
+
+    if (this.selectedMessagesMap.size === 0) {
+      this.cancelSelectionMode();
+    }
+    
+    this.cdr.detectChanges();
+  }
+
+  private updateMessageInLocalArrays(updatedMessage: Message): void {
+    if(!updatedMessage._id) return;
+    
+    const msgIndex = this.messages.findIndex(m => m._id === updatedMessage._id);
+    if (msgIndex !== -1) {
+      this.messages[msgIndex].isSelected = updatedMessage.isSelected;
+    }
+    
+    const msgDividerIndex = this.messagesWithDividers.findIndex(
+      (item: any) => item.type === 'message' && item._id === updatedMessage._id
+    );
+    
+    if (msgDividerIndex !== -1) {
+      this.messagesWithDividers[msgDividerIndex].isSelected = updatedMessage.isSelected;
+    }
+    
+    this.updateMessagesWithDividers();
+  }
+
+  cancelSelectionMode(): void {
+    this.isSelectionModeActive = false;
+    
+    this.messages.forEach(msg => msg.isSelected = false);
+    this.messagesWithDividers.forEach((item: any) => {
+      if (item.type === 'message') {
+        item.isSelected = false;
+      }
+    });
+    
+    this.selectedMessagesMap.clear();
+    this.cdr.detectChanges();
+  }
+
+  getArrayOfSelectedMessages(): Message[] {
+    const selectedMessages = Array.from(this.selectedMessagesMap.values());
+    return selectedMessages.sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+  }
+
+  copySelectedMessages(): void {
+    const selected = this.getArrayOfSelectedMessages();
+    if (selected.length === 0) return;
+
+    const textToCopy = selected.map(msg => {
+      let prefix = "";
+      if (msg.forwarded && msg.originalSenderName) {
+        prefix += `[Forwarded from ${msg.originalSenderName}]\n`;
+      }
+      const sender = msg.senderName || (msg.senderId === this.userId ? "You" : "Other");
+      return `${prefix}${sender} [${this.formatTimestamp(msg.timestamp)}]:\n${msg.content}`;
+    }).join('\n\n');
+
+    navigator.clipboard.writeText(textToCopy)
+      .then(() => {
+        this.showToast(`${selected.length} message${selected.length > 1 ? 's' : ''} copied`);
+        this.cancelSelectionMode();
+      })
+      .catch(err => {
+        console.error('Failed to copy messages:', err);
+        this.showToast('Failed to copy messages');
+      });
+  }
+
+  forwardSelectedMessages(): void {
+    const selected = this.getArrayOfSelectedMessages();
+    if (selected.length === 0) return;
+
+    this.activeContextMenuId = null;
+    
+    if (selected.length === 1) {
+      this.messagetoForward = selected[0];
+    } else {
+      this.messagetoForward = {
+        _id: 'multiple',
+        content: `${selected.length} messages`,
+      };
+    }
+    
+    this.showForwardDialogue = true;
+    this.cdr.detectChanges();
+  }
+
+  canDeleteSelectedMessages(): boolean {
+    if (this.selectedMessagesMap.size === 0) return false;
+    
+    for (const msg of this.selectedMessagesMap.values()) {
+      const senderId = typeof msg.senderId === 'object' && msg.senderId !== null 
+        ? (msg.senderId as any)._id 
+        : msg.senderId;
+        
+      if (senderId !== this.userId) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  deleteSelectedMessages(): void {
+    const selectedMessageIds = Array.from(this.selectedMessagesMap.keys());
+    if (selectedMessageIds.length === 0) return;
+
+    if (!this.canDeleteSelectedMessages()) {
+      this.showToast("You can only delete your own messages in bulk.");
+      return;
+    }
+
+    if (confirm(`Are you sure you want to delete ${selectedMessageIds.length} message${selectedMessageIds.length > 1 ? 's' : ''}?`)) {
+      this.chatService.deleteMultipleMessages(selectedMessageIds).subscribe({
+        next: (response) => {
+          this.showToast(`${response.deletedCount} message${response.deletedCount > 1 ? 's' : ''} deleted`);
+          this.messages = this.messages.filter(msg => !selectedMessageIds.includes(msg._id!));
+          this.updateMessagesWithDividers();
+          this.cancelSelectionMode();
+        },
+        error: (err) => {
+          console.error("Error deleting messages", err);
+          this.showToast('Failed to delete messages');
+        }
+      });
+    }
+  }
+
+  selectMessageFromMenu(message: Message | null): void {
+    if (message && message._id) {
+      this.activateSelectionMode(message);
+    }
+    const hasShownSelectionHint = localStorage.getItem('hasShownSelectionHint') === 'true';
+    if (!hasShownSelectionHint) {
+      this.showToast('Tip: Use Ctrl+Click (or ⌘+Click on Mac) to select multiple messages', 5000);
+      localStorage.setItem('hasShownSelectionHint', 'true');
+    }
+    this.activeContextMenuId = null;
+  }
+
+  handleBackButton(): void {
+    if (this.isSelectionModeActive) {
+      this.cancelSelectionMode();
+    } else if (this.isSearchActive) {
+      this.closeSearch();
+    } else {
+      this.goBack();
+    }
+  }
+
+  onMessageMouseDown(event: MouseEvent, message: Message): void {
+  if (!this.isSelectionModeActive) return;
+  
+  if (event.button !== 0) return;
+  
+  this.isDragging = true;
+  this.lastDraggedMessageId = message._id || null;
+  
+  event.preventDefault();
+  } 
+
+  onMessagesContainerMouseMove(event: MouseEvent): void {
+    if (!this.isDragging || !this.isSelectionModeActive) return;
+    
+    const elementsUnderCursor = document.elementsFromPoint(event.clientX, event.clientY);
+    
+    for (const element of elementsUnderCursor) {
+      const messageId = this.getMessageIdFromElement(element as HTMLElement);
+      
+      if (messageId && messageId !== this.lastDraggedMessageId) {
+        const message = this.messages.find(m => m._id === messageId);
+        
+        if (message) {
+          this.toggleMessageSelection(message);
+          this.lastDraggedMessageId = messageId;
+          break;
+        }
+      }
+    }
+  }
+
+  onMessagesContainerMouseUp(): void {
+    this.isDragging = false;
+    this.lastDraggedMessageId = null;
+  }
+
+  private getMessageIdFromElement(element: HTMLElement): string | null {
+    let current: HTMLElement | null = element;
+    
+    while (current) {
+      if (current.id && current.id.startsWith('message-')) {
+        return current.id.substring(8); 
+      }
+      current = current.parentElement;
+    }
+    
+    return null;
+  }
 }
-

@@ -46,13 +46,18 @@
 
 .chat-list-container {
   width: 300px;
-  max-height: 100vh;
-  overflow-y: auto;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background-color: var(--background-color);
   color: var(--text-color);
   border-right: 1px solid var(--border-color);
-  padding: 10px;
   position: relative;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+
+
 }
 
 .search-container {
@@ -60,6 +65,8 @@
   display: flex;
   flex-direction: column;
   background-color: var(--card-background);
+  margin-bottom: 0;
+  flex-shrink: 0;
 }
 
 .search-container input[type="text"] {
@@ -302,6 +309,8 @@
   justify-content: center;
   align-items: center;
   gap: 10px;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .no-chats-placeholder {
@@ -393,18 +402,40 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 16px;
+  padding: 10px;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-bottom: 0;
+  
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
+
 }
 
 .chat-item {
   display: flex;
-  align-items: center;
-  padding: 10px 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
   border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.15s ease-out;
-  position: relative;
-  margin-bottom: 2px;
+  transition: background-color 0.2s;
+  max-width: 100%;
+
 
   &:hover {
     background-color: var(--hover-background);
@@ -471,6 +502,7 @@
   justify-content: center;
   gap: 2px;
   position: relative;
+  overflow: hidden;
 }
 
 .chat-name-time {

@@ -635,7 +635,7 @@ export class ChatService implements OnDestroy {
     let params = new HttpParams();
     params = params.append('query', query);
 
-    const url = `${this.apiUrl}/messages/search/${chatId}`; // Правильный путь
+    const url = `${this.apiUrl}/messages/search/${chatId}`;
     
     console.log(`Searching messages with URL: ${url} and query: ${query}`); 
 
@@ -683,5 +683,27 @@ export class ChatService implements OnDestroy {
     if (!headers) return throwError(() => new Error('Not authorized'));
     return this.http.patch<Chat>(`${this.apiUrl}/chats/${chatId}/unpin`, {}, { headers })
       .pipe(catchError(this.handleError));
+  }
+
+  forwardMultipleMessages(messageIds: string[], targetChatId: string): Observable<any> {
+    const headers = this.getHeaders();
+    if (!headers) return throwError(() => new Error('Not authorized'));
+    return this.http.post(`${this.apiUrl}/messages/forward-multiple`, { messageIds, targetChatId }, { headers })
+      .pipe(catchError(this.handleError));
+  }
+
+  deleteMultipleMessages(messageIds: string[]): Observable<{ deletedCount: number }> {
+    const headers = this.getHeaders();
+    if (!headers) return throwError(() => new Error('Not authorized'));
+    
+    return this.http.request<{ deletedCount: number }>(
+      'delete',
+      `${this.apiUrl}/messages/delete-multiple`,
+      { 
+        headers: headers,
+        body: { messageIds } 
+      }
+    ).pipe(catchError(this.handleError));
+    
   }
 }
