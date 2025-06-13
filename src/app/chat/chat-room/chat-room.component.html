@@ -222,9 +222,9 @@
           
           <span 
             class="sender" 
-            [class.clickable]="item.senderId"
-            (click)="item.senderId && navigateToUserProfile(item.senderId, $event)"
-            [title]="item.senderId ? 'View profile' : ''"
+            [class.clickable]="item.senderId && !isSelectionModeActive"
+            (click)="item.senderId &&  !isSelectionModeActive && navigateToUserProfile(item.senderId, $event)"
+            [title]="item.senderId &&  !isSelectionModeActive ? 'View profile' : ''"
           >
             {{ item.senderName }}
           </span>
