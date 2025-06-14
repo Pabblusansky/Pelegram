@@ -333,10 +333,8 @@
   </div>
 
   <!-- Typing Indicator -->
-  <div *ngIf="typingUsers.size > 0" class="typing-indicator">
-    <span *ngFor="let userId of typingUsers">
-      {{ getTypingUserName(userId) }} is typing...
-    </span>
+  <div *ngIf="typingIndicatorText" class="typing-indicator">
+    <span>{{ typingIndicatorText }}</span>
   </div>
 
   <!-- Context Menu -->

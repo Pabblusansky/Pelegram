@@ -341,6 +341,28 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     return user ? user.username : 'Unknown User';
   }
 
+  get typingIndicatorText(): string {
+    if (this.typingUsers.size === 0) {
+      return '';
+    }
+
+    const typingUserNames = Array.from(this.typingUsers)
+      .filter(id => id !== this.userId)
+      .map(id => this.getTypingUserName(id))
+      .filter(name => name !== 'Unknown User'); 
+
+    if (typingUserNames.length === 0) {
+      return '';
+    }
+
+    if (typingUserNames.length === 1) {
+      return `${typingUserNames[0]} is typing...`;
+    } else if (typingUserNames.length === 2) {
+      return `${typingUserNames[0]} and ${typingUserNames[1]} are typing...`;
+    } else { 
+      return `${typingUserNames[0]}, ${typingUserNames[1]} and ${typingUserNames.length - 2} more are typing...`;
+    }
+  }
   onInputChange(isTyping: boolean): void {
     if (this.chatId) {
       this.chatService.sendTyping(this.chatId, isTyping);
