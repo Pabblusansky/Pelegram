@@ -1,4 +1,4 @@
-import { Injectable, OnDestroy } from '@angular/core';
+import { inject, Injectable, OnDestroy } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { io, Socket } from 'socket.io-client';
 import { Router } from '@angular/router';
@@ -50,8 +50,9 @@ export class ChatService implements OnDestroy {
   public chatDeletedGlobally$ = this.chatDeletedGloballySubject.asObservable();
   private newChatCreatedSubject = new Subject<Chat>();
   public newChatCreated$ = this.newChatCreatedSubject.asObservable();
+
+  private http = inject(HttpClient);
   constructor(
-    private http: HttpClient, 
     private router: Router,
     private soundService: SoundService
   ) {

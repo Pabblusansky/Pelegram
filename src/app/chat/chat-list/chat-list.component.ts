@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, OnDestroy, Output } from '@angular/core';
+import { Component, EventEmitter, OnInit, OnDestroy, Output, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ChatService } from '../chat.service';
 import { Router, RouterModule } from '@angular/router';
@@ -17,7 +17,8 @@ import { ProfileService } from '../../profile/profile.service';
   templateUrl: './chat-list.component.html',
   styleUrls: ['./chat-list.component.scss'],
   standalone: true,
-  imports: [FormsModule, CommonModule, RouterModule]
+  imports: [FormsModule, CommonModule, RouterModule],
+  providers: []
 })
 export class ChatListComponent implements OnInit, OnDestroy {
   @Output() chatSelected = new EventEmitter<string>();
@@ -41,10 +42,9 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
   savedMessagesChat: Chat | null = null; 
   
-
+  private http = inject(HttpClient);
   constructor(
     private chatService: ChatService, 
-    private http: HttpClient, 
     public router: Router, 
     private cdr: ChangeDetectorRef,
     private profileService: ProfileService
