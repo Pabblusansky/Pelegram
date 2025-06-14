@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, Input, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, EventEmitter, Output, Input, ViewChild, ElementRef, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -15,11 +15,11 @@ import { FormsModule } from '@angular/forms';
         (input)="onInput()"
         (keydown.enter)="onEnterPress($event)"
         placeholder="Type a message..."></textarea>
-      <button (click)="send()">Send</button>
+      <button (click)="send()" [disabled]="!newMessage.trim()">Send</button>
     </div>
   `,
 })
-export class MessageInputComponent {
+export class MessageInputComponent implements OnDestroy {
   @Input() chatId: string | null = null;
   @Output() sendMessageEvent = new EventEmitter<string>(); 
   @Output() inputChange = new EventEmitter<boolean>(); 
@@ -29,16 +29,35 @@ export class MessageInputComponent {
   @ViewChild('messageTextarea') messageTextarea!: ElementRef<HTMLTextAreaElement>;
 
   private typingTimeout: any;
+  private typingDelay: number = 2000; // 2 seconds for now
+  private isCurrentlyTyping: boolean = false;
 
   constructor() {}
 
-  onInput(): void {
-    this.inputChange.emit(this.newMessage.trim().length > 0);
+  ngOnDestroy(): void {
     clearTimeout(this.typingTimeout);
-    if (this.newMessage.trim().length > 0) {
+  }
+  onInput(): void {
+    const messageIsNotEmpty = this.newMessage.trim().length > 0;
+
+    clearTimeout(this.typingTimeout);
+
+    if (messageIsNotEmpty) {
+      if (!this.isCurrentlyTyping) {
+        this.isCurrentlyTyping = true;
+        this.inputChange.emit(true);
+      }
       this.typingTimeout = setTimeout(() => {
+        if (this.isCurrentlyTyping) {
+            this.isCurrentlyTyping = false;
+            this.inputChange.emit(false);
+        }
+      }, this.typingDelay);
+    } else {
+      if (this.isCurrentlyTyping) {
+        this.isCurrentlyTyping = false;
         this.inputChange.emit(false);
-      }, 3000);
+      }
     }
   }
 
@@ -48,7 +67,7 @@ export class MessageInputComponent {
       return;
     }
     if (this.newMessage.trim()) {
-      event.preventDefault(); 
+      keyEvent.preventDefault(); 
       this.send();
     }
   }
@@ -58,18 +77,27 @@ export class MessageInputComponent {
     if (content) {
       this.sendMessageEvent.emit(content);
       this.newMessage = '';
-      this.inputChange.emit(false);
+
+      clearTimeout(this.typingTimeout);
+      if (this.isCurrentlyTyping) {
+        this.isCurrentlyTyping = false;
+        this.inputChange.emit(false);
+      }
     }
   }
 
   public focusInput(): void {
-    this.messageTextarea.nativeElement.focus();
+    if (this.messageTextarea && this.messageTextarea.nativeElement) {
+        this.messageTextarea.nativeElement.focus();
+    } else {
+        setTimeout(() => this.messageTextarea?.nativeElement.focus(), 0);
+    }
   }
 
   @HostListener('keydown', ['$event'])
   handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'ArrowUp') {
-      if (this.newMessage.trim() === '' && this.messageTextarea.nativeElement.selectionStart === 0) {
+      if (this.newMessage.trim() === '' && this.messageTextarea.nativeElement.selectionStart === 0 && this.messageTextarea.nativeElement.selectionEnd === 0) {
         event.preventDefault();
         this.editLastMessageRequest.emit();
       }
@@ -80,9 +108,10 @@ export class MessageInputComponent {
     this.newMessage = text;
     this.onInput();
     setTimeout(() => {
-      if (this.messageTextarea) {
+      if (this.messageTextarea && this.messageTextarea.nativeElement) {
         this.messageTextarea.nativeElement.focus();
-        this.messageTextarea.nativeElement.selectionStart = this.messageTextarea.nativeElement.selectionEnd = text.length;
+        const len = text.length;
+        this.messageTextarea.nativeElement.setSelectionRange(len, len);
       }
     }, 0);
   }
