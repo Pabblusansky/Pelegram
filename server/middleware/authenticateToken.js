@@ -1,12 +1,16 @@
 import jwt from 'jsonwebtoken';
 
-const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
+// const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
 
 export const authenticateToken = (req, res, next) => {
   if (req.method === 'OPTIONS') {
     return next(); // Allow preflight requests to pass
   }
 
+  if (!process.env.SECRET_KEY) {
+      console.error("AUTH_MIDDLEWARE: SECRET_KEY not found in process.env!");
+      return res.status(500).json({ error: 'Server configuration error (secret missing in middleware)' });
+  }
   const authHeader = req.headers['authorization'];
   if (!authHeader) {
     console.log('No authorization header provided');
@@ -21,7 +25,7 @@ export const authenticateToken = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, SECRET_KEY);
+    const decoded = jwt.verify(token, process.env.SECRET_KEY);
     req.user = decoded; // Attach user data to the request object
     next();
   } catch (error) {

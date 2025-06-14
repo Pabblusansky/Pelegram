@@ -5,9 +5,8 @@ import User from '../models/User.js';
 import { authenticateToken } from '../middleware/authenticateToken.js';
 
 const router = express.Router();
-const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
+// const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
 
-// Регистрация
 router.post('/register', async (req, res) => {
   const { username, email, password } = req.body;
 
@@ -33,7 +32,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Вход
 router.post('/login', async (req, res) => {
   try {
     const { usernameOrEmail, password } = req.body;
@@ -51,8 +49,8 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Invalid username/password credentials' });
     }
     console.log('User ID:', user._id);
-    const token = jwt.sign({ id: user._id.toString() }, SECRET_KEY, { expiresIn: '1h' });
-    return res.json({ token, userId: user._id.toString() });
+    const token = jwt.sign({ id: user._id.toString() }, process.env.SECRET_KEY, { expiresIn: '1h' });
+    return res.json({ token, userId: user._id.toString(), username: user.username });
   } catch (error) {
     console.error('Error during login:', error);
     res.status(500).json({ error: 'Error logging in' });

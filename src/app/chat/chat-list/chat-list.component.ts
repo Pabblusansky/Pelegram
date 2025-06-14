@@ -42,10 +42,11 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
   savedMessagesChat: Chat | null = null; 
   
-  private http = inject(HttpClient);
+  // private http = inject(HttpClient);
   constructor(
     private chatService: ChatService, 
     public router: Router, 
+    private http: HttpClient,
     private cdr: ChangeDetectorRef,
     private profileService: ProfileService
   ) {}

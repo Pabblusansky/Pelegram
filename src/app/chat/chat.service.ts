@@ -51,9 +51,10 @@ export class ChatService implements OnDestroy {
   private newChatCreatedSubject = new Subject<Chat>();
   public newChatCreated$ = this.newChatCreatedSubject.asObservable();
 
-  private http = inject(HttpClient);
+  // private http = inject(HttpClient);
   constructor(
     private router: Router,
+    private http: HttpClient,
     private soundService: SoundService
   ) {
     this.initializeSocket();

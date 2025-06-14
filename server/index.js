@@ -1,21 +1,11 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-
+import path from 'path';
+import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
-import { authRoutes } from './routes/auth.js';
-import chatRoutes from './routes/chatRoutes.js';
-import Message from './models/Message.js';
-import Chat from './models/Chat.js';
-import User from './models/User.js';
-import messageRoutes from './routes/messages.js';
-import authenticateToken from './middleware/authenticateToken.js';
-import jwt from 'jsonwebtoken';
-import { differenceInMinutes } from 'date-fns';
-import { profileRoutes } from './routes/profileRoutes.js';
-import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -24,6 +14,16 @@ const __dirname = path.dirname(__filename);
 const envPath = path.resolve(__dirname, '../.env');
 dotenv.config({ path: envPath });
 const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
+import { authRoutes } from './routes/auth.js';
+import chatRoutes from './routes/chatRoutes.js';
+import Message from './models/Message.js';
+import Chat from './models/Chat.js';
+import User from './models/User.js';
+import messageRoutes from './routes/messages.js';
+import authenticateToken from './middleware/authenticateToken.js';
+import { differenceInMinutes } from 'date-fns';
+import { profileRoutes } from './routes/profileRoutes.js';
+
 
 const app = express();
 const httpServer = createServer(app);
