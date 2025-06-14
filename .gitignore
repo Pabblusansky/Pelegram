@@ -1,6 +1,8 @@
 # See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
-secret.env
-
+# Do not commit
+.env
+# User Uploads - Do not commit user-generated files
+/server/uploads/
 # Compiled output
 /dist
 /tmp
@@ -9,6 +11,7 @@ secret.env
 
 # Node
 /node_modules
+/server/node_modules
 npm-debug.log
 yarn-error.log
 
