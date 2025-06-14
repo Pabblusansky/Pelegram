@@ -37,19 +37,21 @@ export default (io) => {
       if (recipientId === initiatorId) {
         return res.status(400).json({ message: 'Cannot create a chat with yourself using this endpoint.' });
       }
-
+      
+      const participantsArray = [initiatorId, recipientId];
       let chat = await Chat.findOne({
-        participants: { $all: [initiatorId, recipientId], $size: 2 }
+        participants: { $all: participantsArray, $size: 2 }, 
+        type: { $ne: 'self' }
       })
-      .populate('participants', '_id username avatar')
+      .populate('participants', '_id username avatar name')
       .populate({
           path: 'lastMessage',
           populate: { path: 'senderId', select: '_id username avatar name' }
       });
-
-      let isNewChatForTheInitiator = false;
+      
+      let isNewChat = false;
       if (!chat) {
-        isNewChatForTheInitiator = true;
+        isNewChat = true;
         const newChatDoc = new Chat({
           participants: [initiatorId, recipientId],
           messages: [],
@@ -64,16 +66,16 @@ export default (io) => {
           });
       }
 
-      if (isNewChatForTheInitiator && chat) {
+      if (isNewChat && chat) {
         const chatObjectForEmit = chat.toObject();
         io.to(initiatorId.toString()).emit('new_chat_created', chatObjectForEmit);
         console.log(`Emitted 'new_chat_created' TO INITIATOR ${initiatorId} for chat ${chat._id}`);
       }
 
-      res.status(isNewChatForTheInitiator ? 201 : 200).json(chat);
+      res.status(isNewChat ? 201 : 200).json(chat);
 
     } catch (error) {
-      console.error('Error creating or getting chat:', error);
+      console.error('CRITICAL ERROR creating or getting direct chat:', error);
       res.status(500).json({ message: 'Server error' });
     }
   });
