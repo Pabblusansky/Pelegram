@@ -15,17 +15,18 @@ import authenticateToken from './middleware/authenticateToken.js';
 import jwt from 'jsonwebtoken';
 import { differenceInMinutes } from 'date-fns';
 import { profileRoutes } from './routes/profileRoutes.js';
-const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const envPath = path.resolve(__dirname, '../.env');
+dotenv.config({ path: envPath });
+const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
 
 const app = express();
 const httpServer = createServer(app);
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const io = new Server(httpServer, {
   cors: {

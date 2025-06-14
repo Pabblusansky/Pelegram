@@ -15,9 +15,11 @@ Pelegram aims to provide a seamless and engaging chat experience. Here's what's 
 
     ✔️ Message Status: Track if your messages are sent, delivered, and read.
 
-    ✏️ Edit & Delete Messages: Easily edit or delete your messages.
+    ✏️ Edit & Delete Messages: Easily correct mistakes by editing your messages or remove them entirely.
 
     ↪️ Message Forwarding: Seamlessly forward messages from one chat to another, keeping the original sender's context.
+    
+    💬 Threaded Replies: Reply to messages with a quote of the original for context. Tap the quote to jump to the original message.
 
     🖼️ User Profiles & Avatars: Personalize your profile and see others' avatars. Clickable names and avatars to view profiles.
 
@@ -73,10 +75,10 @@ Want to run Pelegram locally? Here's how:
 
 Prerequisites:
 
-- Node.js v18.x or higher
+- Node.js v18.15.0 or higher (v20.x LTS recommended)
 
 - npm or yarn
-- MongoDB instance running
+- MongoDB local instance or Atlas running
 - Angular CLI: npm install -g @angular/cli
 
 
@@ -92,7 +94,7 @@ cd Pelegram
 cd ./server
 npm install
 ```
-### Create a .env file named secret.env containing SECRET_KEY= text_here with your secret key for password encoding.
+### Create a .env file in the main repository containing SECRET_KEY= your_long_secret_text_here with your secret key for signing JSON Web Tokens.
 - Run the server:
 ```bash
 cd Pelegram
@@ -143,7 +145,7 @@ This project is licensed under the MIT License - see the LICENSE.md file for det
 [typescript-url]: https://www.typescriptlang.org/
 
       
-[nodejs-shield]: https://img.shields.io/badge/Node.js-v20%2B-%23339933?logo=node.js
+[nodejs-shield]: https://img.shields.io/badge/Node.js-v18.15+/20+-%2523339933?logo=node.js
 [nodejs-url]: https://nodejs.org/
 
     
