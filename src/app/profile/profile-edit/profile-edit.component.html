@@ -75,8 +75,15 @@
         [(ngModel)]="editableProfile.phoneNumber" 
         class="form-control" 
         placeholder="Phone Number"
-        pattern="^[\d\s()+-]+$"
+        pattern="^\+?[1-9][0-9]{7,14}$"
+        minlength="7"
+        maxlength="20"
+        #phoneNumberModel="ngModel"
       >
+        <div *ngIf="phoneNumberModel.invalid && (phoneNumberModel.dirty || phoneNumberModel.touched)" class="error-message">
+          <div *ngIf="phoneNumberModel.errors?.['pattern']">Invalid phone number format. Example: +1234567890 or 1234567890 (8-15 digits total, no spaces/symbols).</div>
+          <div *ngIf="phoneNumberModel.errors?.['minlength']">Phone number is too short (minimum {{ phoneNumberModel.errors?.['minlength'].requiredLength }} characters).</div>
+        </div>
     </div>
     
     <h3 class="settings-heading">Settings</h3>
