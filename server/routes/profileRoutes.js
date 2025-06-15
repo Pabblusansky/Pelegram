@@ -92,7 +92,7 @@ router.patch('/me', authenticateToken, async (req, res) => {
         switch (key) {
           case 'phoneNumber':
             if (value != null && value !== '') {
-              const phoneRegex = /^\+?[1-9][0-9]{7,14}$/;
+              const phoneRegex = /^\+?[0-9]{7,14}$/;
               if (!phoneRegex.test(value)) {
                 validationErrors[key] = 'Invalid phone number. Must contain 7-15 digits and may include spaces, (), +, -.';
               } else {
