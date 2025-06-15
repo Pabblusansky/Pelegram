@@ -32,4 +32,4 @@ export const routes: Routes = [
   { path: 'registration-success', component: RegisterSuccessComponent },
   { path: '**', redirectTo: '' }
 ];
-// { path: '**', redirectTo: '/register' }, // Редирект на главную для неизвестных маршрутов
+// { path: '**', redirectTo: '/register' },

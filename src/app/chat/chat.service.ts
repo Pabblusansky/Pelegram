@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { catchError, Observable, Subject, throwError, map, tap } from 'rxjs';
 import { Chat, Message, Reaction, User } from './chat.model';
 import { BehaviorSubject, interval } from 'rxjs';
-import { shareReplay, takeUntil } from 'rxjs/operators';
+import { first, shareReplay, takeUntil } from 'rxjs/operators';
 import { SoundService } from '../services/sound.service'; 
 
 interface MessageDeletedEvent {
@@ -50,6 +50,8 @@ export class ChatService implements OnDestroy {
   public chatDeletedGlobally$ = this.chatDeletedGloballySubject.asObservable();
   private newChatCreatedSubject = new Subject<Chat>();
   public newChatCreated$ = this.newChatCreatedSubject.asObservable();
+  private totalUnreadCountSubject = new BehaviorSubject<number>(0);
+  public totalUnreadCount$ = this.totalUnreadCountSubject.asObservable();
 
   // private http = inject(HttpClient);
   constructor(
@@ -97,12 +99,12 @@ export class ChatService implements OnDestroy {
       });
 
       this.socket.on('new_chat_created', (chatData: Chat) => {
-            this.newChatCreatedSubject.next(chatData);
-
-            if (this.socket && chatData && chatData._id) {
-              // console.log(`FRONTEND SERVICE: Auto-joining room for newly created chat: ${chatData._id}`);
-              this.socket.emit('join_chat', chatData._id);
-            }
+        this.newChatCreatedSubject.next(chatData);
+        if (this.socket && chatData && chatData._id) {
+          // console.log(`FRONTEND SERVICE: Auto-joining room for newly created chat: ${chatData._id}`);
+          this.socket.emit('join_chat', chatData._id);
+        }
+        this.getChats()?.pipe(first()).subscribe(allChats => this.recalculateTotalUnread(allChats as Chat[]));
       });
 
       this.socket.on('message_reaction_updated', (data: { messageId: string; reactions: Reaction[] }) => {
@@ -115,6 +117,7 @@ export class ChatService implements OnDestroy {
       });
       this.socket.on('chat_updated', (chat: Chat) => {
         this.chatUpdatedSubject.next(chat);
+        this.getChats()?.pipe(first()).subscribe(allChats => this.recalculateTotalUnread(allChats as Chat[]));
       });
 
       this.socket.on('receive_message', (message: Message) => {
@@ -130,7 +133,15 @@ export class ChatService implements OnDestroy {
         this.getChats()
         ?.pipe(
           takeUntil(this.destroySocket$),
-          map((chats: any) => chats as Chat[])
+          tap((chats: Chat[]) => {
+            console.log('DEBUG: Chats received in initializeSocket for recalculateTotalUnread:', chats);
+            if (Array.isArray(chats)) {
+              this.recalculateTotalUnread(chats);
+            } else {
+              console.warn('DEBUG: getChats() in initializeSocket did not return an array. Skipping unread calculation.');
+              this.recalculateTotalUnread([]);
+            }
+          })
         )
         .subscribe({
           next: (chats: Chat[]) => {
@@ -372,7 +383,11 @@ export class ChatService implements OnDestroy {
       return throwError(() => new Error('No token provided'));
     }
     console.log('Sending request to mark messages as read:', { chatId });
-    return this.http.post(`${this.apiUrl}/messages/markAsRead`, { chatId }, { headers });
+    return this.http.post(`${this.apiUrl}/messages/markAsRead`, { chatId }, { headers }).pipe(
+      tap(() => {
+        this.getChats()?.pipe(first()).subscribe(allChats => this.recalculateTotalUnread(allChats as Chat[]));
+      }),
+    );
   }
   
   sendTyping(chatId: string, isTyping: boolean) {
@@ -395,10 +410,17 @@ export class ChatService implements OnDestroy {
     });
   }
 
-  getChats() {
+  getChats(): Observable<Chat[]> {
     const headers = this.getHeaders();
-    if (!headers) return;
-    return this.http.get(`${this.apiUrl}/chats`, { headers });
+    if (!headers) {
+      console.error('getChats: No headers (token likely missing).');
+      return throwError(() => new Error('Not authorized for getChats'));
+    }
+    return this.http.get<Chat[]>(`${this.apiUrl}/chats`, { headers })
+      .pipe(
+        tap(chats => console.log('DEBUG: getChats() fetched in ChatService:', chats)),
+        catchError(this.handleError)
+      );
   }
 
   getMessages(chatId: string): Observable<any> | undefined {
@@ -708,4 +730,31 @@ export class ChatService implements OnDestroy {
     ).pipe(catchError(this.handleError));
     
   }
+
+  // Favicon methods
+  private recalculateTotalUnread(allChats: Chat[]): void {
+    const currentUserId = localStorage.getItem('userId');
+    if (!currentUserId) {
+      this.totalUnreadCountSubject.next(0);
+      return;
+    }
+
+    let total = 0;
+    allChats.forEach(chat => {
+      if (chat.unreadCounts) {
+        const unreadEntry = chat.unreadCounts.find(uc => {
+          const entryUserId = (typeof uc.userId === 'string') ? uc.userId : (uc.userId as any)?._id;
+          return entryUserId === currentUserId;
+        });
+        if (unreadEntry && unreadEntry.count > 0) {
+          total += unreadEntry.count;
+        }
+      }
+    });
+    console.log('CHAT_SERVICE: Recalculated total unread count:', total);
+    this.totalUnreadCountSubject.next(total);
+  }
+
+  
+
 }

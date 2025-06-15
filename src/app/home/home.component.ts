@@ -7,6 +7,9 @@ import { ProfileCardComponent } from "../profile/profile-card/profile-card.compo
 import { ProfileService } from "../profile/profile.service";
 import { UserProfile } from "../profile/profile.model";
 import { Subscription, filter } from 'rxjs';
+import { ChatService } from '../chat/chat.service';
+import { FaviconService } from '../services/favicon/favicon.service';
+
 @Component({
   selector: 'app-home',
   templateUrl: './home.component.html',
@@ -27,11 +30,14 @@ export class HomeComponent implements OnInit, OnDestroy {
   
   private routerSubscription: Subscription | null = null;
   private profileSubscription: Subscription | null = null;
+  private unreadFaviconSubscription: Subscription | null = null;
 
   constructor(
     private router: Router, 
     private route: ActivatedRoute,
-    private profileService: ProfileService
+    private profileService: ProfileService,
+    private chatService: ChatService,
+    private faviconService: FaviconService
   ) {}
 
   ngOnInit(): void {
@@ -48,22 +54,30 @@ export class HomeComponent implements OnInit, OnDestroy {
           event.url.includes('/profile') || 
           event.url.includes('/user/');
         
-        console.log('Current route:', event.url, 'isProfileRoute:', this.isProfileRoute);
+        // console.log('Current route:', event.url, 'isProfileRoute:', this.isProfileRoute);
       });
     
     this.isProfileRoute = 
       this.router.url.includes('/profile') || 
       this.router.url.includes('/user/');
+      this.unreadFaviconSubscription = this.chatService.totalUnreadCount$
+        .subscribe(unreadCount => {
+          // console.log('HOME_COMPONENT: Favicon update - TotalUnreadCount:', unreadCount);
+          if (unreadCount > 0) {
+            this.faviconService.setNotificationBadge(unreadCount);
+          } else {
+            this.faviconService.resetFavicon();
+          }
+      });
   }
 
   ngOnDestroy(): void {
-    if (this.routerSubscription) {
-      this.routerSubscription.unsubscribe();
-    }
-    
-    if (this.profileSubscription) {
-      this.profileSubscription.unsubscribe();
-    }
+    this.routerSubscription?.unsubscribe();
+    this.profileSubscription?.unsubscribe();
+    this.unreadFaviconSubscription?.unsubscribe();
+
+    this.faviconService.resetFavicon();
+    console.log('HOME_COMPONENT: ngOnDestroy, favicon reset.');
   }
 
   loadUserProfile(): void {
