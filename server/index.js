@@ -23,7 +23,7 @@ import messageRoutes from './routes/messages.js';
 import authenticateToken from './middleware/authenticateToken.js';
 import { differenceInMinutes } from 'date-fns';
 import { profileRoutes } from './routes/profileRoutes.js';
-
+import  fileRoutes from './routes/files.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -107,7 +107,7 @@ function updateUserStatus(userId, isOnline = true) {
     onlineUsers.delete(userId);
   }
   
-  console.log(`User ${userId} status updated: online=${isOnline}, lastActive=${isoString}`);
+  // console.log(`User ${userId} status updated: online=${isOnline}, lastActive=${isoString}`);
   
   broadcastUserStatuses();
 }
@@ -445,15 +445,23 @@ app.get('/users', async (_req, res) => {
 // Mount routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 app.use('/uploads/avatars', (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
 }, express.static(path.join(__dirname, 'uploads/avatars')));
 
+
+app.use('/media', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, 'uploads/media')));
+
 app.use('/api/auth', authRoutes);
 app.use(authenticateToken);
 app.use('/chats', chatRoutes(io));
 app.use('/messages', messageRoutes(io));
+app.use('/api/files', authenticateToken, fileRoutes(io));
 app.use('/api/profile', profileRoutes);
 
 app.get('/api/users/status', authenticateToken, async (req, res) => {

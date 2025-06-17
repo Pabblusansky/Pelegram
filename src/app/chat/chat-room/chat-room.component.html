@@ -249,12 +249,85 @@
               </span>
             </span>
           </div>
-              
-          <!-- Message containing (normal mode) -->
-          <div class="content" *ngIf="!item.isEditing"
-            [ngClass]="{'highlight-edit': item.editedRecently}"
-            [innerHTML]="isSearchActive && item.isSearchResult ? getHighlightedText(item.content, searchQuery) : formatMessageContent(item.content)"
-          >
+          
+          <div class="message-body-container">
+            <ng-container [ngSwitch]="item.messageType">
+              <div *ngSwitchCase="'image'" class="media-content image-attachment">
+                <img 
+                  *ngIf="item.filePath"
+                  [src]="chatService.getApiUrl() + item.filePath" 
+                  [alt]="item.originalFileName || 'Image attachment'"
+                  (load)="onMediaLoad(item, $event)" 
+                  (error)="onMediaError(item, $event)"
+                  (click)="openMediaModal(item)"
+                  loading="lazy"
+                >
+                <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
+                  <span>Failed to load image</span>
+                </div>
+              </div>
+
+              <!-- ВИДЕО -->
+              <div *ngSwitchCase="'video'" class="media-content video-attachment">
+                <video 
+                  *ngIf="item.filePath"
+                  controls 
+                  [src]="chatService.getApiUrl() + item.filePath"
+                  (loadedmetadata)="onMediaLoad(item, $event)" 
+                  (error)="onMediaError(item, $event)"
+                  preload="metadata"
+                  loading="lazy"
+                > Your browser does not support the video tag. </video>
+                <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
+                  <span>Failed to load video</span>
+                </div>
+              </div>
+
+              <!-- АУДИО -->
+              <div *ngSwitchCase="'audio'" class="media-content audio-attachment">
+                <audio 
+                  *ngIf="item.filePath"
+                  controls 
+                  [src]="chatService.getApiUrl() + item.filePath"
+                  (canplaythrough)="onMediaLoad(item, $event)" 
+                  (error)="onMediaError(item, $event)"
+                  preload="metadata"
+                ></audio>
+                <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
+                  <span>Failed to load audio</span>
+                </div>
+              </div>
+
+              <div *ngSwitchCase="'file'" class="media-content file-attachment">
+                <a *ngIf="item.filePath" [href]="chatService.getApiUrl() + item.filePath" target="_blank" download="{{ item.originalFileName }}">
+                  <div class="file-icon-wrapper">
+                    <!-- TODO: Change to SVG icon based on item.fileMimeType -->
+                    <span class="file-icon-placeholder">📄</span> 
+                  </div>
+                  <div class="file-details">
+                    <span class="file-name-link">{{ item.originalFileName || 'Download file' }}</span>
+                    <span class="file-meta" *ngIf="item.fileSize">{{ item.fileSize | fileSize }}</span>
+                    <span class="file-meta" *ngIf="item.fileMimeType && !item.fileSize">{{ item.fileMimeType }}</span>
+                    <span class="file-meta" *ngIf="item.fileMimeType && item.fileSize"> - {{ item.fileMimeType }}</span>
+                  </div>
+                </a>
+                <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
+                  <span>Failed to load file link</span>
+                </div>
+              </div>
+
+              <div *ngSwitchDefault class="content text-content"
+                [ngClass]="{'highlight-edit': item.editedRecently}"
+                [innerHTML]="isSearchActive && item.isSearchResult ? getHighlightedText(item.content, searchQuery) : formatMessageContent(item.content)"
+              >
+              </div>
+            </ng-container>
+            <div 
+              class="caption-text content" 
+              *ngIf="item.messageType && item.messageType !== 'text' && item.content && item.content !== item.originalFileName"
+              [innerHTML]="isSearchActive && item.isSearchResult ? getHighlightedText(item.content, searchQuery) : formatMessageContent(item.content)"
+              >
+             </div>
           </div>
           
           <!-- Edit mode -->
@@ -368,7 +441,7 @@
           </svg>
         </span> Reply
       </button>
-      <ng-container *ngIf="getSelectedMessage().senderId === userId">
+      <ng-container *ngIf="selectedMessage.ismyMessage">
         <button class="menu-item" (click)="startEditById(getSelectedMessage()._id)">
           <span class="menu-icon">✏️</span> Edit
         </button>
@@ -389,7 +462,7 @@
         </span> 
         {{ isMessagePinned(getSelectedMessage()._id) ? 'Unpin' : 'Pin' }} Message
       </button>
-      <ng-container *ngIf="getSelectedMessage().senderId === userId">
+      <ng-container *ngIf="selectedMessage.ismyMessage">
         <button class="menu-item delete" (click)="deleteMessage(activeContextMenuId)">
           <span class="menu-icon">🗑️</span> Delete
         </button>
@@ -419,7 +492,7 @@
     </button>
   </div>
 
-  <!-- Input - MOVED OUTSIDE MESSAGE LOOP -->
+  <!-- Input  -->
   <div class="message-input-container">
     <app-message-input
       [chatId]="chatId"

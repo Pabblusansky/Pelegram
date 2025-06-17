@@ -1,3 +1,6 @@
+export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'file' | 'link';
+
+
 export interface User {
   _id: string;
   username: string;
@@ -27,9 +30,10 @@ export interface Chat {
 }
 
 export interface Message {
+  mediaLoaded: boolean;
   _id?: string;
   chatId: string;
-  senderId: string;
+  senderId: string | User;
   senderName: string;
   content: string;
   timestamp: string;
@@ -50,9 +54,17 @@ export interface Message {
   originalSenderId?: string;
   originalSenderName?: string;
 
+  mediaLoadError?: boolean;
 
   reactions?: Reaction[];
   
+  // File-related properties
+  messageType?: MessageType;
+  filePath?: string;
+  originalFileName?: string;
+  fileMimeType?: string;
+  fileSize?: number;
+
   // Search-related properties
   isSearchResult?: boolean;
   isCurrentSearchResult?: boolean;

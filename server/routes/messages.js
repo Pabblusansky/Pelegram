@@ -3,6 +3,14 @@ import Message from '../models/Message.js';
 import authenticateToken from '../middleware/authenticateToken.js';
 import Chat from '../models/Chat.js';
 import User from '../models/User.js';
+
+import fs from 'fs';
+import path from 'path';
+
+import { fileURLToPath } from 'url';
+const __filename_messages = fileURLToPath(import.meta.url);
+const __dirname_messages = path.dirname(__filename_messages);
+const UPLOAD_BASE_DIR = path.resolve(__dirname_messages, '../uploads'); 
 export default (io) => {
   const router = express.Router();
 
@@ -275,17 +283,38 @@ export default (io) => {
       const messagesToDelete = await Message.find({
         _id: { $in: messageIds },
         senderId: userId
-      }).select('_id chatId').lean();
+      }).select('_id chatId filePath').lean();
 
       const deletableMessageIds = messagesToDelete.map(m => m._id);
       const chatIdsAffected = [...new Set(messagesToDelete.map(m => m.chatId.toString()))];
 
-      console.log(`Found ${deletableMessageIds.length} deletable messages in ${chatIdsAffected.length} chats`);
 
       if (deletableMessageIds.length === 0) {
         return res.status(403).json({ message: 'No messages found that you can delete or messages do not exist.' });
       }
 
+      for (const message of messagesToDelete) {
+        if (message.filePath) {
+          let diskPath = '';
+          if (message.filePath.startsWith('/media/')) {
+            diskPath = path.join(UPLOAD_BASE_DIR, message.filePath.substring(1));
+          } else {
+            console.warn(`Message ${message._id} had filePath, but it does not start with /media/: ${message.filePath}`);
+          }
+
+          if (diskPath) {
+            try {
+              if (fs.existsSync(diskPath)) {
+                fs.unlinkSync(diskPath);
+              } else {
+                console.warn(`File not found on disk (already deleted or wrong path?): ${diskPath}`);
+              }
+            } catch (err) {
+              console.error(`Failed to delete file ${diskPath} from disk for message ${message._id}:`, err);
+            }
+          }
+        }
+      }
       const result = await Message.deleteMany({ _id: { $in: deletableMessageIds } });
       console.log(`Deleted ${result.deletedCount} messages`);
       
@@ -538,7 +567,27 @@ export default (io) => {
       }
 
       const chatId = message.chatId;
-      
+      const filePathToDelete = message.filePath;
+
+      if (filePathToDelete) {
+                let diskPath = '';
+        if (filePathToDelete.startsWith('/media/')) {
+            diskPath = path.join(UPLOAD_BASE_DIR, filePathToDelete.substring(1));
+        } else {
+            console.warn(`Message ${messageId} had filePath, but it does not start with /media/: ${filePathToDelete}`);
+        }
+
+        if (diskPath) {
+            fs.unlink(diskPath, (err) => {
+              if (err) {
+                console.error(`Failed to delete file ${diskPath} from disk:`, err);
+              } else {
+                console.log(`Successfully deleted file ${diskPath} from disk.`);
+              }
+            });
+        }
+      }
+  
       await Message.findByIdAndDelete(messageId);
       
       const lastMessage = await Message.find({ chatId })

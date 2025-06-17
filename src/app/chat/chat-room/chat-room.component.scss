@@ -1452,3 +1452,100 @@ html, body {
     }
   }
 }
+
+
+.text-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.media-content {
+  margin-top: 4px;
+
+
+
+  .audio-attachment {
+    audio {
+      width: 100%;
+      max-width: 300px;
+      height: 54px;
+      border-radius: var(--border-radius-medium, 8px);
+    }
+  }
+
+  .file-attachment {
+    a {
+      display: flex;
+      align-items: center;
+      padding: 8px 10px;
+      background-color: var(--background-alt, #f0f2f5);
+      border: 1px solid var(--border-color, #e0e0e0);
+      border-radius: var(--border-radius-medium, 8px);
+      text-decoration: none;
+      color: var(--text-color);
+      transition: background-color 0.2s ease;
+
+      &:hover {
+        background-color: var(--hover-background, rgba(0, 0, 0, 0.04));
+      }
+    }
+
+    .file-icon {
+      font-size: 24px;
+      margin-right: 8px;
+      color: var(--primary-color, #4a76a8);
+    }
+
+    .file-details {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .file-name-link {
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-meta {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+  }
+
+  .caption-text {
+      margin-top: 6px;
+      font-size: 14px;
+      line-height: 1.4;
+      color: var(--text-color-caption, var(--text-color));
+      white-space: pre-wrap;
+      word-break: break-word;
+  }
+  
+}
+
+.media-error-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background-color: var(--background-alt, #f0f2f5);
+      border: 1px dashed var(--border-color, #e0e0e0);
+      border-radius: var(--border-radius-message-media, 8px);
+      color: var(--text-secondary, #757575);
+      font-size: 13px;
+      min-height: 80px;
+}
+
+.image-attachment, .video-attachment {
+    img, video {
+        display: block;
+        max-width: 100% !important;
+        height: auto;
+        max-height: 400px;
+        border-radius: var(--border-radius-message-media, 8px);
+        background-color: var(--media-placeholder-bg, #333);
+        outline: none;
+    }
+}

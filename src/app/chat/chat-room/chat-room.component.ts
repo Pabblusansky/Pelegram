@@ -6,19 +6,20 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { debounceTime, Observable, Subject, Subscription, takeUntil } from 'rxjs';
 import { ChatService } from '../chat.service';
-import { Message, Reaction} from '../chat.model';
+import { Message, Reaction, User} from '../chat.model';
 import { MessageInputComponent } from "../message-input/message-input.component";
 import { Router } from '@angular/router';
 import { ForwardDialogComponent } from '../forward/forward-dialogue.component';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SoundService } from '../../services/sound.service';
+import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
 
 @Component({
   selector: 'app-chat-room',
   templateUrl: './chat-room.component.html',
   styleUrls: ['./chat-room.component.scss'],
   standalone: true,
-  imports: [MessageInputComponent, CommonModule, FormsModule, ForwardDialogComponent ],
+  imports: [MessageInputComponent, CommonModule, FormsModule, ForwardDialogComponent, FileSizePipe],
   animations: [
     trigger('menuAnimation', [
       transition(':enter', [
@@ -115,7 +116,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private chatService: ChatService,
+    public chatService: ChatService,
     private cdr: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
     private soundService: SoundService
@@ -655,24 +656,30 @@ navigateToUserProfile(userId: string, event?: Event): void {
   }
   
   getSelectedMessage(): any {
-    console.log('Getting selected message, activeContextMenuId:', this.activeContextMenuId);
-    
-    if (!this.activeContextMenuId) return null;
-    
-    const messageFromDividers = this.messagesWithDividers.find(
-      (item: any) => item.type === 'message' && item._id === this.activeContextMenuId
-    );
-    
-    if (messageFromDividers) {
-      return messageFromDividers;
+    if (!this.activeContextMenuId) {
+      console.log('getSelectedMessage: No activeContextMenuId.');
+      return null;
     }
     
-    const messageFromOriginal = this.messages.find(
+    const messageFromMainArray = this.messages.find(
       (msg: Message) => msg._id === this.activeContextMenuId
     );
-    
-    console.log('Found message:', messageFromOriginal || null);
-    return messageFromOriginal || null;
+
+    if (messageFromMainArray) {
+      console.log('getSelectedMessage: Found in this.messages. ismyMessage:', messageFromMainArray.ismyMessage, 'senderId:', messageFromMainArray.senderId);
+    } else {
+      console.warn('getSelectedMessage: Message not found in this.messages for ID:', this.activeContextMenuId, '. Checking dividers as fallback (less reliable for fresh ismyMessage).');
+      const messageFromDividers = this.messagesWithDividers.find(
+          (item: any) => item.type === 'message' && item._id === this.activeContextMenuId
+      );
+      if (messageFromDividers) {
+          console.log('getSelectedMessage: Found in messagesWithDividers. ismyMessage:', messageFromDividers.ismyMessage);
+          return messageFromDividers as Message;
+      } else {
+          console.error('getSelectedMessage: Message NOT FOUND anywhere for ID:', this.activeContextMenuId);
+      }
+    }
+    return messageFromMainArray || null;
   }
   
   onMessageClick(message: Message, event?: MouseEvent): void {
@@ -704,6 +711,17 @@ navigateToUserProfile(userId: string, event?: Event): void {
     if (!message || !message._id) {
       console.error('Cannot show context menu: Invalid message object', message);
       return;
+    }
+
+    this.activeContextMenuId = message._id;
+    this.selectedMessageId = message._id;
+
+    const actualMessage = this.messages.find(m => m._id === this.activeContextMenuId);
+
+    if (!actualMessage) {
+        console.error('CONTEXT_MENU_ERROR: Could not find actual message in this.messages for ID:', this.activeContextMenuId);
+        this.activeContextMenuId = null;
+        return;
     }
 
     const MenuWidth = 220;  
@@ -1477,9 +1495,7 @@ navigateToUserProfile(userId: string, event?: Event): void {
   }
 
   private addOrUpdateMessage(message: Message, isMyOwnMessageJustSent: boolean = false): void {
-    message.ismyMessage = message.senderId === this.userId; 
-    const existingMessageIndex = this.messages.findIndex(m => m._id === message._id);
-
+    message.ismyMessage = message.senderId === this.userId || (typeof message.senderId === 'object' && message.senderId._id === this.userId);     const existingMessageIndex = this.messages.findIndex(m => m._id === message._id);
     let isNewMessageAdded = false;
     if (existingMessageIndex > -1) {
       this.messages[existingMessageIndex] = { ...this.messages[existingMessageIndex], ...message };
@@ -1493,7 +1509,7 @@ navigateToUserProfile(userId: string, event?: Event): void {
 
     if (isMyOwnMessageJustSent) {
       console.log('My own message just sent, forcing scroll to bottom.');
-      this.scrollToBottom(true); // true - это force
+      this.scrollToBottom(true);
     } else if (isNewMessageAdded && !message.ismyMessage) {
       if (!this.isAtBottom) {
         if (!this.newMessagesWhileScrolledUp.find(m => m._id === message._id)) {
@@ -1527,44 +1543,83 @@ navigateToUserProfile(userId: string, event?: Event): void {
     this.replyingToMessage = null; 
   }
 
-    onMessageSend(content: string | Event): void {
-    let messageContent: string;
-    
-    if (typeof content !== 'string') {
-      // If it's an event object, extract the value from the target input
-      const target = content.target as HTMLInputElement;
-      messageContent = target?.value || '';
-    } else {
-      messageContent = content;
+  onMessageSend(eventData: { content: string; file?: File; caption?: string; replyTo?: Message }): void {
+    console.log('ChatRoom: onMessageSend - Event data received:', JSON.parse(JSON.stringify(eventData || {})));
+
+    if (!this.chatId) {
+      console.error('ChatRoom: onMessageSend - ERROR: chatId is missing. Cannot send message.');
+      this.showToast('Error: Chat context is not available.'); 
+      return;
     }
 
-    if (!this.chatId || !messageContent.trim()) return;
+    const textContentFromInput: string = (typeof eventData.content === 'string') ? eventData.content.trim() : '';
+    const fileToSend: File | undefined = (eventData.file instanceof File) ? eventData.file : undefined;
+    let captionForFile: string | undefined = undefined;
+    if (fileToSend) {
+        captionForFile = (typeof eventData.caption === 'string' && eventData.caption.trim()) 
+                         ? eventData.caption.trim() 
+                         : textContentFromInput; 
+    }
 
-    const messagePayload: any = {
-      chatId: this.chatId,
-      content: messageContent.trim(),
-    };
+
+    console.log('ChatRoom: onMessageSend - Parsed data: textContentFromInput:', `"${textContentFromInput}"`, 'fileToSend:', fileToSend?.name || 'No File', 'captionForFile:', `"${captionForFile || ''}"`);
+
+
+    let replyToPayload: any = undefined; 
+    if (this.replyingToMessage && this.replyingToMessage._id) {
+      replyToPayload = {
+        _id: this.replyingToMessage._id,
+        senderName: this.replyingToMessage.senderName || 'User',
+        content: this.replyingToMessage.content ? this.replyingToMessage.content.substring(0, 100) : '',
+        senderId: (typeof this.replyingToMessage.senderId === 'string') 
+                    ? this.replyingToMessage.senderId 
+                    : (this.replyingToMessage.senderId as User)?._id,
+        messageType: this.replyingToMessage.messageType || 'text', 
+        filePath: this.replyingToMessage.filePath 
+      };
+      console.log('ChatRoom: onMessageSend - replyToPayload prepared:', replyToPayload);
+    } else {
+      console.log('ChatRoom: onMessageSend - No active reply (this.replyingToMessage is null or has no _id).');
+    }
+
+    if (fileToSend) {
+      console.log('ChatRoom: onMessageSend - Attempting to upload media file:', fileToSend.name, 'with caption:', `"${captionForFile || ''}"`);
+      this.chatService.uploadMediaFile(this.chatId, fileToSend, captionForFile, replyToPayload)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: (response) => {
+            console.log('ChatRoom: onMessageSend - Media file upload successful. Server response:', response);
+            this.scrollToBottom(true);
+          },
+          error: (err) => {
+            console.error('ChatRoom: onMessageSend - Error uploading file:', err);
+            const errorMessage = err?.error?.message || err?.message || 'Unknown error';
+            this.showToast(`Failed to send file: ${errorMessage}`);
+          }
+        });
+    } else if (textContentFromInput) {
+      console.log('ChatRoom: onMessageSend - Attempting to send text message:', `"${textContentFromInput}"`);
+      this.chatService.sendMessage(this.chatId, textContentFromInput, replyToPayload)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: (sentMessage) => {
+            console.log('ChatRoom: onMessageSend - Text message sent successfully. Server acknowledged:', sentMessage);
+            this.scrollToBottom(true);
+          },
+          error: (err) => {
+            console.error('ChatRoom: onMessageSend - Error sending text message:', err);
+            const errorMessage = err?.error?.message || err?.message || 'Unknown error';
+            this.showToast(`Failed to send message: ${errorMessage}`);
+          }
+        });
+    } else {
+      console.warn('ChatRoom: onMessageSend - Nothing to send (no file and no trimmed text content).');
+    }
 
     if (this.replyingToMessage) {
-      messagePayload.replyTo = {
-        _id: this.replyingToMessage._id,
-        senderName: this.replyingToMessage.senderName,
-        content: this.replyingToMessage.content.substring(0, 100),
-        senderId: this.replyingToMessage.senderId
-      };
+      this.cancelReply();
     }
-
-    this.chatService.sendMessage(this.chatId, messageContent.trim(), messagePayload.replyTo)
-      .subscribe({
-        next: (sentMessage) => {
-          console.log('Message sent:', sentMessage);
-        },
-        error: (err) => {
-          console.error('Error sending message:', err);
-        }
-      });
-
-    this.cancelReply(); 
+    console.log('ChatRoom: onMessageSend - Method finished.');
   }
 
         
@@ -2379,5 +2434,160 @@ getHighlightedText(text: string, query: string): SafeHtml {
     }
     
     return null;
+  }
+
+  onMediaLoad(message: Message, event: Event): void {
+    console.log('Media loaded successfully:', message._id);
+    message.mediaLoadError = false;
+    message.mediaLoaded = true;
+    
+    if (message.messageType === 'image' && event.target instanceof HTMLImageElement) {
+      const img = event.target;
+      if (img.naturalWidth > 800) {
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+      }
+    }
+    
+    if (this.isAtBottom) {
+      setTimeout(() => this.scrollToBottom(), 50);
+    }
+    
+    this.cdr.detectChanges();
+  }
+  
+  onMediaError(message: Message, event: Event): void {
+    console.error('Failed to load media for message:', message._id, event);
+    message.mediaLoadError = true;
+    message.mediaLoaded = false;
+    
+    if (message.messageType) {
+      this.showToast(`Failed to load ${message.messageType}. Check your connection.`, 3000);
+    }
+    
+    this.cdr.detectChanges();
+  }
+  
+  openMediaModal(message: Message): void {
+    if (!message.filePath || message.mediaLoadError) {
+      return;
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'media-modal-overlay';
+    
+    Object.assign(modal.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '100%',
+      height: '100%',
+      backgroundColor: 'rgba(0, 0, 0, 0.9)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: '2000',
+      cursor: 'zoom-out'
+    });
+    
+    // Create image element
+    const img = document.createElement('img');
+    img.src = this.chatService.getApiUrl() + message.filePath;
+    img.className = 'media-modal-image';
+    img.alt = message.originalFileName || 'Image';
+    
+    Object.assign(img.style, {
+      maxWidth: '90%',
+      maxHeight: '90%',
+      objectFit: 'contain',
+      borderRadius: '8px',
+      boxShadow: '0 5px 25px rgba(0, 0, 0, 0.5)',
+      transition: 'transform 0.2s ease'
+    });
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '×';
+    closeBtn.className = 'media-modal-close';
+    
+    Object.assign(closeBtn.style, {
+      position: 'absolute',
+      top: '20px',
+      right: '20px',
+      fontSize: '30px',
+      color: 'white',
+      background: 'none',
+      border: 'none',
+      cursor: 'pointer',
+      width: '50px',
+      height: '50px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: '50%',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)'
+    });
+    
+    // Download button
+    const downloadBtn = document.createElement('a');
+    downloadBtn.href = this.chatService.getApiUrl() + message.filePath;
+    downloadBtn.download = message.originalFileName || 'download';
+    downloadBtn.className = 'media-modal-download';
+    downloadBtn.textContent = 'Download';
+    downloadBtn.target = '_blank';
+    
+    // Set download button styles
+    Object.assign(downloadBtn.style, {
+      position: 'absolute',
+      bottom: '20px',
+      padding: '10px 20px',
+      backgroundColor: 'rgba(74, 118, 168, 0.85)',
+      color: 'white',
+      borderRadius: '8px',
+      textDecoration: 'none',
+      fontWeight: 'bold',
+      transition: 'background-color 0.2s ease'
+    });
+    
+    closeBtn.addEventListener('click', () => {
+      document.body.removeChild(modal);
+    });
+    
+    downloadBtn.addEventListener('mouseover', () => {
+      downloadBtn.style.backgroundColor = 'rgba(74, 118, 168, 1)';
+    });
+    
+    downloadBtn.addEventListener('mouseout', () => {
+      downloadBtn.style.backgroundColor = 'rgba(74, 118, 168, 0.85)';
+    });
+    
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        document.body.removeChild(modal);
+      }
+    });
+    
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        document.body.removeChild(modal);
+        document.removeEventListener('keydown', keyHandler);
+      }
+    };
+    document.addEventListener('keydown', keyHandler);
+    
+    modal.appendChild(img);
+    modal.appendChild(closeBtn);
+    modal.appendChild(downloadBtn);
+    document.body.appendChild(modal);
+    
+    requestAnimationFrame(() => {
+      img.animate([
+        { transform: 'scale(0.9)', opacity: 0 },
+        { transform: 'scale(1)', opacity: 1 }
+      ], {
+        duration: 300,
+        easing: 'ease-out',
+        fill: 'forwards'
+      });
+    });
   }
 }

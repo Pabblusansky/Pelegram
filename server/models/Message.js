@@ -10,6 +10,15 @@ const messageSchema = new mongoose.Schema({
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     senderName: { type: String, required: true },
     content: { type: String, required: true },
+    messageType: {
+      type: String,
+      enum: ['text', 'image', 'video', 'audio', 'file'],
+      default: 'text'
+    },
+    filePath: { type: String, default: null },        
+    originalFileName: { type: String, default: null },
+    fileMimeType: { type: String, default: null },
+    fileSize: { type: Number, default: null },
     timestamp: { type: Date, default: Date.now },
     status: { type: String, enum: ['sent', 'delivered', 'read'], default: 'sent' },
     edited: {

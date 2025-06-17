@@ -33,7 +33,7 @@ interface NewChatCreatedData {
 })
 
 export class ChatService implements OnDestroy {
-  private apiUrl = 'http://localhost:3000';
+  public apiUrl = 'http://localhost:3000';
   private socket: Socket | undefined;
   private destroySocket$ = new Subject<void>(); 
   private newMessageSubject = new Subject<Message>();
@@ -62,7 +62,6 @@ export class ChatService implements OnDestroy {
     this.initializeSocket();
   }
   ngOnDestroy() {
-    console.log('ChatService ngOnDestroy called.');
     this.destroySocket$.next();
     this.destroySocket$.complete();
     if (this.socket) {
@@ -101,14 +100,12 @@ export class ChatService implements OnDestroy {
       this.socket.on('new_chat_created', (chatData: Chat) => {
         this.newChatCreatedSubject.next(chatData);
         if (this.socket && chatData && chatData._id) {
-          // console.log(`FRONTEND SERVICE: Auto-joining room for newly created chat: ${chatData._id}`);
           this.socket.emit('join_chat', chatData._id);
         }
         this.getChats()?.pipe(first()).subscribe(allChats => this.recalculateTotalUnread(allChats as Chat[]));
       });
 
       this.socket.on('message_reaction_updated', (data: { messageId: string; reactions: Reaction[] }) => {
-        // console.log('SERVICE: message_reaction_updated received', data);
         this.messageReactionUpdatedSubject.next(data);
       });
 
@@ -607,9 +604,15 @@ export class ChatService implements OnDestroy {
     );
   }
 
-  handleError(error: any) {
-    console.error('An error occurred:', error);
-    return throwError(() => new Error('Something went wrong; please try again later.'));
+  private handleError(error: any): Observable<never> {
+    console.error('ChatService: An API error occurred in handleError:', error);
+    let errorMessage = 'An unknown error occurred!';
+    if (error.error instanceof ErrorEvent) {
+      errorMessage = `Error: ${error.error.message}`;
+    } else if (error.status) {
+      errorMessage = `Error Code: ${error.status}\nMessage: ${error.message || (error.error && error.error.message) || error.statusText}`;
+    }
+    return throwError(() => new Error(errorMessage));
   }
 
   getAvailableChatsForForward(): Observable<any[]> {
@@ -627,7 +630,7 @@ export class ChatService implements OnDestroy {
     return { headers };
   }
 
-  getApiUrl(): string {
+  public getApiUrl(): string {
     return this.apiUrl;
   }
   toggleReaction(messageId: string, reactionType: string): void {
@@ -755,6 +758,59 @@ export class ChatService implements OnDestroy {
     this.totalUnreadCountSubject.next(total);
   }
 
-  
+  uploadMediaFile(
+    chatId: string, 
+    file: File, 
+    caption?: string, 
+    replyToContext?: any
+  ): Observable<any> {
+
+    const headers = this.getHeaders();
+
+    if (!headers) {
+      console.error('ChatService: S2.ERROR - No headers. Aborting.');
+      return throwError(() => new Error('Not authorized for file upload'));
+    }
+
+    const formData = new FormData();
+    
+    formData.append('mediaFile', file, file.name);
+
+    if (caption) {
+      formData.append('caption', caption);
+    }
+    if (replyToContext) {
+      try {
+        const replyToString = JSON.stringify(replyToContext);
+        formData.append('replyTo', replyToString);
+      } catch (e) {
+        console.error('ChatService: ERROR - Error stringifying replyToContext:', e);
+      }
+    }
+
+    const finalHeaders = headers.delete('Content-Type'); 
+
+    const apiUrlFromGetter = this.getApiUrl();
+
+    if (typeof apiUrlFromGetter !== 'string' || !apiUrlFromGetter) {
+        return throwError(() => new Error('API URL is not configured correctly.'));
+    }
+
+    if (typeof chatId !== 'string' || !chatId) { 
+        return throwError(() => new Error('chatId is invalid for upload URL.'));
+    }
+
+    const uploadUrl = `${apiUrlFromGetter}/api/files/upload/chat/${chatId}`;
+    
+    return this.http.post(uploadUrl, formData, {
+      headers: finalHeaders 
+    }).pipe(
+      tap(response => console.log('ChatService: HTTP POST response received:', response)),
+      catchError(error => {
+        console.error('ChatService: S11 - HTTP POST error:', error);
+        return this.handleError(error);
+      })
+    );
+  }
 
 }
