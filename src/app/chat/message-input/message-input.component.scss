@@ -312,3 +312,45 @@
     transform: translateY(0);
   }
 }
+
+
+.message-input-droppable-area {
+  position: relative;
+  border: 2px dashed transparent;
+  transition: border-color 0.2s ease-in-out, background-color 0.2s ease-in-out;
+  border-radius: var(--border-radius-large, 12px);
+  padding: 5px;
+
+  &.drag-over {
+    border-color: var(--primary-color, #4a76a8);
+    background-color: var(--primary-color-very-light, rgba(74, 118, 168, 0.05));
+  }
+
+  .drop-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--primary-color-transparent, rgba(74, 118, 168, 0.2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 10;
+
+    .drop-overlay-content {
+      text-align: center;
+      color: var(--primary-color, #4a76a8);
+      font-weight: 500;
+      
+      svg {
+        display: block;
+        margin: 0 auto 8px auto;
+        width: 36px;
+        height: 36px;
+      }
+    }
+  }
+}
