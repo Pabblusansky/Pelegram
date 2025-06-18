@@ -75,7 +75,39 @@ export default (io) => {
     const { chatId } = req.params;
     const { messageType = 'file', caption = '' } = req.body;
     const userId = req.user.id;
+    let replyToInput = req.body.replyTo;
 
+    let replyToData = null;
+
+    if (replyToInput) {
+      try {
+        const parsedReplyTo = JSON.parse(replyToInput);
+
+        if (parsedReplyTo && parsedReplyTo._id) {
+          const originalRepliedMessage = await Message.findById(parsedReplyTo._id)
+          .select('_id content senderId senderName messageType filePatch')
+          .populate('senderId', 'username')
+          .lean();
+          if (originalRepliedMessage) {
+            replyToData = {
+              _id: originalRepliedMessage._id,
+              content: originalRepliedMessage.content,
+              senderId: originalRepliedMessage.senderId ? originalRepliedMessage.senderId._id : null,
+              senderName: originalRepliedMessage.senderId ? 
+                originalRepliedMessage.senderId.username : 
+                (originalRepliedMessage.senderName || 'User'),
+              messageType: originalRepliedMessage.messageType,
+              filePath: originalRepliedMessage.filePath,
+            };
+          } else {
+            console.warn(`ReplyTo message with ID ${parsedReplyTo._id} not found.`);
+          }
+      }
+    } catch (error) {
+        console.error('Error parsing replyTo input:', error);
+        return res.status(400).json({ message: 'Invalid replyTo format.' });
+      }
+    }
     try {
       const user = await User.findById(userId);
       const senderName = user ? (user.name || user.username) : 'Unknown User';
@@ -102,6 +134,7 @@ export default (io) => {
         fileMimeType: req.file.mimetype,
         fileSize: req.file.size,
         status: 'sent',
+        replyTo: replyToData,
       });
 
       const savedMessage = await newMessage.save();
@@ -124,7 +157,7 @@ export default (io) => {
         .populate('senderId', '_id username avatar name')
         .populate({
             path: 'replyTo',
-            select: 'content senderName senderId _id',
+            select: 'content senderName senderId _id messageType filePath',
             populate: { path: 'senderId', select: 'username _id'}
         })
         .lean();

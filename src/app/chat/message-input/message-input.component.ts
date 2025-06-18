@@ -18,6 +18,7 @@ import { text } from 'express';
 })
 export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
   @Input() chatId: string | null = null;
+  @Input() replyingToMessage: any | null = null;
   @Output() sendMessageEvent = new EventEmitter<{
     content: string;
     file?: File;
@@ -38,7 +39,6 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   selectedFile: File | null = null;
   filePreviewUrl: SafeUrl | null = null;
-  fileCaption: string = '';
   isPreviewLoading: boolean = false;
 
   constructor(
@@ -54,6 +54,11 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
     if (changes['chatId'] && !changes['chatId'].firstChange) {
       this.resetAllInputState();
     }
+    if (changes['replyingToMessage']) {
+        if (this.replyingToMessage) {
+            this.focusInput();
+        }
+    }
   }
 
   ngOnDestroy(): void {
@@ -64,7 +69,6 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
     this.newMessage = '';
     this.selectedFile = null;
     this.filePreviewUrl = null;
-    this.fileCaption = '';
     this.isPreviewLoading = false;
     if (this.fileInput && this.fileInput.nativeElement) {
         this.fileInput.nativeElement.value = '';
@@ -74,6 +78,7 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
       this.inputChange.emit(false);
     }
     clearTimeout(this.typingTimeout);
+    this.replyingToMessage = null;
     this.cdr.detectChanges();
     if (this.messageTextarea && this.messageTextarea.nativeElement) {
         this.adjustTextareaHeight();
@@ -132,12 +137,15 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
     if (!textContent && !this.selectedFile) { 
       return;
     }
-    
-    this.sendMessageEvent.emit({
+    const dataToSend: { content: string; file?: File; caption?: string; replyTo?: any } = {
       content: textContent,
-      file: this.selectedFile || undefined, 
-      caption: this.selectedFile ? (this.fileCaption.trim() || textContent) : undefined
-    });
+      file: this.selectedFile || undefined,
+      caption: this.selectedFile ? textContent : undefined      
+    };
+    if (this.replyingToMessage) {
+      dataToSend.replyTo = this.replyingToMessage;
+    }
+    this.sendMessageEvent.emit(dataToSend);
 
     this.resetAllInputState();
   }
@@ -164,7 +172,6 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
       }
 
       this.selectedFile = file;
-      this.fileCaption = '';
 
       if (file.type.startsWith('image/')) {
         this.isPreviewLoading = true;
@@ -195,7 +202,6 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
   removeSelectedFile(): void {
     this.selectedFile = null;
     this.filePreviewUrl = null;
-    this.fileCaption = '';
     this.isPreviewLoading = false;
     if (this.fileInput?.nativeElement) {
       this.fileInput.nativeElement.value = '';

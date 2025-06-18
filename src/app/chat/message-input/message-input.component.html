@@ -12,22 +12,13 @@
         </svg>
       </div>
     </div>
-    <div class="file-details-and-caption">
+    <div class="file-details">
       <div class="file-primary-info">
         <span class="file-name-preview">{{ selectedFile.name }}</span>
         <span class="file-size-preview" *ngIf="selectedFile && selectedFile.size != null">
           ({{ selectedFile.size | fileSize }})
         </span>
       </div>
-      <input 
-        type="text" 
-        class="caption-input-preview" 
-        [(ngModel)]="fileCaption"
-        placeholder="Add a caption..."
-        (input)="onInput()"
-        (keydown.enter)="send()" 
-        #captionInputPreview
-      />
     </div>
     <button class="remove-file-button-preview" (click)="removeSelectedFile()" title="Remove file">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="18" height="18">

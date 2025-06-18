@@ -1544,26 +1544,16 @@ navigateToUserProfile(userId: string, event?: Event): void {
   }
 
   onMessageSend(eventData: { content: string; file?: File; caption?: string; replyTo?: Message }): void {
-    console.log('ChatRoom: onMessageSend - Event data received:', JSON.parse(JSON.stringify(eventData || {})));
-
     if (!this.chatId) {
       console.error('ChatRoom: onMessageSend - ERROR: chatId is missing. Cannot send message.');
       this.showToast('Error: Chat context is not available.'); 
       return;
     }
-
-    const textContentFromInput: string = (typeof eventData.content === 'string') ? eventData.content.trim() : '';
+    
+    const textOrCaption: string = (typeof eventData.content === 'string') ? eventData.content.trim() : '';
     const fileToSend: File | undefined = (eventData.file instanceof File) ? eventData.file : undefined;
-    let captionForFile: string | undefined = undefined;
-    if (fileToSend) {
-        captionForFile = (typeof eventData.caption === 'string' && eventData.caption.trim()) 
-                         ? eventData.caption.trim() 
-                         : textContentFromInput; 
-    }
 
-
-    console.log('ChatRoom: onMessageSend - Parsed data: textContentFromInput:', `"${textContentFromInput}"`, 'fileToSend:', fileToSend?.name || 'No File', 'captionForFile:', `"${captionForFile || ''}"`);
-
+    console.log('ChatRoom: onMessageSend - Parsed data: textOrCaption:', `"${textOrCaption}"`, 'fileToSend:', fileToSend?.name || 'No File');
 
     let replyToPayload: any = undefined; 
     if (this.replyingToMessage && this.replyingToMessage._id) {
@@ -1583,8 +1573,7 @@ navigateToUserProfile(userId: string, event?: Event): void {
     }
 
     if (fileToSend) {
-      console.log('ChatRoom: onMessageSend - Attempting to upload media file:', fileToSend.name, 'with caption:', `"${captionForFile || ''}"`);
-      this.chatService.uploadMediaFile(this.chatId, fileToSend, captionForFile, replyToPayload)
+      this.chatService.uploadMediaFile(this.chatId, fileToSend, textOrCaption, replyToPayload)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (response) => {
@@ -1597,13 +1586,11 @@ navigateToUserProfile(userId: string, event?: Event): void {
             this.showToast(`Failed to send file: ${errorMessage}`);
           }
         });
-    } else if (textContentFromInput) {
-      console.log('ChatRoom: onMessageSend - Attempting to send text message:', `"${textContentFromInput}"`);
-      this.chatService.sendMessage(this.chatId, textContentFromInput, replyToPayload)
+    } else if (textOrCaption) {
+      this.chatService.sendMessage(this.chatId, textOrCaption, replyToPayload)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (sentMessage) => {
-            console.log('ChatRoom: onMessageSend - Text message sent successfully. Server acknowledged:', sentMessage);
             this.scrollToBottom(true);
           },
           error: (err) => {
@@ -1619,7 +1606,6 @@ navigateToUserProfile(userId: string, event?: Event): void {
     if (this.replyingToMessage) {
       this.cancelReply();
     }
-    console.log('ChatRoom: onMessageSend - Method finished.');
   }
 
         
