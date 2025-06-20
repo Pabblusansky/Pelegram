@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
-import { text } from 'express';
 
 @Component({
   selector: 'app-message-input',
