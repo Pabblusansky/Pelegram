@@ -138,7 +138,7 @@ This project is licensed under the MIT License - see the LICENSE.md file for det
 
 
       
-[angular-shield]: https://img.shields.io/badge/angular-v19%2B-%23DD0031?logo=angular
+[angular-shield]: https://img.shields.io/badge/angular-v20%2B-%23DD0031?logo=angular
 [angular-url]: https://angular.io/
       
 [typescript-shield]: https://img.shields.io/badge/typescript-v5%2B-%233178C6?logo=typescript
