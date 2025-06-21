@@ -97,30 +97,19 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
   }
   
   onInput(): void {
-    this.adjustTextareaHeight(); 
-    const textIsNotEmpty = this.newMessage.trim().length > 0;
-    const activityPresent = textIsNotEmpty || !!this.selectedFile; 
+    this.adjustTextareaHeight();
+    
+    if (!this.isCurrentlyTyping) {
+      this.isCurrentlyTyping = true;
+      this.inputChange.emit(true);
+    }
 
     clearTimeout(this.typingTimeout);
 
-    if (activityPresent) {
-      if (!this.isCurrentlyTyping) {
-        this.isCurrentlyTyping = true;
-        this.inputChange.emit(true);
-      }
-      this.typingTimeout = setTimeout(() => {
-        if (this.isCurrentlyTyping && (this.newMessage.trim().length > 0 || !!this.selectedFile)) {
-        } else if (this.isCurrentlyTyping) {
-            this.isCurrentlyTyping = false;
-            this.inputChange.emit(false);
-        }
-      }, this.typingDelay);
-    } else {
-      if (this.isCurrentlyTyping) {
-        this.isCurrentlyTyping = false;
-        this.inputChange.emit(false);
-      }
-    }
+    this.typingTimeout = setTimeout(() => {
+      this.isCurrentlyTyping = false;
+      this.inputChange.emit(false);
+    }, this.typingDelay);
   }
   
   adjustTextareaHeight(): void {
@@ -156,7 +145,11 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
       dataToSend.replyTo = this.replyingToMessage;
     }
     this.sendMessageEvent.emit(dataToSend);
-
+    clearTimeout(this.typingTimeout);
+      if (this.isCurrentlyTyping) {
+        this.isCurrentlyTyping = false;
+        this.inputChange.emit(false);
+    }
     this.resetAllInputState();
   }
 
