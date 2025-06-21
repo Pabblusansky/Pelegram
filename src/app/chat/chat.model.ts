@@ -39,6 +39,7 @@ export interface Message {
   timestamp: string;
   createdAt?: Date;
   status?: string;
+  senderAvatar?: string | null;
 
   edited?: boolean;
   editedAt?: Date;

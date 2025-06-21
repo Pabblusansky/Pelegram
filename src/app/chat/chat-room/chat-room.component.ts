@@ -45,22 +45,26 @@ import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
 
 
 export class ChatRoomComponent implements OnInit, OnDestroy {
-  @HostListener('window:focus')
-  onWindowFocus() {
-    if (this.chatId) {
-      this.markMessagesAsRead();
-    }
-  }
+  private componentIsCurrentlyFocused: boolean = document.hasFocus(); 
   @HostListener('window:focus', ['$event'])
-  onFocus(event: FocusEvent): void {
-      this.isWindowFocused = true;
+  onWindowFocus(event: FocusEvent): void {
+    if (!this.componentIsCurrentlyFocused) {
+      console.log('ChatRoom: Window gained focus.');
+      if (this.chatId && this.isChatCurrentlyOpenAndVisible()) {
+        this.triggerMarkAsRead();
+      }
+    }
+    this.componentIsCurrentlyFocused = true;
+    this.isWindowFocused = true;
   }
 
   @HostListener('window:blur', ['$event'])
-  onBlur(event: FocusEvent): void {
+  onWindowBlur(event: FocusEvent): void {
+    console.log('ChatRoom: Window lost focus.');
+    this.componentIsCurrentlyFocused = false;
     this.isWindowFocused = false;
   }
-  
+
   isTyping = false;
   @Input() selectedChatId: string | null = null;
   typingUsers: Set<string> = new Set();
@@ -127,6 +131,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.componentIsCurrentlyFocused = document.hasFocus();
     this.loadMoreDebounce.pipe(
       debounceTime(500),
       takeUntil(this.destroy$)
@@ -230,10 +235,14 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       const routeChatId = params.get('chatId');
       this.chatId = routeChatId || this.selectedChatId;
       if (this.chatId) {
+        this.chatService.setActiveChatId(this.chatId);
         this.isChatEffectivelyDeleted = false;
         this.loadMessages();
         this.loadChatDetails();
         this.markMessagesAsRead();
+              if (this.componentIsCurrentlyFocused && this.isChatCurrentlyOpenAndVisible()) {
+        this.triggerMarkAsRead();
+      }
       }
     });
   
@@ -272,6 +281,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       if (!isMyMessage) {
         if (!isCurrentChat || (isCurrentChat && !this.isWindowFocused)) {
           this.soundService.playSound('message');
+        }
+      }
+      if (isCurrentChat && message.senderId !== this.userId) {
+        if (this.componentIsCurrentlyFocused && this.isAtBottom) {
+          this.triggerMarkAsRead();
         }
       }
     });
@@ -326,6 +340,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     }
   }
   ngOnDestroy(): void {
+    if (this.chatId === this.chatService.getActiveChatId()) {
+         this.chatService.setActiveChatId(null);
+    }
     this.destroy$.next();
     this.destroy$.complete();    
 
@@ -561,43 +578,7 @@ navigateToUserProfile(userId: string, event?: Event): void {
         }
       });
     }
-
-    // this.chatService.receiveMessages((message) => {
-    //   if (this.chatId === message.chatId) {
-    //     message.isMyMessage = message.senderId === this.userId;
-    //     this.messages.push(message);
-    //     this.updateMessagesWithDividers();
-    //     this.cdr.detectChanges();
-    //     this.scrollToBottom();
-    //     this.triggerMarkAsRead();
-    //   }
-    // });
   }
-
-  // sendMessage(messageContent: string): void {
-  //   if (this.chatId) {
-  //     const newMessage: Message = {
-  //       chatId: this.chatId,
-  //       content: messageContent,
-  //       senderId: this.userId!,
-  //       senderName: 'You',
-  //       timestamp: new Date().toISOString(),
-  //       status: 'Sent'
-  //     };
-
-  //     this.scrollToBottom();
-
-  //     this.chatService.sendMessage(this.chatId, messageContent, null).subscribe({
-  //       next: () => {
-  //         newMessage.status = 'Delivered'; 
-  //       },
-  //       error: () => {
-  //         newMessage.status = 'Failed'; 
-  //       }
-  //     });
-  //   }
-  // } 
-  // Under possible deleting (05.2025)
 
   scrollToBottom(force: boolean = false): void {
     if (!force && !this.isAtBottom && this.unreadMessagesCount === 0) {
@@ -2588,5 +2569,9 @@ getHighlightedText(text: string, query: string): SafeHtml {
   getRepliedMessage(messageId: string): Message | null {
     if (!messageId) return null;
     return this.messages.find(msg => msg._id === messageId) || null;
+  }
+
+  private isChatCurrentlyOpenAndVisible(): boolean {
+    return !!this.chatId;
   }
 }

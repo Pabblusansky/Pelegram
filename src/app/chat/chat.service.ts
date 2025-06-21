@@ -7,6 +7,7 @@ import { Chat, Message, Reaction, User } from './chat.model';
 import { BehaviorSubject, interval } from 'rxjs';
 import { first, shareReplay, takeUntil } from 'rxjs/operators';
 import { SoundService } from '../services/sound.service'; 
+import { NotificationService } from '../services/notifications.service';
 
 interface MessageDeletedEvent {
   messageId: string;
@@ -33,6 +34,7 @@ interface NewChatCreatedData {
 })
 
 export class ChatService implements OnDestroy {
+  private currentActiveChatId: string | null = null;
   public apiUrl = 'http://localhost:3000';
   private socket: Socket | undefined;
   private destroySocket$ = new Subject<void>(); 
@@ -57,13 +59,16 @@ export class ChatService implements OnDestroy {
   constructor(
     private router: Router,
     private http: HttpClient,
-    private soundService: SoundService
+    private soundService: SoundService,
+    private notificationService: NotificationService
   ) {
     this.initializeSocket();
   }
+
   ngOnDestroy() {
     this.destroySocket$.next();
     this.destroySocket$.complete();
+
     if (this.socket) {
       this.socket.disconnect();
       console.log('ChatService: Socket disconnected on service destroy.');
@@ -118,7 +123,9 @@ export class ChatService implements OnDestroy {
       });
 
       this.socket.on('receive_message', (message: Message) => {
+
         this.newMessageSubject.next(message);
+        this.handleIncomingMessageNotification(message);
         // const currentUserId = localStorage.getItem('userId');
         // if (message.senderId !== currentUserId) {
         //   this.soundService.playSound('message');
@@ -218,6 +225,53 @@ export class ChatService implements OnDestroy {
         return userStatus ? new Date(userStatus.lastActive) : null;
       })
     );
+  }
+
+  public setActiveChatId(chatId: string | null): void {
+    this.currentActiveChatId = chatId;
+    console.log('ChatService: Active chat ID set to:', chatId);
+  }
+
+  private handleIncomingMessageNotification(message: Message): void {
+    const userId = localStorage.getItem('userId');
+    const isAppVisible = this.notificationService.isAppCurrentlyVisible();
+    const isChatActive = this.currentActiveChatId === message.chatId;
+
+    if (isAppVisible && isChatActive) {
+      console.log('NotificationHandler: App visible and chat active. No sound, no notification.');
+      return;
+    }
+
+    if (isAppVisible && !isChatActive) {
+      console.log('NotificationHandler: App visible, but different chat active. Playing sound only.');
+      this.soundService.playSound('message'); 
+      return;
+    }
+    if (!this.notificationService.areNotificationsGloballyEnabled()) { 
+      console.log('NotificationHandler: Notifications are disabled in settings (checked via service method).');
+      return;
+    }
+
+    if (!isAppVisible) {
+      console.log('NotificationHandler: App not visible. Showing system notification (with its own sound).');
+      const title = `New message from ${message.senderName || 'Unknown User'}`;
+      const options: NotificationOptions & { icon?: string; tag?: string; data?: any } = {
+        body: message.content.length > 100 ? message.content.substring(0, 97) + '...' : message.content,
+        icon: message.senderAvatar || 'assets/images/default-avatar.png',
+        tag: `chat-message-${message.chatId}`,
+        silent: false,
+        data: { chatId: message.chatId, messageId: message._id }
+      };
+
+      this.notificationService.showNotification(title, options)
+        .catch(err => console.error('NotificationHandler: showNotification promise rejected:', err));
+    }
+  }
+  
+
+
+  public getActiveChatId(): string | null {
+    return this.currentActiveChatId;
   }
 
   getChat(chatId: string): Observable<any> {

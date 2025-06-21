@@ -215,17 +215,17 @@ io.on('connection', (socket) => {
     }
   });
   socket.on('send_message', async (data, callback) => {
-    const { chatId, content, replyTo } = data;
+    const { chatId, content, replyTo, fileInfo, messageType= 'text' } = data;
     const senderId = socket.user.id;
       // Save message to database
     try {
-      const sender = await User.findById(senderId);
+      const sender = await User.findById(senderId).select('username avatar').lean(); 
       if (!sender) {
         console.log('Sender not found');
         if (typeof callback === 'function') callback({ success: false, error: 'Sender not found' });
         return;
       }
-      const senderName = sender.username;
+
       const chatBeforeMessage = await Chat.findById(chatId);
       if (!chatBeforeMessage) {
         console.error(`Error sending message: Chat with ID ${chatId} not found.`);
@@ -238,9 +238,16 @@ io.on('connection', (socket) => {
       const message = new Message({
           chatId,
           senderId,
-          senderName,
+          senderName: sender.username,
           content,
           status: 'sent',
+          messageType: messageType,
+          filePath: fileInfo ? fileInfo.filePath : null,
+          fileName: fileInfo ? fileInfo.fileName : null,
+          fileSize: fileInfo ? fileInfo.fileSize : null,
+          fileMimeType: fileInfo ? fileInfo.fileMimeType : null,
+          fileOriginalName: fileInfo ? fileInfo.fileOriginalName : null,
+          fileThumbnailPath: fileInfo ? fileInfo.thumbnailPath : null,
       });
 
       if (replyTo && replyTo._id) {
@@ -278,40 +285,54 @@ io.on('connection', (socket) => {
       }
 
       await chatBeforeMessage.save();
-      const updatedChat = await Chat.findByIdAndUpdate(
+
+      const messageForClient = {
+        ...message.toObject(),
+        senderAvatar: sender.avatar 
+          ? `${process.env.BASE_URL || 'http://localhost:3000'}${sender.avatar}` 
+          : null
+      };
+      if (messageForClient.replyTo && messageForClient.replyTo.senderId) {
+        const originalSenderForReply = await User.findById(messageForClient.replyTo.senderId).select('avatar').lean();
+        messageForClient.replyTo.senderAvatar = originalSenderForReply?.avatar
+            ? `${process.env.BASE_URL || 'http://localhost:3000'}${originalSenderForReply.avatar}`
+            : null;
+      }
+
+      io.to(chatId).emit('receive_message', messageForClient);
+      console.log('Emitted receive_message with senderAvatar:', messageForClient.senderAvatar, 'and replyTo:', messageForClient.replyTo);
+
+      const updatedChat = await Chat.findById(
         chatId, 
-        {
-          lastMessage: message._id,
-        },
-        { new: true }
       )
         .populate('participants', '_id username avatar')
         .populate({
           path: 'lastMessage',
           populate: { path: 'senderId', select: '_id username avatar' }
         })
-      // Update chat with last message
-      const messageToSend = message.toObject();
-      io.to(chatId).emit('receive_message', messageToSend);
-      console.log('Emitted receive_message with replyTo:', messageToSend.replyTo);
-
+        .lean();
       if (updatedChat) {
-        io.to(chatId).emit('chat_updated', updatedChat.toObject());
+        if (updatedChat.lastMessage && updatedChat.lastMessage.senderId && typeof updatedChat.lastMessage.senderId === 'object') {
+          const lmSender = updatedChat.lastMessage.senderId;
+          updatedChat.lastMessage.senderAvatar = lmSender.avatar
+            ? `${process.env.BASE_URL || 'http://localhost:3000'}${lmSender.avatar}`
+            : null;
+        }
+        io.to(chatId).emit('chat_updated', updatedChat);
       }
 
       if (isFirstMessageInChat && updatedChat) {
         console.log(`Chat ${chatId} is being "activated" for participants due to the first message.`);
-        const chatDataForActivation = updatedChat.toObject();
 
         updatedChat.participants.forEach(participant => {
           if (participant && participant._id) {
-            io.to(participant._id.toString()).emit('new_chat_created', chatDataForActivation);
+            io.to(participant._id.toString()).emit('new_chat_created', updatedChat); 
             console.log(`Emitted 'new_chat_created' to participant ${participant._id.toString()} for chat ${chatId} after first message.`);
           }
         });
       }
       if (typeof callback === 'function') {
-        callback({ success: true, message: messageToSend })
+        callback({ success: true, message: messageForClient })
       };
       setTimeout(async () => {
         const msgToUpdate = await Message.findById(message._id);
@@ -323,6 +344,9 @@ io.on('connection', (socket) => {
       }, 1000);
     } catch (err) {
         console.error('Error sending message:', err);
+        if (typeof callback === 'function') {
+          callback({ success: false, error: err.message || 'Server error while sending message' });
+        }
     }
   });
   socket.on('typing', (data) => {
