@@ -1381,6 +1381,17 @@ html, body {
   cursor: pointer;
   transition: background-color 0.2s ease;
   
+  .media-indicator {
+    font-style: italic;
+    opacity: 0.8;
+  }
+
+  &.deleted {
+    cursor: default;
+    background-color: transparent;
+    border-left-color: var(--text-secondary, #aaa);
+  }
+
   &:hover {
     background-color: rgba(0, 0, 0, 0.06);
   }
@@ -1394,6 +1405,7 @@ html, body {
   
   .reply-quote-content {
     font-size: 12px;
+    font-style: italic;
     color: var(--text-secondary, #888);
     white-space: nowrap;
     overflow: hidden;

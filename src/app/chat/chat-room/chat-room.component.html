@@ -229,26 +229,44 @@
             {{ item.senderName }}
           </span>
 
-          <div *ngIf="item.replyTo && item.replyTo._id" class="reply-quote-block" (click)="scrollToMessage(item.replyTo._id, 'center', true)">
-            <div class="reply-quote-sender">{{ item.replyTo.senderName }}</div>
-            <div class="reply-quote-content">{{ item.replyTo.content | slice:0:70 }}{{ item.replyTo.content?.length > 70 ? '...' : '' }}</div>
-          </div>
-          <div *ngIf="item.forwarded && item.originalSenderName" class="forwarded-info">
-            <span class="forwarded-icon">↪️</span>
-            <span class="forwarded-text">
-              Forwarded from 
-              <strong 
-                class="clickable-sender-name" 
-                (click)="navigateToUserProfile(item.originalSenderId, $event)"
-                [title]="'View ' + item.originalSenderName + '\'s profile'"
-                *ngIf="item.originalSenderId">
-                {{ item.originalSenderName }}
-              </strong>
-              <span *ngIf="!item.originalSenderId">
-                {{ item.originalSenderName }}
-              </span>
-            </span>
-          </div>
+          <ng-container *ngIf="item.replyTo && item.replyTo._id">
+            
+            <ng-container *ngIf="getRepliedMessage(item.replyTo._id) as repliedMessage; else deletedMessageTemplate">
+              
+              <div class="reply-quote-block" (click)="scrollToMessage(repliedMessage._id!)">
+                <div class="reply-quote-sender">{{ repliedMessage.senderName }}</div>
+                
+                <div class="reply-quote-content">
+                  <ng-container [ngSwitch]="repliedMessage.messageType">
+                    <ng-container *ngSwitchCase="'image'">
+                      <span class="media-indicator">🖼️ Photo </span>
+                    </ng-container>
+                    <ng-container *ngSwitchCase="'video'">
+                      <span class="media-indicator">🎬 Video </span>
+                    </ng-container>
+                    <ng-container *ngSwitchCase="'audio'">
+                      <span class="media-indicator">🎵 Audio </span>
+                    </ng-container>
+                    <ng-container *ngSwitchCase="'file'">
+                      <span class="media-indicator">📄 </span>
+                      <span *ngIf="repliedMessage.content">{{ repliedMessage.content }}</span>
+                    </ng-container>
+                    <ng-container *ngSwitchDefault>
+                      {{ repliedMessage.content | slice:0:70 }}{{ repliedMessage.content.length > 70 ? '...' : '' }}
+                    </ng-container>
+                  </ng-container>
+                </div>
+              </div>
+            
+            </ng-container>
+
+            <ng-template #deletedMessageTemplate>
+              <div class="reply-quote-block deleted">
+                <div class="reply-quote-content">Original message deleted</div>
+              </div>
+            </ng-template>
+
+          </ng-container>
           
           <div class="message-body-container">
             <ng-container [ngSwitch]="item.messageType">

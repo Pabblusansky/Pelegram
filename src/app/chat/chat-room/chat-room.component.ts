@@ -186,44 +186,44 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     });
 
     this.chatService.onMessageEdited()
-    .pipe(takeUntil(this.destroy$))
-    .subscribe((editedMessage: Message) => {
-      console.log('Received edited message event:', editedMessage);
-      
-      if (this.chatId !== editedMessage.chatId) {
-        console.log('Message not for current chat, ignoring');
-        return;
-      }
-      
-      const index = this.messages.findIndex(m => m._id === editedMessage._id);
-      if (index === -1) {
-        console.log('Message not found in current chat messages');
-        return;
-      }
-      
-      const ismyMessage = this.messages[index].ismyMessage;
-      const isEditing = this.messages[index].isEditing;
-      const editedContent = this.messages[index].editedContent;
-      
-      this.messages[index] = {
-        ...this.messages[index],
-        content: editedMessage.content,
-        edited: true,
-        editedAt: editedMessage.editedAt || new Date(),
-        ismyMessage,
-        isEditing,
-        editedContent
-      };
-      
-      this.messages[index].isEditing = false;
-      delete this.messages[index].editedContent;
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((editedMessage: Message) => {
+        console.log('Received edited message event:', editedMessage);
+        
+        if (this.chatId !== editedMessage.chatId) {
+          console.log('Message not for current chat, ignoring');
+          return;
+        }
+        
+        const index = this.messages.findIndex(m => m._id === editedMessage._id);
+        if (index === -1) {
+          console.log('Message not found in current chat messages');
+          return;
+        }
+        
+        const ismyMessage = this.messages[index].ismyMessage;
+        const isEditing = this.messages[index].isEditing;
+        const editedContent = this.messages[index].editedContent;
+        
+        this.messages[index] = {
+          ...this.messages[index],
+          content: editedMessage.content,
+          edited: true,
+          editedAt: editedMessage.editedAt || new Date(),
+          ismyMessage,
+          isEditing,
+          editedContent
+        };
+        
+        this.messages[index].isEditing = false;
+        delete this.messages[index].editedContent;
 
-      if (editedMessage.senderId !== this.userId) {
-        this.applyEditAnimation(editedMessage._id!);
-      }
-      
-      this.updateMessagesWithDividers();
-      this.cdr.detectChanges();
+        if (editedMessage.senderId !== this.userId) {
+          this.applyEditAnimation(editedMessage._id!);
+        }
+        
+        this.updateMessagesWithDividers();
+        this.cdr.detectChanges();
     });
     
     this.route.paramMap.subscribe(params => {
@@ -2575,5 +2575,18 @@ getHighlightedText(text: string, query: string): SafeHtml {
         fill: 'forwards'
       });
     });
+  }
+
+  isRepliedMessageAvailable(messageId: string): boolean {
+    if (!messageId) {
+      return false;
+    }
+    return this.messages.some(msg => msg._id === messageId);
+  }
+
+  // For future use(maybe)
+  getRepliedMessage(messageId: string): Message | null {
+    if (!messageId) return null;
+    return this.messages.find(msg => msg._id === messageId) || null;
   }
 }
