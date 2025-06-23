@@ -46,18 +46,18 @@ export class RegisterComponent {
   onSubmit() {
     this.validateForm();
     if (this.hasErrors()) {
-      return; // Если есть ошибки, не отправляем запрос
+      return;
     }
     this.isSubmitting = true; 
 
     this.authService.register(this.formData).subscribe({
       next: () => {
-        this.isSubmitting = false; // Скрываем спиннер
-        this.router.navigate(['/registration-success']); // Перенаправляем на страницу успеха
+        this.isSubmitting = false;
+        this.router.navigate(['/registration-success']); 
       },
       error: (err) => {
         console.error('Error:', err);
-        this.isSubmitting = false; // Скрываем спиннер
+        this.isSubmitting = false;
       },
     });
   }

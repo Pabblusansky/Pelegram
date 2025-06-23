@@ -26,6 +26,7 @@ import { profileRoutes } from './routes/profileRoutes.js';
 import  fileRoutes from './routes/files.js';
 
 const app = express();
+
 const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
@@ -469,23 +470,24 @@ app.get('/users', async (_req, res) => {
 // Mount routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-app.use('/uploads/avatars', (req, res, next) => {
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  next();
-}, express.static(path.join(__dirname, 'uploads/avatars')));
-
-
-app.use('/media', (req, res, next) => {
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  next();
-}, express.static(path.join(__dirname, 'uploads/media')));
-
 app.use('/api/auth', authRoutes);
+
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:4200');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+}, express.static(path.join(__dirname, 'uploads')));
+
 app.use(authenticateToken);
 app.use('/chats', chatRoutes(io));
 app.use('/messages', messageRoutes(io));
-app.use('/api/files', authenticateToken, fileRoutes(io));
+app.use('/api/files', fileRoutes(io));
 app.use('/api/profile', profileRoutes);
 
 app.get('/api/users/status', authenticateToken, async (req, res) => {

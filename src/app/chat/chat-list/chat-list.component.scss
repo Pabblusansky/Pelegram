@@ -653,3 +653,35 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
   z-index: 1;
 }
+
+
+.create-group-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--primary-color, #4a76a8);
+  color: var(--primary-text-color, #fff);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.18s, box-shadow 0.18s, transform 0.15s;
+  box-shadow: 0 1px 2px rgba(74, 118, 168, 0.04);
+
+  svg {
+    margin-right: 2px;
+    vertical-align: middle;
+  }
+
+  &:hover, &:focus {
+    background-color: #3a5e85;
+    filter: brightness(95%);
+  }
+
+  &:active {
+    filter: brightness(90%);
+    transform: scale(0.98);
+  }
+}

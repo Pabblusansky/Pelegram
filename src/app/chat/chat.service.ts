@@ -1,5 +1,5 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { io, Socket } from 'socket.io-client';
 import { Router } from '@angular/router';
 import { catchError, Observable, Subject, throwError, map, tap } from 'rxjs';
@@ -54,6 +54,8 @@ export class ChatService implements OnDestroy {
   public newChatCreated$ = this.newChatCreatedSubject.asObservable();
   private totalUnreadCountSubject = new BehaviorSubject<number>(0);
   public totalUnreadCount$ = this.totalUnreadCountSubject.asObservable();
+  private userRemovedFromChatSubject = new Subject<{ chatId: string; reason: string }>();
+  public userRemovedFromChat$ = this.userRemovedFromChatSubject.asObservable();
 
   // private http = inject(HttpClient);
   constructor(
@@ -102,6 +104,9 @@ export class ChatService implements OnDestroy {
         this.chatDeletedGloballySubject.next(data);
       });
 
+      this.socket.on('user_removed_from_chat', (data: { chatId: string; reason: string }) => {
+        this.userRemovedFromChatSubject.next(data);
+      });
       this.socket.on('new_chat_created', (chatData: Chat) => {
         this.newChatCreatedSubject.next(chatData);
         if (this.socket && chatData && chatData._id) {
@@ -123,7 +128,7 @@ export class ChatService implements OnDestroy {
       });
 
       this.socket.on('receive_message', (message: Message) => {
-
+        console.log('FRONTEND SERVICE (receive_message): Data received:', JSON.parse(JSON.stringify(message)));
         this.newMessageSubject.next(message);
         this.handleIncomingMessageNotification(message);
         // const currentUserId = localStorage.getItem('userId');
@@ -867,4 +872,165 @@ export class ChatService implements OnDestroy {
     );
   }
 
+  createGroupChat(groupData: { name: string; participantIds: string[] }): Observable<Chat> {
+    const httpOptions = this.getHttpOptions();
+    if (!httpOptions) {
+      return throwError(() => new Error('Authorization token not found for createGroupChat'));
+    }
+    const payload = {
+      name: groupData.name,
+      participants: groupData.participantIds
+    };
+    return this.http.post<Chat>(`${this.apiUrl}/chats/group`, payload, httpOptions)
+      .pipe(
+        tap(newGroup => console.log('Group chat created:', newGroup)),
+        catchError(this.handleError)
+      );
+  }
+
+  leaveGroup(chatId: string): Observable<{ message: string }> {
+    const headers = this.getHeaders();
+    if (!headers) {
+      return throwError(() => new Error('Not authorized to leave group.'));
+    }
+    return this.http.post<{ message: string }>(`${this.apiUrl}/chats/${chatId}/leave`, {}, { headers })
+      .pipe(
+        tap(response => console.log('Left group response:', response)),
+        catchError(this.handleError)
+      );
+  }
+
+  updateGroupName(chatId: string, newName: string): Observable<Chat> {
+    const headers = this.getHeaders();
+    if (!headers) {
+      return throwError(() => new Error('Not authorized to update group name.'));
+    }
+    
+    return this.http.patch<Chat>(
+      `${this.apiUrl}/chats/${chatId}/group/name`, 
+      { name: newName }, 
+      { headers }
+    ).pipe(
+      tap(updatedChat => console.log('Group name updated successfully:', updatedChat)),
+      catchError(this.handleError)
+    );
+  }
+
+  updateGroupAvatar(chatId: string, file: File): Observable<Chat> {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      this.router.navigate(['/login']);
+      return throwError(() => new Error('Not authorized for group avatar update (token missing)'));
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file, file.name); 
+
+    console.log('ChatService: FormData prepared for avatar upload:');
+    formData.forEach((value, key) => {
+      console.log(key, value);
+    });
+
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}`
+    });
+
+    return this.http.patch<Chat>(`${this.apiUrl}/chats/${chatId}/group/avatar`, formData, {
+      headers: headers
+    }).pipe(
+      tap(event => { 
+        console.log('ChatService: Group avatar update HTTP event:', event);
+      }),
+      catchError((error: HttpErrorResponse) => { 
+        console.error('ChatService: Error updating group avatar:', error);
+        let errorMessage = 'Failed to update group avatar.';
+        if (error.error && typeof error.error.message === 'string') {
+          errorMessage = error.error.message;
+        } else if (typeof error.message === 'string') {
+          errorMessage = error.message;
+        }
+        return throwError(() => new Error(errorMessage)); 
+      })
+    );
+  }
+
+  addGroupParticipants(chatId: string, participantIds: string[]): Observable<Chat> {
+    const headers = this.getHeaders();
+    if (!headers) {
+      return throwError(() => new Error('Not authorized to add participants'));
+    }
+    
+    return this.http.post<Chat>(
+      `${this.apiUrl}/chats/${chatId}/group/participants`,
+      { participantIds },
+      { headers }
+    ).pipe(
+      tap(updatedChat => console.log('Participants added successfully:', updatedChat)),
+      catchError(this.handleError)
+    );
+  }
+
+  removeGroupParticipant(chatId: string, participantId: string): Observable<Chat> {
+    const headers = this.getHeaders();
+    if (!headers) {
+      return throwError(() => new Error('Not authorized to remove participant'));
+    }
+    
+    return this.http.delete<Chat>(
+      `${this.apiUrl}/chats/${chatId}/group/participants/${participantId}`,
+      { headers }
+    ).pipe(
+      tap(updatedChat => console.log('Participant removed successfully:', updatedChat)),
+      catchError(this.handleError)
+    );
+  }
+
+  deleteGroup(chatId: string): Observable<any> {
+    return this.deleteChat(chatId);
+  }
+
+
+  searchUsers(query: string): Observable<User[]> {
+    const headers = this.getHeaders();
+    if (!headers) {
+      return throwError(() => new Error('Not authorized to search users'));
+    }
+    
+    return this.http.get<User[]>(
+      `${this.apiUrl}/chats/search?query=${encodeURIComponent(query)}`, 
+      { headers }
+    ).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  deleteGroupAvatar(chatId: string): Observable<Chat> {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      this.router.navigate(['/login']);
+      return throwError(() => new Error('Not authorized for group avatar deletion (token missing)'));
+    }
+
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}`
+    });
+
+    return this.http.delete<Chat>(`${this.apiUrl}/chats/${chatId}/group/avatar`, {
+      headers: headers
+    }).pipe(
+      tap(event => { 
+        console.log('ChatService: Group avatar deletion HTTP event:', event);
+      }),
+      catchError((error: HttpErrorResponse) => { 
+        console.error('ChatService: Error deleting group avatar:', error);
+        let errorMessage = 'Failed to delete group avatar.';
+        if (error.error && typeof error.error.message === 'string') {
+          errorMessage = error.error.message;
+        } else if (typeof error.message === 'string') {
+          errorMessage = error.message;
+        }
+        return throwError(() => new Error(errorMessage)); 
+      })
+    );
+  }
 }

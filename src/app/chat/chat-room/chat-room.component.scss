@@ -1561,3 +1561,36 @@ html, body {
         outline: none;
     }
 }
+
+
+      
+.message.system-message {
+  align-self: center;
+  background-color: var(--system-message-bg, rgba(128, 128, 128, 0.1));
+  color: var(--system-message-text, #777);
+  font-style: italic;
+  font-size: 0.9em;
+  max-width: 80%;
+  text-align: center;
+  padding: 6px 10px;
+  border-radius: 12px;
+
+  .sender {
+    font-weight: bold;
+    display: none;
+  }
+  .content {
+    color: var(--system-message-text, #777);
+  }
+  .message-footer {
+    justify-content: center;
+    .timestamp {
+      color: var(--system-message-timestamp, #aaa);
+    }
+  }
+  .message-menu-icon, .status {
+    display: none !important;
+  }
+}
+
+    

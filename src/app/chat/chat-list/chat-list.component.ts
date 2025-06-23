@@ -11,13 +11,14 @@ import { takeUntil } from 'rxjs/operators';
 import { UserProfile } from '../../profile/profile.model';
 import { getFullAvatarUrl } from '../../utils/url-utils';
 import { ProfileService } from '../../profile/profile.service';
-
+import { CreateGroupChatComponent } from "../group/create-group-chat/create-group-chat.component";
+import { ToastService } from '../../utils/toast-service';
 @Component({
   selector: 'app-chat-list',
   templateUrl: './chat-list.component.html',
   styleUrls: ['./chat-list.component.scss'],
   standalone: true,
-  imports: [FormsModule, CommonModule, RouterModule],
+  imports: [FormsModule, CommonModule, RouterModule, CreateGroupChatComponent],
   providers: []
 })
 export class ChatListComponent implements OnInit, OnDestroy {
@@ -41,19 +42,21 @@ export class ChatListComponent implements OnInit, OnDestroy {
   loadingAvatars = new Set<string>();
 
   savedMessagesChat: Chat | null = null; 
+
+  isCreateGroupDialogOpen = false;
   
-  // private http = inject(HttpClient);
   constructor(
     private chatService: ChatService, 
     public router: Router, 
     private http: HttpClient,
     private cdr: ChangeDetectorRef,
-    private profileService: ProfileService
+    private profileService: ProfileService,
+    private toastService: ToastService
   ) {}
 
   ngOnInit(): void {
     this.currentUserId = localStorage.getItem('userId');
-    this.loadInitialChats(); // Changed from loadChats()
+    this.loadInitialChats();
     this.setupSearch();
 
     this.subscription.add(
@@ -62,6 +65,18 @@ export class ChatListComponent implements OnInit, OnDestroy {
       })
     );
     
+
+    this.chatService.userRemovedFromChat$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        console.log(`CHAT-LIST: User removed/left chat ${data.chatId}, reason: ${data.reason}`);
+        this.chats = this.chats.filter(chat => chat._id !== data.chatId);
+        if (this.router.url.includes(`/chats/${data.chatId}`)) {
+          this.toastService.showToast(data.reason === 'left_group' ? 'You have left the group.' : 'You were removed from the group.');
+          this.router.navigate(['/home']);
+        }
+        this.cdr.detectChanges();
+    });
     this.subscription.add(
       this.chatService.chatDeletedGlobally$
         .pipe(takeUntil(this.destroy$))
@@ -189,11 +204,24 @@ loadRegularChats(): void {
   // General method to format a chat (both regular and Saved Messages)
 
   formatChatForDisplay(chat: Chat, isSelf: boolean): any {
-    const id = chat._id || 'unknown_id';
-    console.log(`FORMAT_CHAT (${id}): Called. isSelf: ${isSelf}, Original chat participants: ${chat.participants?.length}`);
-    const formatted: any = { ...chat, isSelfChat: isSelf };
+    const formatted = { ...chat };
+    const id = chat._id;
 
-    if (isSelf) {
+    if (chat.isGroupChat) {
+      formatted.participantsString = chat.name || 'Group Chat';
+      
+      if (chat.groupAvatar) {
+        if (chat.groupAvatar.startsWith('/uploads/')) {
+          formatted.displayAvatarUrl = `${this.chatService.getApiUrl()}${chat.groupAvatar}`;
+        } else {
+          formatted.displayAvatarUrl = chat.groupAvatar;
+        }
+      } else {
+        formatted.displayAvatarUrl = 'assets/images/default-group-avatar.png';
+      }
+      
+      console.log(`FORMAT_CHAT (${id}): Formatted as GROUP. Name: ${formatted.participantsString}, Avatar: ${formatted.displayAvatarUrl}`);
+    } else if (isSelf) {
       formatted.participantsString = 'Saved Messages'; 
       formatted.displayAvatarUrl = 'assets/images/saved-messages-icon.png'; 
       console.log(`FORMAT_CHAT (${id}): Formatted as SELF. displayAvatarUrl: ${formatted.displayAvatarUrl}`);
@@ -222,8 +250,7 @@ loadRegularChats(): void {
           formatted.displayAvatarUrl = 'assets/images/default-avatar.png';
         }
       } else {
-
-        formatted.participantsString = chat.participants || 'Chat';
+        formatted.participantsString = chat.participants?.map(p => p.username || 'User').join(', ') || 'Chat';
         formatted.displayAvatarUrl = 'assets/images/default-avatar.png';
       }
     }
@@ -231,7 +258,7 @@ loadRegularChats(): void {
   }
 
   getUserAvatar(chat: any): string {
-    return chat.displayAvatarUrl || 'assets/images/default-avatar.png';
+    return chat.displayAvatarUrl || (chat.isGroupChat ? 'assets/images/default-group-avatar.png' : 'assets/images/default-avatar.png');
   }
 
   getSearchResultAvatar(user: User): string {
@@ -312,31 +339,53 @@ loadRegularChats(): void {
   
   sortChatsInPlace(): void {
     this.chats.sort((a, b) => {
-      if (a.isSelfChat && !b.isSelfChat) return -1;
-      if (!a.isSelfChat && b.isSelfChat) return 1;
-      const timeA = new Date(a.lastMessage?.timestamp || a.updatedAt || 0).getTime();
-      const timeB = new Date(b.lastMessage?.timestamp || b.updatedAt || 0).getTime();
-      return timeB - timeA;
+      const aIsSavedMessages = a.isSelfChat || a.participantsString === 'Saved Messages';
+      const bIsSavedMessages = b.isSelfChat || b.participantsString === 'Saved Messages';
+      
+      if (aIsSavedMessages && !bIsSavedMessages) return -1;
+      if (!aIsSavedMessages && bIsSavedMessages) return 1;
+      
+      if (aIsSavedMessages === bIsSavedMessages) {
+        const timeA = new Date(a.lastMessage?.timestamp || a.updatedAt || 0).getTime();
+        const timeB = new Date(b.lastMessage?.timestamp || b.updatedAt || 0).getTime();
+        return timeB - timeA;
+      }
+      
+      return 0;
     });
   }
 
-  handleNewChatCreated(newChat: Chat): void {
-    const isSelfChat = newChat.participants.length === 1 && newChat.participants[0]._id === this.currentUserId;
-    const formattedNewChat = this.formatChatForDisplay(newChat, isSelfChat);
+  private handleNewChatCreated(newChat: Chat): void {
 
-    const existingIndex = this.chats.findIndex(c => c._id === newChat._id);
-    if (existingIndex !== -1) {
-      this.chats[existingIndex] = formattedNewChat; 
-    } else {
-      this.chats.unshift(formattedNewChat);
+    const existingChatIndex = this.chats.findIndex(c => c._id === newChat._id);
+
+    if (existingChatIndex === -1) {
+
+
+      const isSelfChat = newChat.participants.length === 1 &&
+                         newChat.participants[0]?._id === this.currentUserId;
+
+      const formattedChat = this.formatChatForDisplay(newChat, isSelfChat);
+
+      this.chats.unshift(formattedChat);
+
       if (isSelfChat) {
-        this.savedMessagesChat = formattedNewChat; 
+        this.savedMessagesChat = formattedChat;
+        console.log('CHAT-LIST: New chat is Saved Messages, updated savedMessagesChat reference.');
       }
+
+      this.sortChatsInPlace()
+      this.applyChatFilter();
+      this.loadParticipantProfilesForSingleChat(formattedChat);
+      this.cdr.detectChanges();
+    } else {
+      console.warn('CHAT-LIST: newChatReceived event for an already existing chat ID:', newChat._id, '. Updating existing chat.');
+      const isSelfChat = this.chats[existingChatIndex].isSelfChat
+      this.chats[existingChatIndex] = this.formatChatForDisplay(newChat, isSelfChat);
+      this.sortChatsInPlace();
+      this.applyChatFilter();
+      this.cdr.detectChanges();
     }
-    this.sortChatsInPlace();
-    this.applyChatFilter();
-    this.loadParticipantProfilesForSingleChat(formattedNewChat);
-    this.cdr.detectChanges();
   }
 
   private handleChatUpdate(updatedChatFromServer: Chat): void {
@@ -641,5 +690,43 @@ loadRegularChats(): void {
       }
     });
     return unreadEntry ? unreadEntry.count : 0;
+  }
+
+  openCreateGroupDialog(): void {
+    this.isCreateGroupDialogOpen = true;
+  }
+
+  closeCreateGroupDialog(): void {
+    this.isCreateGroupDialogOpen = false;
+  }
+
+  onGroupCreated(newGroup: Chat): void {
+    console.log('Group successfully created from dialog, new chat object:', newGroup);
+    this.closeCreateGroupDialog();
+  }
+
+
+  getIsUserGroupAdmin(chat: any): boolean {
+    if (!chat.isGroupChat || !chat.admin || !this.currentUserId) {
+      return false;
+    }
+
+    let adminId: string | null = null;
+    const adminField = chat.admin;
+
+    if (Array.isArray(adminField) && adminField.length > 0) {
+      const firstAdmin = adminField[0];
+      adminId = typeof firstAdmin === 'string' ? 
+        firstAdmin : 
+        (firstAdmin && typeof firstAdmin === 'object' ? firstAdmin._id : null);
+    } 
+    else if (typeof adminField === 'string') {
+      adminId = adminField;
+    } 
+    else if (adminField && typeof adminField === 'object') {
+      adminId = (adminField as any)._id;
+    }
+
+    return !!adminId && adminId.toString() === this.currentUserId.toString();
   }
 }

@@ -13,13 +13,14 @@ import { ForwardDialogComponent } from '../forward/forward-dialogue.component';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SoundService } from '../../services/sound.service';
 import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
+import { GroupInfoModalComponent } from '../group/group-info-modal/group-info-modal/group-info-modal.component';
 
 @Component({
   selector: 'app-chat-room',
   templateUrl: './chat-room.component.html',
   styleUrls: ['./chat-room.component.scss'],
   standalone: true,
-  imports: [MessageInputComponent, CommonModule, FormsModule, ForwardDialogComponent, FileSizePipe],
+  imports: [MessageInputComponent, CommonModule, FormsModule, ForwardDialogComponent, FileSizePipe, GroupInfoModalComponent],
   animations: [
     trigger('menuAnimation', [
       transition(':enter', [
@@ -116,6 +117,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   @ViewChild('searchInputEl') searchInputEl!: ElementRef;
   private searchDebounce = new Subject<string>();
   isLoadingContext: boolean = false;
+  // Group chat functionality
+  isGroupChat: boolean = false;
+  groupAdmin: User | null = null;
+  showGroupInfoModal: boolean = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -272,6 +277,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     this.chatService.newMessage$
     .pipe(takeUntil(this.destroy$))
     .subscribe(message => {
+      console.log(`ChatRoom (newMessage$ SUB): Msg ID ${message._id}, Cat: ${message.category}, Content: "${message.content.slice(0,30)}"`);
       const isCurrentChat = this.chatId === message.chatId;
       const isMyMessage = message.senderId === this.userId;
       if (isCurrentChat) {
@@ -396,64 +402,96 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     });
   }
   
-onChatNameClick(event: Event): void {
-  console.log('Chat name clicked');
-  console.log('otherParticipant:', this.otherParticipant);
-  console.log('chatDetails.participants.length:', this.chatDetails?.participants?.length);
-  
-  if (this.otherParticipant && this.chatDetails?.participants?.length === 2) {
-    console.log('Navigating to user profile:', this.otherParticipant._id);
-    this.navigateToUserProfile(this.otherParticipant._id, event);
-  } else {
-    console.log('Cannot navigate: conditions not met');
+  onChatNameClick(event: Event): void {
+    if (this.isGroupChat) { 
+      console.log('Clicked on group chat name. Should open group info for chat ID:', this.chatId);
+      this.showGroupInfoModal = true;
+    } else {
+      if (this.otherParticipant && this.chatDetails?.participants?.length === 2) {
+        this.navigateToUserProfile(this.otherParticipant._id, event);
+      } else {
+        console.log('Cannot navigate to user profile: conditions not met for direct chat.');
+      }
+    }
   }
-}
-navigateToUserProfile(userId: string, event?: Event): void {
-  console.log('navigateToUserProfile called with userId:', userId);
-  
-  if (event) {
-    event.stopPropagation();
-    event.preventDefault();
-    console.log('Event propagation stopped');
-  }
-  
-  if (!userId) {
-    console.error('Cannot navigate: userId is null or undefined');
-    return;
-  }
-  
-  if (userId === this.userId) {
-    console.log('Navigating to own profile');
-    this.router.navigate(['/profile']);
-  } else {
-    console.log('Navigating to user profile:', userId);
-    this.router.navigate(['/user', userId]);
-  }
-}
-  
-  updateMessagesWithDividers(): void {
-    this.messagesWithDividers = [];
-    let lastDate = null;
 
-    for (const message of this.messages) {
+  navigateToUserProfile(userId: string, event?: Event): void {
+    console.log('navigateToUserProfile called with userId:', userId);
+    
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+      console.log('Event propagation stopped');
+    }
+    
+    if (!userId) {
+      console.error('Cannot navigate: userId is null or undefined');
+      return;
+    }
+    
+    if (userId === this.userId) {
+      console.log('Navigating to own profile');
+      this.router.navigate(['/profile']);
+    } else {
+      console.log('Navigating to user profile:', userId);
+      this.router.navigate(['/user', userId]);
+    }
+  }
+    
+  onCloseGroupInfoModal(): void {
+    this.showGroupInfoModal = false;
+  }
+
+  getSenderDisplay(message: { messageType: string; senderName: any; }) {
+    if (message.messageType === 'event') {
+      return message.senderName;
+    }
+  
+    return message.senderName;
+  }
+  updateMessagesWithDividers(): void {
+    console.log('ChatRoom (updateMessagesWithDividers) START. this.messages count:', this.messages.length);
+    const systemMessagesInSource = this.messages.filter(m => m.category === 'system_event');
+    console.log(`ChatRoom (updateMessagesWithDividers): Found ${systemMessagesInSource.length} system messages in this.messages:`, 
+                JSON.stringify(systemMessagesInSource.map(m => ({id: m._id, content: m.content.slice(0,10)})), null, 2)
+              );
+
+    const newMessagesWithDividers = []; // ВАЖНО: Используем новый локальный массив
+    let lastDate = null;
+    let systemMessagesProcessedInLoop = 0; // Счетчик
+
+    for (const message of this.messages) { // Итерируемся по this.messages
+      if (message.category === 'system_event') {
+        systemMessagesProcessedInLoop++;
+        console.log(`ChatRoom (updateMessagesWithDividers LOOP): Processing system_event msg ID ${message._id}, content: "${message.content.slice(0,10)}"`);
+      }
+
       const messageDate = this.formatDate(new Date(message.timestamp));
 
       if (messageDate !== lastDate) {
-        this.messagesWithDividers.push({
+        newMessagesWithDividers.push({
           type: 'divider',
           date: messageDate,
         });
         lastDate = messageDate;
       }
 
-      this.messagesWithDividers.push({
+      newMessagesWithDividers.push({
         ...message,
         type: 'message',
       });
+      if (message.category === 'system_event') {
+        console.log(`ChatRoom (updateMessagesWithDividers LOOP): PUSHED system_event msg ID ${message._id} to newMessagesWithDividers.`);
+      }
     }
 
+    this.messagesWithDividers = newMessagesWithDividers; // Присваиваем новый созданный массив
+
+    const systemMessagesInResult = this.messagesWithDividers.filter((m: { type: string; category: string; }) => m.type === 'message' && m.category === 'system_event');
+    console.log(`ChatRoom (updateMessagesWithDividers) END. messagesWithDividers count: ${this.messagesWithDividers.length}. Found ${systemMessagesInResult.length} system messages in result:`,
+                JSON.stringify(systemMessagesInResult.map((m: { _id: any; content: string | any[]; }) => ({id: m._id, content: m.content.slice(0,10)})), null, 2)
+              );
     this.cdr.detectChanges();
-    
   }
   
   loadChatDetails(): void {
@@ -463,6 +501,16 @@ navigateToUserProfile(userId: string, event?: Event): void {
       next: (chat) => {
         this.chatDetails = chat;
         this.updatePinnedMessageDetails();
+        this.isGroupChat = !!chat.isGroupChat;
+        if (this.isGroupChat) {
+          this.otherParticipant = null;
+          this.otherParticipantStatus$ = null;
+          this.isOtherParticipantOnline$ = null;
+          if (chat.admin && typeof chat.admin === 'object') {
+            this.groupAdmin = chat.admin as User;
+          }
+          console.log('GROUP CHAT DETAILS LOADED:', this.chatDetails);
+        } else {
         const isSavedMessages = chat.participants && chat.participants.length === 1 && chat.participants[0]._id === this.userId;
 
         if (!isSavedMessages && chat.participants && chat.participants.length > 0) { 
@@ -482,6 +530,7 @@ navigateToUserProfile(userId: string, event?: Event): void {
           this.otherParticipantStatus$ = null;
           this.isOtherParticipantOnline$ = null;
         }
+      }
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -498,6 +547,9 @@ navigateToUserProfile(userId: string, event?: Event): void {
       return 'Chat';
     }
     
+    if (this.isGroupChat) {
+      return this.chatDetails.name || 'Group Chat';
+    }
     const otherParticipants = this.chatDetails.participants.filter(
       (p: any) => p._id !== this.userId
     );
@@ -1049,6 +1101,15 @@ navigateToUserProfile(userId: string, event?: Event): void {
       return 'assets/images/default-avatar.png';
     }
 
+    if (this.isGroupChat) {
+      if (this.chatDetails.groupAvatar) {
+        if (this.chatDetails.groupAvatar.startsWith('/uploads/')) {
+          return `${this.chatService.getApiUrl()}${this.chatDetails.groupAvatar}`;
+        }
+        return this.chatDetails.groupAvatar;
+      }
+      return 'assets/images/default-group-avatar.png';
+    }
     const isSavedMessagesChat =
       this.chatDetails.participants &&
       this.chatDetails.participants.length === 1 &&
@@ -1476,7 +1537,20 @@ navigateToUserProfile(userId: string, event?: Event): void {
   }
 
   private addOrUpdateMessage(message: Message, isMyOwnMessageJustSent: boolean = false): void {
-    message.ismyMessage = message.senderId === this.userId || (typeof message.senderId === 'object' && message.senderId._id === this.userId);     const existingMessageIndex = this.messages.findIndex(m => m._id === message._id);
+    if (this.messages.find(m => m._id === message._id)) {
+      console.warn(`ChatRoom (addOrUpdateMessage): Message with ID ${message._id} ALREADY EXISTS in this.messages. Content: "${message.content.slice(0,30)}". IGNORING.`);
+      return;
+    }
+    console.log(`ChatRoom (addOrUpdateMessage START): Msg ID ${message._id}, Cat: ${message.category}, Content: "${message.content.slice(0,30)}"`);
+
+    if (message.category === 'system_event') {
+      message.ismyMessage = false;
+    } else {
+      message.ismyMessage = message.senderId === this.userId || 
+      (typeof message.senderId === 'object' && message.senderId?._id === this.userId);
+    }
+
+    const existingMessageIndex = this.messages.findIndex(m => m._id === message._id);
     let isNewMessageAdded = false;
     if (existingMessageIndex > -1) {
       this.messages[existingMessageIndex] = { ...this.messages[existingMessageIndex], ...message };

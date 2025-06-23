@@ -7,13 +7,18 @@ const reactionSchema = new mongoose.Schema({
 
 const messageSchema = new mongoose.Schema({
     chatId: { type: mongoose.Schema.Types.ObjectId, ref: 'Chat', required: true },
-    senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', },
     senderName: { type: String, required: true },
     content: { type: String, required: true },
     messageType: {
       type: String,
-      enum: ['text', 'image', 'video', 'audio', 'file'],
+      enum: ['text', 'image', 'video', 'audio', 'file', 'event'],
       default: 'text'
+    },
+    category: {
+      type: String,
+      enum: ['user_content', 'system_event'],
+      default: 'user_content'
     },
     filePath: { type: String, default: null },        
     originalFileName: { type: String, default: null },

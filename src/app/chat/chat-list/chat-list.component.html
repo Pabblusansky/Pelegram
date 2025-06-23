@@ -9,6 +9,12 @@
       aria-label="User Search"
     />
 
+    <button class="create-group-btn" (click)="openCreateGroupDialog()" title="Create New Group">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+        <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12.75 9a.75.75 0 0 0-1.5 0v2.25H9a.75.75 0 0 0 0 1.5h2.25V15a.75.75 0 0 0 1.5 0v-2.25H15a.75.75 0 0 0 0-1.5h-2.25V9Z" clip-rule="evenodd" />
+      </svg>
+      <span>New Group</span>
+    </button>
     <div *ngIf="loadingUserSearch" class="loading-indicator search-loading">
       <div class="spinner"></div>
       <p>Searching for users...</p>
@@ -68,7 +74,7 @@
     <div class="chat-avatar-wrapper">
       <img [src]="getUserAvatar(chat)" [alt]="getChatDisplayName(chat) + ' avatar'" class="chat-avatar" (error)="handleAvatarError($event)">
       <!-- Online indicator for regular chats -->
-      <div *ngIf="!chat.isSelfChat && getOtherParticipantId(chat) && isParticipantOnline(getOtherParticipantId(chat)!)" class="online-indicator"></div>
+      <div *ngIf="!chat.isGroupChat && !chat.isSelfChat && getOtherParticipantId(chat) && isParticipantOnline(getOtherParticipantId(chat)!)" class="online-indicator"></div>
     </div>
     <div class="chat-info">
       <div class="chat-name-time">
@@ -93,7 +99,11 @@
     </div>
       
           <div *ngIf="!chat.isSelfChat" class="chat-item-actions">
-            <button (click)="confirmAndDeleteChat(chat, $event)" class="delete-chat-btn" title="Delete Chat">
+            <button 
+            *ngIf="!chat.isGroupChat || (chat.isGroupChat && getIsUserGroupAdmin(chat))"
+            (click)="confirmAndDeleteChat(chat, $event)" 
+            class="delete-chat-btn" 
+            title="Delete Chat">
               <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="100" height="100" viewBox="0 0 30 30">
                 <path d="M 13 3 A 1.0001 1.0001 0 0 0 11.986328 4 L 6 4 A 1.0001 1.0001 0 1 0 6 6 L 24 6 A 1.0001 1.0001 0 1 0 24 4 L 18.013672 4 A 1.0001 1.0001 0 0 0 17 3 L 13 3 z M 6 8 L 6 24 C 6 25.105 6.895 26 8 26 L 22 26 C 23.105 26 24 25.105 24 24 L 24 8 L 6 8 z"></path>
               </svg>
@@ -102,3 +112,11 @@
         </div>
     </div>
   </div>
+
+<app-create-group-chat
+  *ngIf="isCreateGroupDialogOpen"
+  (closeDialog)="closeCreateGroupDialog()"
+  (groupCreated)="onGroupCreated($event)">
+</app-create-group-chat>
+
+

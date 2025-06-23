@@ -21,23 +21,27 @@
     <div class="chat-avatar">
       <img 
         [src]="getAvatarUrl" 
-        [alt]="otherParticipant?.username || 'Chat'"
+        [alt]="getChatName()"
         (error)="handleAvatarError($event)"
       />
-      <div *ngIf="isOtherParticipantOnline$ | async" class="online-indicator"></div>
+      <div *ngIf="!isGroupChat && (isOtherParticipantOnline$ | async)" class="online-indicator"></div>
     </div>
     <div class="chat-header-info">
       <div 
       class="chat-name"
-      [class.clickable]="otherParticipant && chatDetails?.participants?.length === 2"
+      [class.clickable]="isGroupChat || (!isGroupChat && otherParticipant && chatDetails?.participants?.length === 2)"
       (click)="onChatNameClick($event)"
-      [title]="otherParticipant ? 'View ' + otherParticipant.username + '\'s profile' : ''"
+      [title]="isGroupChat ? 'View group info' : (otherParticipant ? 'View ' + otherParticipant.username + '\'s profile' : '')"
     >
       {{ getChatName() }}
     </div>
-    <div class="chat-status"    
-    *ngIf="chatDetails?.participants?.length > 1 && (otherParticipantStatus$ | async) as status">
-      {{ status }}
+    <div class="chat-status" *ngIf="isGroupChat || (!isGroupChat && (otherParticipantStatus$ | async))">
+      <ng-container *ngIf="isGroupChat">
+        {{ chatDetails?.participants?.length || 0 }} {{ chatDetails?.participants?.length === 1 ? 'participant' : 'participants' }}
+      </ng-container>
+      <ng-container *ngIf="!isGroupChat && (otherParticipantStatus$ | async) as status">
+        {{ status }}
+      </ng-container>
     </div>
     </div>
     <div class="chat-header-actions">
@@ -188,6 +192,7 @@
         </div>
 
         <!-- Message -->
+         
         <div
           *ngIf="item.type === 'message'"
           [id]="'message-' + item._id"
@@ -198,6 +203,7 @@
             'selected': selectedMessageId === item._id,
             'edited-recently': item.editedRecently,
             'forwarded': item.forwarded,
+            'system-message': item.category === 'system_event',
             'is-search-result': item.isSearchResult,
             'message-own': item.senderId === userId,
             'message-selected': item.isSelected,
@@ -212,6 +218,7 @@
           (touchcancel)="endLongPress()"
           (click)="onMessageClick(item, $event)"
         >
+
           <!-- Menu icon -->
           <button
             *ngIf="item.senderId === userId"
@@ -219,16 +226,16 @@
             type="button"
             (click)="showContextMenu($event, item)"
           >⋮</button>
-          
           <span 
             class="sender" 
+            *ngIf="item.category !== 'system_event' || item.senderName === 'System'"
             [class.clickable]="item.senderId && !isSelectionModeActive"
             (click)="item.senderId &&  !isSelectionModeActive && navigateToUserProfile(item.senderId, $event)"
             [title]="item.senderId &&  !isSelectionModeActive ? 'View profile' : ''"
           >
             {{ item.senderName }}
           </span>
-
+          
           <ng-container *ngIf="item.replyTo && item.replyTo._id">
             
             <ng-container *ngIf="getRepliedMessage(item.replyTo._id) as repliedMessage; else deletedMessageTemplate">
@@ -285,7 +292,7 @@
                 </div>
               </div>
 
-              <!-- ВИДЕО -->
+              <!-- VIDEO -->
               <div *ngSwitchCase="'video'" class="media-content video-attachment">
                 <video 
                   *ngIf="item.filePath"
@@ -301,7 +308,7 @@
                 </div>
               </div>
 
-              <!-- АУДИО -->
+              <!-- AUDIO -->
               <div *ngSwitchCase="'audio'" class="media-content audio-attachment">
                 <audio 
                   *ngIf="item.filePath"
@@ -342,7 +349,7 @@
             </ng-container>
             <div 
               class="caption-text content" 
-              *ngIf="item.messageType && item.messageType !== 'text' && item.content && item.content !== item.originalFileName"
+              *ngIf="item.messageType && item.messageType !== 'text' && item.category!== 'system_event' && item.content && item.content !== item.originalFileName"
               [innerHTML]="isSearchActive && item.isSearchResult ? getHighlightedText(item.content, searchQuery) : formatMessageContent(item.content)"
               >
              </div>
@@ -528,5 +535,12 @@
   (cancel)="cancelForward()"
   (forward)="confirmForward($event)"
 ></app-forward-dialog>
+
+<!-- Group info modal -->
+<app-group-info-modal 
+  *ngIf="showGroupInfoModal && chatDetails" 
+  [chatDetails]="chatDetails"
+  (close)="onCloseGroupInfoModal()">
+</app-group-info-modal>
 </ng-container>
 </div>

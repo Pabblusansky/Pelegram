@@ -63,7 +63,6 @@ export class FaviconService {
       context.fillStyle = '#FF0000'; 
       context.fill();
 
-      // Рисуем текст (количество), если count - число
       if (typeof count === 'number' && count > 0) {
         const text = count > 9 ? '9+' : count.toString();
         context.font = `bold ${size * 0.35}px Arial`;
@@ -73,7 +72,6 @@ export class FaviconService {
         context.fillText(text, badgeX, badgeY + size * 0.03);
       }
 
-      // Обновляем href у link элемента
       if (this.linkElement) {
         this.linkElement.href = canvas.toDataURL('image/png');
       }

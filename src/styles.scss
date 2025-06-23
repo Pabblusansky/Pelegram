@@ -60,3 +60,55 @@ button {
     cursor: not-allowed;
   }
 }
+
+.toast-notification {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 200px;
+  max-width: 80%;
+  text-align: center;
+  justify-content: center;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  
+  &.toast-success {
+    background-color: var(--primary-color, #4a76a8);
+    color: white;
+  }
+  
+  &.toast-error {
+    background-color: var(--danger-color, #e53935);
+    color: white;
+  }
+  
+  &.toast-warning {
+    background-color: var(--warning-color, #ff9800);
+    color: white;
+  }
+  
+  &.toast-info {
+    background-color: var(--info-color, #2196f3);
+    color: white;
+  }
+  
+  .toast-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    font-size: 12px;
+  }
+}

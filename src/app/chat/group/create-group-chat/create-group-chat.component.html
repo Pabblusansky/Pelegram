@@ -1,0 +1,73 @@
+<div class="create-group-dialog-backdrop" (click)="close()">
+  <div class="create-group-dialog-content" (click)="$event.stopPropagation()">
+    <div class="dialog-header">
+      <h2>Create New Group Chat</h2>
+      <button class="close-btn" (click)="close()" title="Close">×</button>
+    </div>
+
+    <form [formGroup]="createGroupForm" (ngSubmit)="onSubmit()" class="dialog-body">
+      <div class="form-field">
+        <label for="groupName">Group Name:</label>
+        <input
+          id="groupName"
+          type="text"
+          formControlName="groupName"
+          placeholder="Enter group name (e.g., Project Team)"
+          [class.invalid]="createGroupForm.get('groupName')?.invalid && createGroupForm.get('groupName')?.touched"
+        />
+        <div *ngIf="createGroupForm.get('groupName')?.invalid && createGroupForm.get('groupName')?.touched" class="error-text">
+          <small *ngIf="createGroupForm.get('groupName')?.errors?.['required']">Group name is required.</small>
+          <small *ngIf="createGroupForm.get('groupName')?.errors?.['minlength']">Name must be at least 3 characters.</small>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label for="userSearch">Add Participants:</label>
+        <input
+          id="userSearch"
+          type="text"
+          [ngModel]="userSearchQuery"
+          (ngModelChange)="userSearchQuery = $event; searchSubject.next($event)"
+          placeholder="Search users to add..."
+          [ngModelOptions]="{standalone: true}"
+        />
+      </div>
+
+      <div class="user-search-results" *ngIf="userSearchQuery && (userSearchResults.length > 0 || isLoadingUsers)">
+        <div *ngIf="isLoadingUsers" class="loading-users">Searching users...</div>
+        <ul *ngIf="!isLoadingUsers && userSearchResults.length > 0">
+          <li *ngFor="let user of userSearchResults" (click)="selectParticipant(user)" title="Add {{user.username}}">
+            <img [src]="getAvatar(user)" alt="{{user.username}}" class="avatar-small">
+            <span>{{ user.username }}</span>
+            <span class="add-icon">+</span>
+          </li>
+        </ul>
+        <div *ngIf="!isLoadingUsers && userSearchResults.length === 0 && userSearchQuery" class="no-results">
+          No users found matching "{{userSearchQuery}}".
+        </div>
+      </div>
+
+      <div class="selected-participants-container" *ngIf="selectedParticipants.length > 0">
+        <label>Selected Participants:</label>
+        <ul class="selected-participants-list">
+          <li *ngFor="let participant of selectedParticipants">
+            <img [src]="getAvatar(participant)" alt="{{participant.username}}" class="avatar-small">
+            <span>{{ participant.username }}</span>
+            <button type="button" (click)="removeParticipant(participant)" class="remove-participant-btn" title="Remove {{participant.username}}">×</button>
+          </li>
+        </ul>
+      </div>
+
+      <div *ngIf="errorMessage" class="error-message global-error">
+        {{ errorMessage }}
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="cancel-btn-action" (click)="close()">Cancel</button>
+        <button type="submit" class="create-btn-action" [disabled]="createGroupForm.invalid || selectedParticipants.length === 0 || isCreatingGroup">
+          {{ isCreatingGroup ? 'Creating...' : 'Create Group' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,9 +1,11 @@
 export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'file' | 'link';
-
+export type MessageContentCategory = 'user_content' | 'system_event'
 
 export interface User {
   _id: string;
   username: string;
+  avatar?: string;
+  name?: string;
 }
 
 export interface Reaction {
@@ -20,13 +22,22 @@ export interface UnreadCount {
 
 export interface Chat {
   _id: string;
+  name?: string;
+  isGroupChat?: boolean;
   participants: User[];
+  admin?: User | string;
+  groupAvatar?: string | null;
   messages: string[];
   unreadCounts: UnreadCount[];
-  lastMessage?: string;
+  lastMessage?: Message | string;
   pinnedMessage?: Message | string | null;
   displayAvatarUrl?: string;
+  participantsString?: string;
   isSelfChat?: boolean;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+
+  participantIds?: string[];
 }
 
 export interface Message {
@@ -40,6 +51,7 @@ export interface Message {
   createdAt?: Date;
   status?: string;
   senderAvatar?: string | null;
+  category?: MessageContentCategory;
 
   edited?: boolean;
   editedAt?: Date;
