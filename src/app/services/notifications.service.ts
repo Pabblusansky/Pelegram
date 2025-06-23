@@ -18,7 +18,7 @@ export class NotificationService implements OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
         this.isAppVisibleSubject.next(!document.hidden);
-        console.log('App visibility changed:', !document.hidden ? 'visible' : 'hidden');
+        // console.log('App visibility changed:', !document.hidden ? 'visible' : 'hidden');
     });
   }
   

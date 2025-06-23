@@ -1019,7 +1019,6 @@ export class ChatService implements OnDestroy {
       headers: headers
     }).pipe(
       tap(event => { 
-        console.log('ChatService: Group avatar deletion HTTP event:', event);
       }),
       catchError((error: HttpErrorResponse) => { 
         console.error('ChatService: Error deleting group avatar:', error);

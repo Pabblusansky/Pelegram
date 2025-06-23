@@ -49,13 +49,11 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['chatDetails'] && this.chatDetails) {
       this.updateAdminStatus();
-      console.log('GroupInfoModal: chatDetails updated', this.chatDetails);
     }
   }
 
   private updateAdminStatus(): void {
     if (this.chatDetails && this.chatDetails.admin && this.currentUserId) {
-      console.log('Admin data:', this.chatDetails.admin);
       
       let adminId: string | null = null;
       const adminField = this.chatDetails.admin;
