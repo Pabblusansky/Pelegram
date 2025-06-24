@@ -1593,4 +1593,110 @@ html, body {
   }
 }
 
+.keyboard-help-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.keyboard-help-modal {
+  background: var(--card-background, #fff);
+  border-radius: var(--border-radius-large, 12px);
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg, 0 10px 30px rgba(0, 0, 0, 0.3));
+}
+
+.help-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color, #eee);
+  
+  h3 {
+    margin: 0;
+    color: var(--text-color);
+    font-size: 1.25rem;
+  }
+  
+  .close-help {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-secondary);
     
+    &:hover {
+      color: var(--text-color);
+    }
+  }
+}
+
+.shortcuts-grid {
+  padding: 24px;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.shortcut-category {
+  h4 {
+    margin: 0 0 12px 0;
+    color: var(--text-color);
+    font-size: 1rem;
+    font-weight: 600;
+  }
+}
+
+.shortcut-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color, #f0f0f0);
+  
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  span {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+}
+
+kbd {
+  display: inline-block;
+  padding: 3px 6px;
+  background: var(--input-background, #f5f5f5);
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--text-color);
+  margin: 0 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.help-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color, #eee);
+  text-align: center;
+  background: var(--background-color, #f9f9f9);
+  border-radius: 0 0 12px 12px;
+  
+  small {
+    color: var(--text-secondary);
+  }
+}

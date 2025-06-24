@@ -40,6 +40,22 @@ import { ConfirmationService } from '../../shared/services/confirmation.service'
       transition(':leave', [
         animate('150ms ease-in', style({ opacity: 0, transform: 'translateY(20px) scale(0.8)' }))
       ])
+    ]),
+    trigger('fadeInOut', [
+      transition(':enter', [
+        style({ opacity: 0 }),
+        animate('200ms ease-out', style({ opacity: 1 }))
+      ]),
+      transition(':leave', [
+        animate('200ms ease-in', style({ opacity: 0 }))
+      ])
+    ]),
+    trigger('scaleIn', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'scale(0.9)' }),
+        animate('300ms cubic-bezier(0.175, 0.885, 0.32, 1.275)', 
+                style({ opacity: 1, transform: 'scale(1)' }))
+      ])
     ])
   ]
 })
@@ -108,7 +124,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   private isDragging: boolean = false;
   private lastDraggedMessageId: string | null = null;
   @ViewChild(MessageInputComponent) messageInputComponent?: MessageInputComponent; 
-  
+  showKeyboardHelp: boolean = false;
+
   // Search functionality
   isSearchActive: boolean = false;
   searchQuery: string = '';
@@ -1349,8 +1366,34 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   
   @HostListener('document:keydown', ['$event'])
   handleGlobalKeyDown(event: KeyboardEvent): void {
-    if (event.target instanceof HTMLInputElement || 
-        event.target instanceof HTMLTextAreaElement) {
+    const target = event.target as HTMLElement;
+    const isInputField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+    
+    if (isInputField && this.isSearchActive && target.classList.contains('search-input')) {
+      if (this.searchResults.length > 0) {
+        if (event.key === 'ArrowDown' || event.key === 'F3') {
+          event.preventDefault();
+          this.nextSearchResult();
+          return;
+        }
+        
+        if (event.key === 'ArrowUp' || (event.shiftKey && event.key === 'F3')) {
+          event.preventDefault();
+          this.prevSearchResult();
+          return;
+        }
+      }
+      
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.closeSearch();
+        return;
+      }
+      
+      return;
+    }
+
+    if (isInputField) {
       return;
     }
 
@@ -1380,7 +1423,43 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
         return;
       }
     }
+
+    if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+      event.preventDefault();
+      this.toggleSearch();
+      return;
+    }
     
+    if (event.key === 'F3' || ((event.ctrlKey || event.metaKey) && event.key === 'f')) {
+      event.preventDefault();
+      this.toggleSearch();
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key === 'a' && this.messages.length > 0) {
+      event.preventDefault();
+      this.selectAllMessages();
+      return;
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault();
+      this.scrollToBottom(true);
+      return;
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault();
+      this.scrollToTop();
+      return;
+    }
+
+    if (event.key === '?' && !isInputField) {
+    event.preventDefault();
+    this.toggleKeyboardHelp();
+    return;
+    }
+
     if (this.isSelectionModeActive && this.selectedMessagesMap.size > 0 && 
         (event.ctrlKey || event.metaKey) && event.key === 'c') {
       event.preventDefault();
@@ -2660,5 +2739,38 @@ getHighlightedText(text: string, query: string): SafeHtml {
 
   private isChatCurrentlyOpenAndVisible(): boolean {
     return !!this.chatId;
+  }
+
+  selectAllMessages(): void {
+    if (this.messages.length === 0) return;
+    
+    this.isSelectionModeActive = true;
+    this.selectedMessagesMap.clear();
+    
+    this.messages.forEach(message => {
+      if (message._id) {
+        message.isSelected = true;
+        this.selectedMessagesMap.set(message._id, message);
+      }
+    });
+    
+    this.updateMessagesWithDividers();
+    this.cdr.detectChanges();
+    this.showToast(`Selected ${this.selectedMessagesMap.size} messages`, 2000);
+  }
+
+  scrollToTop(): void {
+    const messagesContainer = document.querySelector('.messages');
+    if (messagesContainer) {
+      messagesContainer.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  toggleKeyboardHelp(): void {
+    this.showKeyboardHelp = !this.showKeyboardHelp;
+  }
+
+  closeKeyboardHelp(): void {
+    this.showKeyboardHelp = false;
   }
 }

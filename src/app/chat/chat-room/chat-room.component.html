@@ -45,6 +45,17 @@
     </div>
     </div>
     <div class="chat-header-actions">
+      <button 
+        class="action-button"
+        (click)="toggleKeyboardHelp()"
+        title="Keyboard shortcuts (?)"
+        [class.active]="showKeyboardHelp"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+        </svg>
+      </button>
+
       <button class="action-button search-button" (click)="toggleSearch()" title="Search messages">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
           <path fill-rule="evenodd" d="M10.5 3.75a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5ZM2.25 10.5a8.25 8.25 0 1 1 14.59 5.28l4.69 4.69a.75.75 0 1 1-1.06 1.06l-4.69-4.69A8.25 8.25 0 0 1 2.25 10.5Z" clip-rule="evenodd" />
@@ -100,9 +111,10 @@
   <!-- Message Search Bar -->
   <div class="message-search-bar" *ngIf="isSearchActive">
     <input 
+      id="message-search-input"
       type="text" 
       class="search-input" 
-      placeholder="Search messages..."
+      placeholder="Search messages... (↑↓ to navigate, Esc to close)"
       [(ngModel)]="searchQuery"
       (ngModelChange)="onSearchQueryChange()"
       (keydown.enter)="navigateToNextSearchResult()"
@@ -542,5 +554,80 @@
   [chatDetails]="chatDetails"
   (close)="onCloseGroupInfoModal()">
 </app-group-info-modal>
+
+<!-- Keyboard Help Modal -->
+<div 
+  *ngIf="showKeyboardHelp" 
+  class="keyboard-help-overlay" 
+  (click)="closeKeyboardHelp()"
+  @fadeInOut
+>
+  <div class="keyboard-help-modal" (click)="$event.stopPropagation()" @scaleIn>
+    <div class="help-header">
+      <h3>⌨️ Keyboard Shortcuts</h3>
+      <button class="close-help" (click)="closeKeyboardHelp()">×</button>
+    </div>
+    
+    <div class="shortcuts-grid">
+      <div class="shortcut-category">
+        <h4>🔍 Search & Navigation</h4>
+        <div class="shortcut-item">
+          <kbd>Ctrl</kbd> + <kbd>K</kbd>
+          <span>Search messages</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>F3</kbd> / <kbd>↓</kbd>
+          <span>Next search result</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>Shift</kbd> + <kbd>F3</kbd> / <kbd>↑</kbd>
+          <span>Previous search result</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>Esc</kbd>
+          <span>Close search/Cancel</span>
+        </div>
+      </div>
+
+      <div class="shortcut-category">
+        <h4>📝 Message Actions</h4>
+        <div class="shortcut-item">
+          <kbd>Ctrl</kbd> + <kbd>A</kbd>
+          <span>Select all messages</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>Ctrl</kbd> + <kbd>C</kbd>
+          <span>Copy selected</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>Del</kbd> / <kbd>Backspace</kbd>
+          <span>Delete selected</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>Ctrl</kbd> + <kbd>Enter</kbd>
+          <span>Save edited message</span>
+        </div>
+      </div>
+
+      <div class="shortcut-category">
+        <h4>📜 Scrolling</h4>
+        <div class="shortcut-item">
+          <kbd>Home</kbd>
+          <span>Scroll to top</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>End</kbd>
+          <span>Scroll to bottom</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="help-footer">
+      <small>Press <kbd>?</kbd> anytime to show this help</small>
+    </div>
+  </div>
+</div>
 </ng-container>
 </div>
+
+
