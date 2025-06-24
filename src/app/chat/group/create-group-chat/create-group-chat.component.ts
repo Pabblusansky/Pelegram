@@ -1,7 +1,8 @@
-import { Component, EventEmitter, OnInit, Output, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, OnInit, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Subject, debounceTime, distinctUntilChanged, filter, switchMap, takeUntil, tap } from 'rxjs';
+import { debounceTime, distinctUntilChanged, filter, switchMap, takeUntil, tap, map } from 'rxjs/operators';
+import { Subject, timer, of } from 'rxjs';
 import { ChatService } from '../../chat.service';
 import { User, Chat } from '../../chat.model';
 import { HttpClient } from '@angular/common/http';
@@ -22,6 +23,7 @@ import { getFullAvatarUrl } from '../../../utils/url-utils';
 export class CreateGroupChatComponent implements OnInit {
   @Output() closeDialog = new EventEmitter<void>();
   @Output() groupCreated = new EventEmitter<Chat>();
+  @ViewChild('userSearchInput') userSearchInput!: ElementRef<HTMLInputElement>;
 
   createGroupForm: FormGroup;
   userSearchQuery = '';
@@ -61,13 +63,31 @@ export class CreateGroupChatComponent implements OnInit {
     this.searchSubject.pipe(
       debounceTime(300),
       distinctUntilChanged(),
-      filter(query => query.trim().length > 0),
+      filter(query => { 
+        if (query.trim().length === 0) {
+          this.userSearchResults = [];
+          this.isLoadingUsers = false;
+          return false;
+        }
+        return true;
+      }),
       tap(() => this.isLoadingUsers = true),
-      switchMap(query =>
-        this.http.get<User[]>(`http://localhost:3000/chats/search?query=${query}`, {
+      switchMap(query => {
+        const startTime = Date.now();
+        return this.http.get<User[]>(`http://localhost:3000/chats/search?query=${query}`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        })
-      ),
+        }).pipe(
+          switchMap(users => {
+            const elapsed = Date.now() - startTime;
+            const minDelay = 200;
+            
+            if (elapsed < minDelay) {
+              return timer(minDelay - elapsed).pipe(map(() => users));
+            }
+            return of(users);
+          })
+        );
+      }),
       takeUntil(this.destroy$)
     ).subscribe({
       next: users => {
@@ -98,6 +118,8 @@ export class CreateGroupChatComponent implements OnInit {
       this.selectedParticipants.push(user);
       this.userSearchResults = this.userSearchResults.filter(u => u._id !== user._id);
       this.userSearchQuery = '';
+
+      setTimeout(() => this.userSearchInput.nativeElement.focus(), 0); 
     }
   }
 
@@ -161,5 +183,13 @@ export class CreateGroupChatComponent implements OnInit {
 
   close(): void {
     this.closeDialog.emit();
+  }
+
+  get showSearchResults(): boolean {
+    return !!(this.userSearchQuery && this.userSearchQuery.trim().length > 0);
+  }
+
+  get hasSearchQuery(): boolean {
+    return !!(this.userSearchQuery && this.userSearchQuery.trim().length > 0);
   }
 }

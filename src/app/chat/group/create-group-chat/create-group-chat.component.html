@@ -30,20 +30,30 @@
           (ngModelChange)="userSearchQuery = $event; searchSubject.next($event)"
           placeholder="Search users to add..."
           [ngModelOptions]="{standalone: true}"
+          #userSearchInput
         />
       </div>
 
-      <div class="user-search-results" *ngIf="userSearchQuery && (userSearchResults.length > 0 || isLoadingUsers)">
-        <div *ngIf="isLoadingUsers" class="loading-users">Searching users...</div>
-        <ul *ngIf="!isLoadingUsers && userSearchResults.length > 0">
-          <li *ngFor="let user of userSearchResults" (click)="selectParticipant(user)" title="Add {{user.username}}">
-            <img [src]="getAvatar(user)" alt="{{user.username}}" class="avatar-small">
-            <span>{{ user.username }}</span>
-            <span class="add-icon">+</span>
-          </li>
-        </ul>
-        <div *ngIf="!isLoadingUsers && userSearchResults.length === 0 && userSearchQuery" class="no-results">
-          No users found matching "{{userSearchQuery}}".
+      <div class="user-search-container">
+        <div 
+          class="user-search-results" 
+          [class.visible]="showSearchResults"
+        >
+          <div *ngIf="hasSearchQuery && isLoadingUsers" class="loading-users">
+            Searching users...
+          </div>
+          
+          <ul *ngIf="hasSearchQuery && !isLoadingUsers && userSearchResults.length > 0">
+            <li *ngFor="let user of userSearchResults" (click)="selectParticipant(user)" title="Add {{user.username}}">
+              <img [src]="getAvatar(user)" alt="{{user.username}}" class="avatar-small">
+              <span>{{ user.username }}</span>
+              <span class="add-icon">+</span>
+            </li>
+          </ul>
+          
+          <div *ngIf="hasSearchQuery && !isLoadingUsers && userSearchResults.length === 0" class="no-results">
+            No users found matching "{{userSearchQuery}}".
+          </div>
         </div>
       </div>
 

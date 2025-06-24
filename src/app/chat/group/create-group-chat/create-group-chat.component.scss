@@ -68,6 +68,18 @@
     border-radius: var(--border-radius);
     max-height: 150px; overflow-y: auto; margin-top: 0.5rem;
     background-color: var(--input-background);
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.2s ease-out;
+    transform: translateY(-5px);
+
+    &.visible {
+      opacity: 1;
+      max-height: 200px;
+      transform: translateY(0);
+    }
+
     .loading-users, .no-results { padding: 10px; text-align: center; color: #6c757d; }
     ul {
       list-style: none; padding: 0; margin: 0;
