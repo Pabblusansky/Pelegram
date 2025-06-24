@@ -1,4 +1,3 @@
-
 :root {
   /* Light theme (default) */
   --background-color: #f5f5f5;
@@ -24,6 +23,30 @@
   --chat-their-message-text: #333333;
   --chat-message-metadata: #757575;
   --chat-divider-color: #e0e0e0;
+  
+  --warning-color: #ff9800;
+  --info-color: #2196f3;
+  --danger-color: #f44336;
+  --danger-hover: #d32f2f;
+  
+  /* Hover states */
+  --hover-background: rgba(0, 0, 0, 0.04);
+  --active-background: rgba(74, 118, 168, 0.15);
+  
+  /* Component-specific colors */
+  --message-selected-bg: rgba(74, 118, 168, 0.25);
+  --search-highlight-bg: #ffeb3b;
+  --search-highlight-text: #000000;
+  
+  /* Sizes */
+  --border-radius-small: 4px;
+  --border-radius-medium: 8px;
+  --border-radius-large: 12px;
+  
+  /* Animations */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
 }
 
 [data-theme="dark"] {
@@ -51,4 +74,11 @@
   --chat-their-message-text: #e0e0e0;
   --chat-message-metadata: #b0b0b0;
   --chat-divider-color: #505050;
+  
+  /* Updated dark variables */
+  --warning-color: #ffa726;
+  --info-color: #42a5f5;
+  --hover-background: rgba(255, 255, 255, 0.08);
+  --active-background: rgba(74, 118, 168, 0.25);
+  --search-highlight-bg: #fff176;
 }
