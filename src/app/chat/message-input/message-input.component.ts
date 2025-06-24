@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
+import { ToastService } from '../../utils/toast-service';
 
 @Component({
   selector: 'app-message-input',
@@ -43,7 +44,8 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
 
   constructor(
     private sanitizer: DomSanitizer,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private ToastService: ToastService
   ) {
     this.boundOnPaste = this.onPaste.bind(this);
   }
@@ -164,12 +166,12 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
       const maxSize = 25 * 1024 * 1024; // 25MB
 
       if (!allowedTypes.includes(file.type)) {
-        alert('Unsupported file type: ' + file.type); // Change to Toast
+        this.ToastService.showToast('Unsupported file type: ' + file.type, 3000, 'error');
         if (this.fileInput?.nativeElement) this.fileInput.nativeElement.value = '';
         return;
       }
       if (file.size > maxSize) {
-        alert('File is too large. Max size is 25MB.'); // Change to Toast
+        this.ToastService.showToast('File is too large. Max size is 25MB.', 3000, 'error');
         if (this.fileInput?.nativeElement) this.fileInput.nativeElement.value = '';
         return;
       }
@@ -301,13 +303,11 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
       const maxSize = 25 * 1024 * 1024; // 25MB
 
       if (!allowedTypes.includes(file.type)) {
-        // this.showToast('Unsupported file type: ' + file.type); // TO DO: Implement Toast
-        alert('Unsupported file type: ' + file.type);
+        this.ToastService.showToast('Unsupported file type: ' + file.type, 3000, 'error');
         return;
       }
       if (file.size > maxSize) {
-        // this.showToast('File is too large. Max size is 25MB.'); // TO DO: Implement Toast
-        alert('File is too large. Max size is 25MB.');
+        this.ToastService.showToast('File is too large. Max size is 25MB.', 3000, 'error');
         return;
       }
 

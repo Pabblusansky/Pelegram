@@ -1,0 +1,10 @@
+<div class="dialogue-overlay" @fadeInOut (click)="onCancel()">
+  <div class="dialogue-content" @scaleIn (click)="$event.stopPropagation()">
+    <h3 class="dialogue-title">{{ title }}</h3>
+    <p class="dialogue-message">{{ message }}</p>
+    <div class="dialogue-actions">
+      <button class="btn btn-secondary" (click)="onCancel()">{{ cancelText }}</button>
+      <button class="btn btn-primary" (click)="onConfirm()">{{ confirmText }}</button>
+    </div>
+  </div>
+</div>

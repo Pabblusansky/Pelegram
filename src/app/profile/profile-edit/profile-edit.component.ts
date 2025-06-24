@@ -7,6 +7,7 @@ import { NotificationService } from '../../services/notifications.service';
 import { SoundService } from '../../services/sound.service';
 import { getFullAvatarUrl } from '../../utils/url-utils';
 import { ProfileService } from '../profile.service';
+import { ConfirmationService } from '../../shared/services/confirmation.service';
 
 @Component({
   selector: 'app-profile-edit',
@@ -38,7 +39,8 @@ export class ProfileEditComponent implements OnInit {
     private themeService: ThemeService,
     private notificationService: NotificationService,
     private soundService: SoundService,
-    private profileService: ProfileService
+    private profileService: ProfileService,
+    private confirmationService: ConfirmationService
   ) {}
   
   ngOnInit(): void {
@@ -185,13 +187,20 @@ export class ProfileEditComponent implements OnInit {
     console.log('Sound ' + (enabled ? 'enabled' : 'disabled'));
   }
 
-  onDeleteAvatar(): void {
+  async onDeleteAvatar(): Promise<void> {
         if (!this.profile || !this.profile.avatar) {
       console.warn('No avatar to delete or profile not loaded.');
       return;
     }
 
-    if (confirm('Are you sure you want to delete your current avatar?')) {
+    const confirmed = await this.confirmationService.confirm({
+        title: 'Delete Avatar',
+        message: 'Are you sure you want to delete your current avatar? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+    });
+    
+    if (confirmed) {
       this.isDeletingAvatar = true;
       this.profileService.deleteAvatar().subscribe({
         next: (response) => {

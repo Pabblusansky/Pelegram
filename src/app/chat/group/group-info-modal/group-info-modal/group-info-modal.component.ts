@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms'; 
 import { ToastService } from '../../../../utils/toast-service';
 import { ElementRef, ViewChild } from '@angular/core';
+import { ConfirmationService } from '../../../../shared/services/confirmation.service'; 
 
 @Component({
   selector: 'app-group-info-modal',
@@ -38,7 +39,8 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
   constructor(
     public chatService: ChatService,
     private router: Router,
-    private ToastService: ToastService
+    private ToastService: ToastService,
+    private confirmationService: ConfirmationService
   ) {}
 
   ngOnInit(): void {
@@ -320,13 +322,20 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
     });
   }
 
-  removeParticipant(participantId: string): void {
+  async removeParticipant(participantId: string): Promise<void> {
     if (!this.isAdmin || !this.chatDetails?._id) return;
     
     const participant = this.chatDetails.participants.find(p => p._id === participantId);
     if (!participant) return;
     
-    if (confirm(`Are you sure you want to remove ${participant.username} from the group?`)) {
+    const confirmed = await this.confirmationService.confirm({
+      title: 'Confirm Removal',
+      message: `Are you sure you want to remove ${participant.username} from the group?`,
+      confirmText: 'Remove',
+      cancelText: 'Cancel'
+    });
+
+    if (confirmed) {
       this.isRemovingParticipant = true;
       this.chatService.removeGroupParticipant(this.chatDetails._id, participantId).subscribe({
         next: (updatedChat) => {
@@ -345,13 +354,20 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
     }
   }
 
-  leaveGroup(): void {
+  async leaveGroup(): Promise<void> {
     if (!this.chatDetails?._id) {
       this.ToastService.showToast('Chat details are not available.', 3000, 'error');
       console.error('Chat details are not available for leaving group.');
       return;
     }
-    if (confirm('Are you sure you want to leave this group?')) {
+    const confirmed = await this.confirmationService.confirm({
+        title: 'Leave Group',
+        message: 'Are you sure you want to leave this group?',
+        confirmText: 'Leave',
+        cancelText: 'Stay'
+    });
+
+    if (confirmed) {
       this.chatService.leaveGroup(this.chatDetails._id).subscribe({
         next: (response) => {
           this.ToastService.showToast('You have left the group.', 3000, 'success');
@@ -366,10 +382,17 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
     }
   }
 
-  deleteGroup(): void {
+  async deleteGroup(): Promise<void> {
     if (!this.isAdmin || !this.chatDetails?._id) return;
-    
-    if (confirm('Are you sure you want to delete this group? This action cannot be undone.')) {
+  
+    const confirmed = await this.confirmationService.confirm({
+        title: 'Delete Group',
+        message: 'Are you sure you want to want to delete this group? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+    });
+
+    if (confirmed) {
       this.isDeletingGroup = true;
       this.chatService.deleteGroup(this.chatDetails._id).subscribe({
         next: () => {
@@ -391,7 +414,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
     this.searchUsers();
   }
 
-  deleteGroupAvatar(): void {
+  async deleteGroupAvatar(): Promise<void> {
     if (!this.isAdmin || !this.chatDetails?._id) return;
     
     if (!this.chatDetails.groupAvatar || this.chatDetails.groupAvatar.includes('default-group-avatar')) {
@@ -399,7 +422,14 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
       return;
     }
     
-    if (confirm('Are you sure you want to delete the group avatar?')) {
+    const confirmed = await this.confirmationService.confirm({
+        title: 'Delete Group Avatar',
+        message: 'Are you sure you want to delete the group avatar? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+    });
+
+    if (confirmed) {
       this.isDeletingAvatar = true;
       this.chatService.deleteGroupAvatar(this.chatDetails._id).subscribe({
         next: (updatedChat) => {

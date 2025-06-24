@@ -13,6 +13,8 @@ import { getFullAvatarUrl } from '../../utils/url-utils';
 import { ProfileService } from '../../profile/profile.service';
 import { CreateGroupChatComponent } from "../group/create-group-chat/create-group-chat.component";
 import { ToastService } from '../../utils/toast-service';
+import { ConfirmationService } from '../../shared/services/confirmation.service';
+
 @Component({
   selector: 'app-chat-list',
   templateUrl: './chat-list.component.html',
@@ -51,7 +53,8 @@ export class ChatListComponent implements OnInit, OnDestroy {
     private http: HttpClient,
     private cdr: ChangeDetectorRef,
     private profileService: ProfileService,
-    private toastService: ToastService
+    private ToastService: ToastService,
+    private confirmationService: ConfirmationService
   ) {}
 
   ngOnInit(): void {
@@ -72,7 +75,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
         console.log(`CHAT-LIST: User removed/left chat ${data.chatId}, reason: ${data.reason}`);
         this.chats = this.chats.filter(chat => chat._id !== data.chatId);
         if (this.router.url.includes(`/chats/${data.chatId}`)) {
-          this.toastService.showToast(data.reason === 'left_group' ? 'You have left the group.' : 'You were removed from the group.');
+          this.ToastService.showToast(data.reason === 'left_group' ? 'You have left the group.' : 'You were removed from the group.');
           this.router.navigate(['/home']);
         }
         this.cdr.detectChanges();
@@ -593,7 +596,7 @@ loadRegularChats(): void {
     return chat.participantsString || 'Chat';
   }
   
-  confirmAndDeleteChat(chatToDelete: Chat, event: MouseEvent): void {
+  async confirmAndDeleteChat(chatToDelete: Chat, event: MouseEvent): Promise<void> {
     event.stopPropagation();
     event.preventDefault();
 
@@ -604,14 +607,18 @@ loadRegularChats(): void {
 
     // Don't allow deleting Saved Messages
     if (chatToDelete.isSelfChat) {
-      alert('You cannot delete your Saved Messages.');
+      this.ToastService.showToast('You cannot delete your Saved Messages chat.', 3000, 'error');
       return;
     }
 
     const chatName = this.getChatDisplayName(chatToDelete);
-    const confirmed = confirm(
-      `Are you sure you want to delete the chat with "${chatName}"? This action is irreversible and will delete all messages for all participants.`
-    );
+    
+    const confirmed = await this.confirmationService.confirm({
+      title: 'Confirm Removal',
+      message: `Are you sure you want to delete the chat with "${chatName}"? This action is irreversible and will delete all messages for all participants.`,
+      confirmText: 'Remove',
+      cancelText: 'Cancel'
+    });
 
     if (confirmed) {
       this.loading = true;
@@ -625,7 +632,7 @@ loadRegularChats(): void {
         },
         error: (err) => {
           console.error(`Failed to delete chat ${chatToDelete._id}:`, err);
-          alert(`Error deleting chat: ${err.error?.message || err.message || 'Unknown error'}`);
+          this.ToastService.showToast(`Error deleting chat: ${err.error?.message || err.message || 'Unknown error'}`, 3000, 'error');
           this.loading = false;
         }
       });

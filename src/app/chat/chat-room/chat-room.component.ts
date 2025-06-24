@@ -14,6 +14,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SoundService } from '../../services/sound.service';
 import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
 import { GroupInfoModalComponent } from '../group/group-info-modal/group-info-modal/group-info-modal.component';
+import { ConfirmationService } from '../../shared/services/confirmation.service';
 
 @Component({
   selector: 'app-chat-room',
@@ -128,7 +129,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     public chatService: ChatService,
     private cdr: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
-    private soundService: SoundService
+    private soundService: SoundService,
+    private confirmationService: ConfirmationService
   ) {
     this.markAsReadDebounce.pipe(debounceTime(500)).subscribe(() => {
       this.markMessagesAsRead();
@@ -1043,7 +1045,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
 
 
   
-  deleteMessage(messageId: string | undefined): void {
+  async deleteMessage(messageId: string | undefined): Promise<void> {
     console.log('Attempting to delete message with ID:', messageId);
     
     if (!messageId) {
@@ -1060,9 +1062,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     this.activeContextMenuId = null;
     this.selectedMessageId = null;
     
-    if (confirm('Are you sure you want to delete this message?')) {
-      console.log('Confirmed deletion for message ID:', messageId);
-      
+    const confirmed = await this.confirmationService.confirm({
+        title: 'Delete Message',
+        message: 'Are you sure you want to delete this message? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+    });
+    if (confirmed) {      
       this.chatService.deleteMessage(messageId).subscribe({
         next: () => {
           console.log('Message deleted successfully');
@@ -2381,7 +2387,7 @@ getHighlightedText(text: string, query: string): SafeHtml {
     return true;
   }
 
-  deleteSelectedMessages(): void {
+  async deleteSelectedMessages(): Promise<void> {
     const selectedMessageIds = Array.from(this.selectedMessagesMap.keys());
     if (selectedMessageIds.length === 0) return;
 
@@ -2390,7 +2396,14 @@ getHighlightedText(text: string, query: string): SafeHtml {
       return;
     }
 
-    if (confirm(`Are you sure you want to delete ${selectedMessageIds.length} message${selectedMessageIds.length > 1 ? 's' : ''}?`)) {
+    const confirmed = await this.confirmationService.confirm({
+        title: 'Delete Group Avatar',
+        message: `Are you sure you want to delete ${selectedMessageIds.length} message${selectedMessageIds.length > 1 ? 's' : ''}? This action cannot be undone.`,
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+    });
+
+    if (confirmed) {
       this.chatService.deleteMultipleMessages(selectedMessageIds).subscribe({
         next: (response) => {
           this.showToast(`${response.deletedCount} message${response.deletedCount > 1 ? 's' : ''} deleted`);
