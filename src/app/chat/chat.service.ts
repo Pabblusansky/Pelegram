@@ -692,14 +692,15 @@ export class ChatService implements OnDestroy {
   public getApiUrl(): string {
     return this.apiUrl;
   }
+
   toggleReaction(messageId: string, reactionType: string): void {
-  if (this.socket && this.socket.connected) {
-    console.log(`SERVICE: Emitting toggle_reaction for msg ${messageId}, reaction: ${reactionType}`);
-    this.socket.emit('toggle_reaction', { messageId, reactionType });
-  } else {
-    console.warn('Socket not connected. Cannot toggle reaction.');
+    if (this.socket && this.socket.connected) {
+      console.log(`SERVICE: Emitting toggle_reaction for msg ${messageId}, reaction: ${reactionType}`);
+      this.socket.emit('toggle_reaction', { messageId, reactionType });
+    } else {
+      console.warn('Socket not connected. Cannot toggle reaction.');
+    }
   }
-}
 
   deleteChat(chatId: string): Observable<any> {
     const headers = this.getHeaders();

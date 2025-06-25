@@ -389,7 +389,7 @@ io.on('connection', (socket) => {
     }
   });
 
-    socket.on('toggle_reaction', async ({ messageId, reactionType }) => {
+  socket.on('toggle_reaction', async ({ messageId, reactionType }) => {
     if (!socket.user || !socket.user.id) {
       socket.emit('reaction_error', { messageId, error: 'User not authenticated for reaction.' });
       return;
@@ -425,7 +425,6 @@ io.on('connection', (socket) => {
 
       if (reactionChanged) {
         await message.save();
-
         io.to(message.chatId.toString()).emit('message_reaction_updated', {
           messageId: message._id,
           reactions: message.reactions, 

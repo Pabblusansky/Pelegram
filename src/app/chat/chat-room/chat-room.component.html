@@ -389,12 +389,12 @@
             <div class="message-reactions-wrapper">
               <div class="message-reactions" *ngIf="item.type === 'message' && item.reactions && item.reactions.length > 0">
                 <span 
-                  *ngFor="let group of getGroupedReactions(item.reactions)" 
+                  *ngFor="let group of (item.reactions | groupReactions : userId)"
                   class="reaction-tag"
                   [class.reacted-by-me]="group.reactedByMe"
                   (click)="onReactionClick(item._id, group.type)"
                   title="{{ group.reactedByMe ? 'Remove Reaction' : 'Put Reaction ' + group.type }}">
-                  {{ group.type }} <span class="reaction-count">{{ group.count }}</span>
+                  {{ group.type }}<span class="reaction-count">{{ group.count }}</span>
                 </span>
               </div>
             </div>

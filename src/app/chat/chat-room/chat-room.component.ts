@@ -15,13 +15,22 @@ import { SoundService } from '../../services/sound.service';
 import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
 import { GroupInfoModalComponent } from '../group/group-info-modal/group-info-modal/group-info-modal.component';
 import { ConfirmationService } from '../../shared/services/confirmation.service';
+import { GroupReactionsPipe } from '../../pipes/fileSize/groupReactions/group-reactions.pipe';
 
 @Component({
   selector: 'app-chat-room',
   templateUrl: './chat-room.component.html',
   styleUrls: ['./chat-room.component.scss'],
+  
   standalone: true,
-  imports: [MessageInputComponent, CommonModule, FormsModule, ForwardDialogComponent, FileSizePipe, GroupInfoModalComponent],
+  imports: [
+    MessageInputComponent, 
+    CommonModule, FormsModule, 
+    ForwardDialogComponent, 
+    FileSizePipe, 
+    GroupInfoModalComponent,
+    GroupReactionsPipe
+  ],
   animations: [
     trigger('menuAnimation', [
       transition(':enter', [
@@ -1818,18 +1827,34 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     }
   }
 
-    private handleReactionUpdate(messageId: string, newReactions: Reaction[]): void {
+  private handleReactionUpdate(messageId: string, newReactions: Reaction[]): void {
+    console.log(`CLIENT: handleReactionUpdate for message ${messageId}. Received newReactions from server:`, JSON.parse(JSON.stringify(newReactions)));
     const messageIndex = this.messages.findIndex(m => m._id === messageId);
+
     if (messageIndex !== -1) {
-      this.messages[messageIndex].reactions = newReactions;
-      this.updateMessagesWithDividers(); //
+      const originalMessage = this.messages[messageIndex];
+      this.messages[messageIndex] = {
+        ...originalMessage, 
+        reactions: newReactions
+      };
+      console.log(`%cCLIENT: MSG_ID: ${messageId} in this.messages BEFORE updateMessagesWithDividers. Reactions:`, 'color: green;', 
+                  JSON.parse(JSON.stringify(this.messages[messageIndex].reactions)));
+      
+      this.updateMessagesWithDividers();
+
+      const itemInDividers = this.messagesWithDividers.find((itm: any) => itm.type === 'message' && itm._id === messageId);
+      if (itemInDividers) {
+        console.log(`%cCLIENT: MSG_ID: ${messageId} in messagesWithDividers AFTER updateMessagesWithDividers. Reactions:`, 'color: purple;', 
+                    JSON.parse(JSON.stringify(itemInDividers.reactions)));
+      } else {
+        console.warn(`%cCLIENT: MSG_ID: ${messageId} NOT FOUND in messagesWithDividers after update.`, 'color: orange;');
+      }
       this.cdr.detectChanges();
-      console.log(`Reactions updated for message ${messageId}`, newReactions);
+      console.log(`CLIENT: Reactions updated for message ${messageId} and UI should refresh.`);
     } else {
       console.warn(`Message ${messageId} not found locally to update reactions.`);
     }
   }
-
   getGroupedReactions(reactions: Reaction[] | undefined): { type: string; count: number; reactedByMe: boolean; userIds: string[] }[] {
     if (!reactions || reactions.length === 0) {
       return [];
@@ -1851,15 +1876,26 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     }));
   }
 
+
+        
+  myCustomLogForReactionTag(messageId: any, reactionType: any) {
+    console.error('!!!! CLICK ON REACTION TAG VIA CUSTOM LOG !!!!', messageId, reactionType);
+  }
+
+    
   onReactionClick(messageId: string | undefined | null, reactionType: string): void {
-    if (!messageId) {
-      console.error('Cannot add reaction: messageId is null or undefined');
-      return;
-    }
+    console.log(`ON_REACTION_CLICK_TAG: Clicked on reaction tag. Message ID: ${messageId}, Reaction Type: ${reactionType}`); 
+    
+    // if (event) {
+    //   event.preventDefault();
+    //   event.stopPropagation();
+    // }
+    
+    if (!messageId) return;
     this.chatService.toggleReaction(messageId, reactionType);
     this.activeContextMenuId = null; 
     this.selectedMessageId = null;
-    this.cdr.detectChanges();        
+    // this.cdr.detectChanges();        
   }
 
   private handleCurrentChatWasDeleted(deletedBy?: string): void {
