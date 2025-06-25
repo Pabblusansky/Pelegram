@@ -247,7 +247,23 @@
           >
             {{ item.senderName }}
           </span>
-          
+          <div *ngIf="item.forwarded && item.originalSenderName" class="forwarded-info">
+            <span class="forwarded-icon">↪️</span>
+            <span class="forwarded-text">
+              Forwarded from 
+              <strong 
+                class="clickable-sender-name" 
+                (click)="navigateToUserProfile(item.originalSenderId, $event)"
+                [title]="'View ' + item.originalSenderName + '\'s profile'"
+                *ngIf="item.originalSenderId"
+              >
+                {{ item.originalSenderName }}
+              </strong>
+              <span *ngIf="!item.originalSenderId">
+                {{ item.originalSenderName }}
+              </span>
+            </span>
+          </div>
           <ng-container *ngIf="item.replyTo && item.replyTo._id">
             
             <ng-container *ngIf="getRepliedMessage(item.replyTo._id) as repliedMessage; else deletedMessageTemplate">
