@@ -83,9 +83,9 @@
       </div>
       <div class="chat-last-message" *ngIf="chat.lastMessage">
         <span *ngIf="chat.lastMessage.forwarded" class="forwarded-indicator-list">↪ Forwarded: </span>
-        <span *ngIf="!chat.lastMessage.forwarded && chat.lastMessage.senderId === currentUserId" class="message-prefix-list">You: </span>
+        <span *ngIf="!chat.lastMessage.forwarded && isMyLastMessage(chat)" class="message-prefix-list">You: </span>
         <!-- For regular chats, show sender's name if not current user -->
-        <span *ngIf="!chat.isSelfChat && !chat.lastMessage.forwarded && chat.lastMessage.senderId !== currentUserId && chat.lastMessage.senderName" class="message-prefix-list">
+        <span *ngIf="!chat.isSelfChat && !chat.lastMessage.forwarded && !isMyLastMessage(chat) && chat.lastMessage.senderName" class="message-prefix-list">
           {{ chat.lastMessage.senderName }}:
         </span>
         {{ chat.lastMessage.content | slice:0:30 }}{{ chat.lastMessage.content?.length > 30 ? '...' : '' }}

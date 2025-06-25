@@ -89,6 +89,13 @@ export class ChatListComponent implements OnInit, OnDestroy {
     );
     
     this.subscription.add(
+      this.chatService.messageDeleted$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(event => {
+          this.handleMessageDeletedEvent(event);
+        })
+    );
+    this.subscription.add(
       this.chatService.newChatCreated$
         .pipe(takeUntil(this.destroy$))
         .subscribe(newChat => {
@@ -735,5 +742,55 @@ loadRegularChats(): void {
     }
 
     return !!adminId && adminId.toString() === this.currentUserId.toString();
+  }
+
+  private handleMessageDeletedEvent(event: { messageId: string; chatId: string; updatedChat: Chat }): void {
+    console.log('CHAT-LIST: Handling message_deleted event:', event);
+    
+    const chatIndex = this.chats.findIndex(c => c._id === event.chatId);
+    if (chatIndex !== -1) {
+      if (event.updatedChat) {
+        console.log(`CHAT-LIST: Updating chat ${event.chatId} with updatedChat from deletion event. New lastMessage:`, event.updatedChat.lastMessage);
+
+
+        const isSelf = this.chats[chatIndex].isSelfChat; 
+        
+        const newlyUpdatedChatFromServer = this.formatChatForDisplay(event.updatedChat, isSelf);
+
+        this.chats[chatIndex] = {
+          ...this.chats[chatIndex], 
+          ...newlyUpdatedChatFromServer,
+          lastMessage: newlyUpdatedChatFromServer.lastMessage, 
+          updatedAt: newlyUpdatedChatFromServer.updatedAt 
+        };
+        
+        if (!newlyUpdatedChatFromServer.displayAvatarUrl && this.chats[chatIndex].displayAvatarUrl) {
+          newlyUpdatedChatFromServer.displayAvatarUrl = this.chats[chatIndex].displayAvatarUrl;
+        }
+
+
+        console.log('CHAT-LIST: Chat after update in local list:', JSON.parse(JSON.stringify(this.chats[chatIndex])));
+
+        this.sortChatsInPlace();
+        this.applyChatFilter();
+        this.cdr.detectChanges();
+      } else {
+        console.warn(`CHAT-LIST: message_deleted event for chat ${event.chatId} did not contain updatedChat. Reloading all chats as a fallback.`);
+        this.loadInitialChats(); 
+      }
+    } else {
+      console.warn(`CHAT-LIST: Received message_deleted event for a chat not in the list: ${event.chatId}`);
+    }
+  }
+
+
+  isMyLastMessage(chat: any): boolean {
+    if (!chat || !chat.lastMessage || !chat.lastMessage.senderId || !this.currentUserId) {
+      return false;
+    }
+    const senderId = (typeof chat.lastMessage.senderId === 'object' && chat.lastMessage.senderId !== null) 
+                    ? chat.lastMessage.senderId._id 
+                    : chat.lastMessage.senderId;
+    return senderId === this.currentUserId;
   }
 }
