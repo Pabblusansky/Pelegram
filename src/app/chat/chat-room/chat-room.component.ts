@@ -1836,21 +1836,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       this.messages[messageIndex] = {
         ...originalMessage, 
         reactions: newReactions
-      };
-      console.log(`%cCLIENT: MSG_ID: ${messageId} in this.messages BEFORE updateMessagesWithDividers. Reactions:`, 'color: green;', 
-                  JSON.parse(JSON.stringify(this.messages[messageIndex].reactions)));
+      };      
       
       this.updateMessagesWithDividers();
-
-      const itemInDividers = this.messagesWithDividers.find((itm: any) => itm.type === 'message' && itm._id === messageId);
-      if (itemInDividers) {
-        console.log(`%cCLIENT: MSG_ID: ${messageId} in messagesWithDividers AFTER updateMessagesWithDividers. Reactions:`, 'color: purple;', 
-                    JSON.parse(JSON.stringify(itemInDividers.reactions)));
-      } else {
-        console.warn(`%cCLIENT: MSG_ID: ${messageId} NOT FOUND in messagesWithDividers after update.`, 'color: orange;');
-      }
       this.cdr.detectChanges();
-      console.log(`CLIENT: Reactions updated for message ${messageId} and UI should refresh.`);
     } else {
       console.warn(`Message ${messageId} not found locally to update reactions.`);
     }
