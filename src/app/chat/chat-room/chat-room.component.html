@@ -252,7 +252,7 @@
             
             <ng-container *ngIf="getRepliedMessage(item.replyTo._id) as repliedMessage; else deletedMessageTemplate">
               
-              <div class="reply-quote-block" (click)="scrollToMessage(repliedMessage._id!)">
+              <div class="reply-quote-block" (click)="onQuoteClick(item.replyTo._id, item._id)"> 
                 <div class="reply-quote-sender">{{ repliedMessage.senderName }}</div>
                 
                 <div class="reply-quote-content">
@@ -427,16 +427,23 @@
     </div>
 
     <button
-      *ngIf="!isAtBottom && messages.length > 0"
+      *ngIf="(!isAtBottom && messages.length > 0) || returnToMessageIdAfterQuoteJump"
       class="scroll-to-bottom-button"
-      (click)="scrollToBottom(true)" 
-      title="Scroll to bottom"
+      (click)="scrollToBottom(true)"
+      [title]="returnToMessageIdAfterQuoteJump ? 'Return to original message' : 'Scroll to bottom'"
       @scrollToBottomButtonAnimation 
     >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-        <path fill-rule="evenodd" d="M5.22 14.77a.75.75 0 0 1 1.06 0L10 18.44l3.72-3.67a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 15.83a.75.75 0 0 1 0-1.06ZM5.22 8.77a.75.75 0 0 1 1.06 0L10 12.44l3.72-3.67a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.83a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
-      </svg>
-      <span *ngIf="unreadMessagesCount > 0" class="unread-badge">
+      <ng-container *ngIf="!returnToMessageIdAfterQuoteJump">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+          <path fill-rule="evenodd" d="M5.22 14.77a.75.75 0 0 1 1.06 0L10 18.44l3.72-3.67a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 15.83a.75.75 0 0 1 0-1.06ZM5.22 8.77a.75.75 0 0 1 1.06 0L10 12.44l3.72-3.67a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.83a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+        </svg>
+      </ng-container>
+      <ng-container *ngIf="returnToMessageIdAfterQuoteJump">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+          <path fill-rule="evenodd" d="M12.78 5.22a.75.75 0 010 1.06L9.56 9.5h5.69a.75.75 0 010 1.5H9.56l3.22 3.22a.75.75 0 11-1.06 1.06L7.22 10.53a.75.75 0 010-1.06l4.5-4.5a.75.75 0 011.06 0z" clip-rule="evenodd" />
+        </svg>
+      </ng-container>
+      <span *ngIf="!returnToMessageIdAfterQuoteJump && unreadMessagesCount > 0" class="unread-badge">]
         {{ unreadMessagesCount > 99 ? '99+' : unreadMessagesCount }}
       </span>
     </button>

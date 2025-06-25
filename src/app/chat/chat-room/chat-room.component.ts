@@ -134,6 +134,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   private lastDraggedMessageId: string | null = null;
   @ViewChild(MessageInputComponent) messageInputComponent?: MessageInputComponent; 
   showKeyboardHelp: boolean = false;
+  public returnToMessageIdAfterQuoteJump: string | null = null;
 
   // Search functionality
   isSearchActive: boolean = false;
@@ -354,6 +355,14 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       console.log('Scrolled to bottom by user.');
       this.clearUnreadMessagesIndicator();
       this.triggerMarkAsRead();
+    }
+    if (this.returnToMessageIdAfterQuoteJump && (messageContainer.scrollTop > 0 && !newIsAtBottom)) {
+    console.log(`User scrolled up, but returnToMessageIdAfterQuoteJump is set to: ${this.returnToMessageIdAfterQuoteJump}. Not clearing it yet.`);
+    }
+    if (newIsAtBottom && this.returnToMessageIdAfterQuoteJump) {
+        console.log("User scrolled to actual bottom, clearing returnToMessageIdAfterQuoteJump.");
+        this.returnToMessageIdAfterQuoteJump = null;
+        this.cdr.detectChanges();
     }
     this.isAtBottom = newIsAtBottom;
 
@@ -661,6 +670,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   }
 
   scrollToBottom(force: boolean = false): void {
+    if (this.returnToMessageIdAfterQuoteJump) {
+      console.log(`ScrollToBottom called, but will scroll to return message: ${this.returnToMessageIdAfterQuoteJump}`);
+      this.scrollToMessage(this.returnToMessageIdAfterQuoteJump, 'center', true);
+      this.returnToMessageIdAfterQuoteJump = null; 
+      this.cdr.detectChanges();
+      return;
+    }
     if (!force && !this.isAtBottom && this.unreadMessagesCount === 0) {
       console.log('ScrollToBottom: Not scrolling, user is not at bottom and no unread.');
       return;
@@ -674,8 +690,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
         setTimeout(() => {
           messageContainer.scrollTop = messageContainer.scrollHeight;
           this.isAtBottom = true;
+          this.returnToMessageIdAfterQuoteJump = null;
           console.log(`Scrolled to bottom. New scrollTop: ${messageContainer.scrollTop}, scrollHeight: ${messageContainer.scrollHeight}`);
           this.triggerMarkAsRead();
+          this.cdr.detectChanges();
         }, 0);
       } else {
         console.warn('ScrollToBottom: Message container not found.');
@@ -1759,8 +1777,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
 
         
   scrollToMessage(messageId: string, block: ScrollLogicalPosition = 'center', forceScroll: boolean = false): void {
-    if (!forceScroll && !this.isAtBottom && !this.isSearchActive) {
-      console.log('ScrollToMessage: Not scrolling, user is not at bottom and not a search scroll.');
+    const isReturningToQuoteOrigin = this.returnToMessageIdAfterQuoteJump === messageId;
+    if (!forceScroll && !this.isAtBottom && !this.isSearchActive && !isReturningToQuoteOrigin) {
+      console.log('ScrollToMessage: Not scrolling, conditions not met.');
       return;
     }
 
@@ -1825,6 +1844,17 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
         });
     }
     }
+  }
+
+
+  onQuoteClick(targetMessageId: string, sourceMessageId: string | undefined): void {
+    if (!targetMessageId || !sourceMessageId) return;
+
+    this.returnToMessageIdAfterQuoteJump = sourceMessageId;
+    console.log(`Quote click: Will return to message ${sourceMessageId} after jumping to ${targetMessageId}`);
+    this.scrollToMessage(targetMessageId, 'center', true);
+    this.isAtBottom = false; 
+    this.cdr.detectChanges();
   }
 
   private handleReactionUpdate(messageId: string, newReactions: Reaction[]): void {
