@@ -484,6 +484,12 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, express.static(path.join(__dirname, 'uploads')));
 
+
+app.use('/media', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:4200');
+  next();
+}, express.static(path.join(__dirname, 'uploads/media')));
 app.use(authenticateToken);
 app.use('/chats', chatRoutes(io));
 app.use('/messages', messageRoutes(io));
