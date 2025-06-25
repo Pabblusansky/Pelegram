@@ -33,6 +33,12 @@
   --hover-background: rgba(0, 0, 0, 0.04);
   --active-background: rgba(74, 118, 168, 0.15);
   
+  /* Search colors */
+    --search-highlight-bg: rgba(255, 235, 59, 0.7);
+  --search-highlight-text: #000000;
+
+  --message-current-search-result-bg: #b0d0ee;
+  --text-color-on-highlighted-bg: #050505;
   /* Component-specific colors */
   --message-selected-bg: rgba(74, 118, 168, 0.25);
   --search-highlight-bg: #ffeb3b;
@@ -74,8 +80,9 @@
   --chat-their-message-text: #e0e0e0;
   --chat-message-metadata: #b0b0b0;
   --chat-divider-color: #505050;
-  
-  /* Updated dark variables */
+  --search-highlight-text: #FFFFFF;
+  --message-current-search-result-bg: #08447c;
+  --text-color-on-highlighted-bg: #E4E6EB;
   --warning-color: #ffa726;
   --info-color: #42a5f5;
   --hover-background: rgba(255, 255, 255, 0.08);
