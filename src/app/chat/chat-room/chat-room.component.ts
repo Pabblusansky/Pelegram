@@ -16,6 +16,8 @@ import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
 import { GroupInfoModalComponent } from '../group/group-info-modal/group-info-modal/group-info-modal.component';
 import { ConfirmationService } from '../../shared/services/confirmation.service';
 import { GroupReactionsPipe } from '../../pipes/fileSize/groupReactions/group-reactions.pipe';
+import { SharedMediaGalleryComponent } from "../shared-media-gallery/shared-media-gallery.component";   
+import { LightboxComponent } from '../../shared/lightbox/lightbox.component';
 
 @Component({
   selector: 'app-chat-room',
@@ -24,13 +26,15 @@ import { GroupReactionsPipe } from '../../pipes/fileSize/groupReactions/group-re
   
   standalone: true,
   imports: [
-    MessageInputComponent, 
-    CommonModule, FormsModule, 
-    ForwardDialogComponent, 
-    FileSizePipe, 
+    MessageInputComponent,
+    CommonModule, FormsModule,
+    ForwardDialogComponent,
+    LightboxComponent,
+    FileSizePipe,
     GroupInfoModalComponent,
-    GroupReactionsPipe
-  ],
+    GroupReactionsPipe,
+    SharedMediaGalleryComponent
+],
   animations: [
     trigger('menuAnimation', [
       transition(':enter', [
@@ -135,6 +139,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   @ViewChild(MessageInputComponent) messageInputComponent?: MessageInputComponent; 
   showKeyboardHelp: boolean = false;
   public returnToMessageIdAfterQuoteJump: string | null = null;
+  showMediaGallery: boolean = false;
 
   // Search functionality
   isSearchActive: boolean = false;
@@ -149,6 +154,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   isGroupChat: boolean = false;
   groupAdmin: User | null = null;
   showGroupInfoModal: boolean = false;
+  // Lightbox functionality
+  showLightbox: boolean = false;
+  lightboxItems: Message[] = [];
+  lightboxStartIndex: number = 0;
 
   constructor(
     private route: ActivatedRoute,
@@ -2827,5 +2836,75 @@ getHighlightedText(text: string, query: string): SafeHtml {
 
   closeKeyboardHelp(): void {
     this.showKeyboardHelp = false;
+  }
+
+  openMediaGallery(): void {
+    this.showMediaGallery = true;
+    // document.body.style.overflow = 'hidden'; 
+  }
+
+  closeMediaGallery(): void {
+    this.showMediaGallery = false;
+    document.body.style.overflow = '';
+  }
+
+  openLightboxFromGallery(event: { items: Message[], startIndex: number }): void {
+    this.lightboxItems = event.items;
+    this.lightboxStartIndex = event.startIndex;
+    this.showLightbox = true;
+    // this.showMediaGallery = false; 
+  }
+  
+  closeLightbox(): void {
+    this.showLightbox = false;
+  }
+
+  onGoToMessage(): void {
+    if (!this.showLightbox || this.lightboxItems.length === 0) return;
+
+    const targetMessage = this.lightboxItems[this.lightboxStartIndex];
+    if (!targetMessage || !targetMessage._id) return;
+    
+    console.log(`Navigating to message ID: ${targetMessage._id}`);
+
+    this.closeLightbox();
+    this.closeMediaGallery();
+
+    this.scrollToMessageAndLoadContextIfNeeded(targetMessage._id);
+  }
+
+  async scrollToMessageAndLoadContextIfNeeded(messageId: string): Promise<void> {
+    const messageElement = document.getElementById('message-' + messageId);
+    
+    if (messageElement) {
+      this.scrollToMessage(messageId, 'center', true);
+    } else {
+      console.log(`Message ${messageId} not in DOM, loading context...`);
+      this.showToast('Loading message context...', 3000);
+      
+      if (this.chatId) {
+        this.chatService.loadMessageContext(this.chatId, messageId)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: (contextMessages) => {
+              if (contextMessages && contextMessages.length > 0) {
+                this.mergeMessages(contextMessages);
+                this.updateMessagesWithDividers();
+                this.cdr.detectChanges();
+                
+                setTimeout(() => {
+                  this.scrollToMessage(messageId, 'center', true);
+                }, 100);
+              } else {
+                this.showToast('Could not load the message', 3000);
+              }
+            },
+            error: (err) => {
+              console.error('Failed to load message context:', err);
+              this.showToast('Could not load the message', 3000);
+            }
+          });
+      }
+    }
   }
 }

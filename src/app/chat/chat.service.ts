@@ -15,6 +15,13 @@ interface MessageDeletedEvent {
   updatedChat: any;
 }
 
+export interface MediaGalleryResponse {
+  media: Message[];
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+}
+
 interface ChatDeletedGloballyData {
   chatId: string;
   deletedBy?: string; // Optional field to indicate who deleted the chat
@@ -1019,7 +1026,7 @@ export class ChatService implements OnDestroy {
     return this.http.delete<Chat>(`${this.apiUrl}/chats/${chatId}/group/avatar`, {
       headers: headers
     }).pipe(
-      tap(event => { 
+      tap(() => { 
       }),
       catchError((error: HttpErrorResponse) => { 
         console.error('ChatService: Error deleting group avatar:', error);
@@ -1031,6 +1038,31 @@ export class ChatService implements OnDestroy {
         }
         return throwError(() => new Error(errorMessage)); 
       })
+    );
+  }
+  getChatMedia(
+    chatId: string,
+    type: 'images' | 'videos' | 'documents' = 'images', // Дефолтный тип
+    page: number = 1,
+    limit: number = 30
+  ): Observable<MediaGalleryResponse> {
+    const headers = this.getHeaders();
+    if (!headers) {
+      return throwError(() => new Error('Not authorized to get chat media.'));
+    }
+
+    let params = new HttpParams()
+      .set('type', type)
+      .set('page', page.toString())
+      .set('limit', limit.toString());
+
+    const url = `${this.apiUrl}/chats/${chatId}/media`;
+
+    console.log(`ChatService: Fetching media from ${url} with params:`, { type, page, limit });
+
+    return this.http.get<MediaGalleryResponse>(url, { headers, params }).pipe(
+      tap(response => console.log(`ChatService: Received ${response.media.length} media items.`, response)),
+      catchError(this.handleError)
     );
   }
 }

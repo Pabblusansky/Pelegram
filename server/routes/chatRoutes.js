@@ -556,6 +556,59 @@ export default (io) => {
     }
   });
 
+  router.get('/:chatId/media', authenticateToken, async (req, res) => {
+    const { chatId } = req.params;
+    const userId = req.user.id;
+
+    const typeFilter = req.query.type || 'images';
+    const limit = parseInt(req.query.limit) || 30;
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * limit;
+
+    try {
+      const chat = await Chat.findOne({ _id: chatId, participants: userId });
+      if (!chat) {
+        return res.status(403).json({ message: 'Access denied or chat not found.' });
+      }
+
+      const queryConditions = {
+        chatId: chatId,
+        filePath: { $exists: true, $ne: null, $ne: '' }
+      };
+
+      if (typeFilter === 'images') {
+        queryConditions.messageType = 'image';
+      } else if (typeFilter === 'videos') {
+        queryConditions.messageType = 'video';
+      } else if (typeFilter === 'documents') {
+        queryConditions.messageType = { $in: ['file', 'audio'] };
+      } else {
+        queryConditions.messageType = { $in: ['image', 'video', 'audio', 'file'] };
+      }
+
+      const mediaMessages = await Message.find(queryConditions)
+        .sort({ createdAt: -1 }) 
+        .skip(skip)
+        .limit(limit)
+        .populate('senderId', 'username') 
+        .select('filePath originalFileName fileMimeType fileSize messageType senderId createdAt')
+        .lean();
+
+      const totalMediaCount = await Message.countDocuments(queryConditions);
+
+      res.json({
+        media: mediaMessages,
+        currentPage: page,
+        totalPages: Math.ceil(totalMediaCount / limit),
+        totalCount: totalMediaCount,
+      });
+
+    } catch (error) {
+      console.error(`Error fetching media for chat ${chatId}:`, error);
+      res.status(500).json({ message: 'Server error while fetching media.' });
+    }
+  });
+  
   router.get('/search', authenticateToken, async (req, res) => {
     const { query } = req.query;
       
