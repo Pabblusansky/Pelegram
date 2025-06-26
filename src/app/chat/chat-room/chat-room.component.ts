@@ -531,7 +531,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       }
     }
 
-    this.messagesWithDividers = newMessagesWithDividers; // Присваиваем новый созданный массив
+    this.messagesWithDividers = newMessagesWithDividers;
 
     const systemMessagesInResult = this.messagesWithDividers.filter((m: { type: string; category: string; }) => m.type === 'message' && m.category === 'system_event');
     console.log(`ChatRoom (updateMessagesWithDividers) END. messagesWithDividers count: ${this.messagesWithDividers.length}. Found ${systemMessagesInResult.length} system messages in result:`,
