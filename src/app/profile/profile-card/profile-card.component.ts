@@ -1,7 +1,10 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, ChangeDetectorRef, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { UserProfile } from '../profile.model';
 import { RouterModule } from '@angular/router';
+import { ProfileService } from '../profile.service';
+import { Subject } from 'rxjs';
+import { takeUntil, distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
   selector: 'app-profile-card',
@@ -10,70 +13,90 @@ import { RouterModule } from '@angular/router';
   standalone: true,
   imports: [CommonModule, RouterModule]
 })
-export class ProfileCardComponent implements OnInit {
+export class ProfileCardComponent implements OnInit, OnChanges, OnDestroy {
   @Input() profile: UserProfile | null = null;
   @Input() isCurrentUser: boolean = true;
   @Input() compact: boolean = false;
   
+  public displayableProfile: UserProfile | null = null;
+  private destroy$ = new Subject<void>();
+
   private readonly defaultAvatarPath = 'assets/images/default-avatar.png';
-  avatarLoaded = false;
-  
+
+  constructor(
+    private profileService: ProfileService,
+    private cdr: ChangeDetectorRef
+  ) {} 
+
   ngOnInit(): void {
-    if (this.profile?.avatar) {
-      const img = new Image();
-      img.onload = () => {
-        this.avatarLoaded = true;
-      };
-      img.src = this.avatarUrl;
+    if (this.isCurrentUser) {
+      this.profileService.currentProfile$
+        .pipe(
+          takeUntil(this.destroy$),
+          distinctUntilChanged((prev: UserProfile | null, curr: UserProfile | null) => {
+            if (!prev && !curr) return true;
+            if (!prev || !curr) return false;
+            return prev._id === curr._id && 
+                   prev.avatar === curr.avatar && 
+                   prev.displayName === curr.displayName && 
+                   prev.username === curr.username;
+          })
+        )
+        .subscribe(profileFromService => {
+          console.log('ProfileCard: Received profile from service:', profileFromService);
+          if (profileFromService) {
+            this.displayableProfile = { ...profileFromService };
+          } else {
+            this.displayableProfile = null;
+          }
+          this.cdr.detectChanges();
+        });
+    } else {
+      this.displayableProfile = this.profile;
+      this.cdr.detectChanges();
     }
   }
-  
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['profile'] && !this.isCurrentUser) {
+      this.displayableProfile = this.profile;
+      this.cdr.detectChanges();
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   get displayName(): string {
-    if (!this.profile) return 'User';
-    return this.profile.displayName || this.profile.username;
+    if (!this.displayableProfile) return 'User';
+    return this.displayableProfile.displayName || this.displayableProfile.username;
   }
   
   get avatarUrl(): string {
-    if (!this.profile || !this.profile.avatar) {
-      return this.defaultAvatarPath;
+    const avatarPath = this.displayableProfile?.avatar;
+
+    if (avatarPath) {
+      if (avatarPath.startsWith('http://') || 
+          avatarPath.startsWith('https://') || 
+          avatarPath.startsWith('data:')) {
+        return avatarPath;
+      }
+      if (avatarPath.startsWith('/uploads')) {
+        return `http://localhost:3000${avatarPath}`;
+      }
+      return avatarPath;
     }
     
-    if (this.profile.avatar.startsWith('http://') || 
-        this.profile.avatar.startsWith('https://') || 
-        this.profile.avatar.startsWith('data:')) {
-      return this.profile.avatar;
-    }
-    
-    if (this.profile.avatar.startsWith('/uploads')) {
-      return `http://localhost:3000${this.profile.avatar}`;
-    }
-    
-    return this.profile.avatar;
+    return this.defaultAvatarPath;
   }
   
   handleAvatarError(event: Event): void {
     const imgElement = event.target as HTMLImageElement;
-    console.error(`Failed to load image: ${imgElement.src}`);
-    
-    if (!imgElement.src.includes('default-avatar.png')) {
+    if (imgElement.src !== this.defaultAvatarPath) {
       imgElement.src = this.defaultAvatarPath;
-    } else {
-      this.avatarLoaded = false;
     }
-    
     imgElement.onerror = null;
-  }
-  
-  onAvatarLoad(): void {
-    this.avatarLoaded = true;
-  }
-  
-  getInitials(): string {
-    if (!this.profile) return '?';
-    
-    const name = this.profile.displayName || this.profile.username || '';
-    if (!name) return '?';
-    
-    return name.charAt(0).toUpperCase();
   }
 }

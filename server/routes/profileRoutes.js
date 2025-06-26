@@ -243,7 +243,7 @@ router.post('/avatar', authenticateToken, upload.single('avatar'), async (req, r
     res.json({ 
       success: true, 
       avatar: avatarUrl,
-      user
+      user: user.toObject({ virtuals: true, versionKey: false, transform: (doc, ret) => { delete ret.password; return ret; }})
     });
   } catch (err) {
     console.error('Error uploading avatar:', err);

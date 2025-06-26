@@ -163,7 +163,12 @@ export class ProfileService {
     }
     return this.http.delete<{ success: boolean; message: string; user: UserProfile }>(`${this.apiUrl}/avatar`, { headers })
       .pipe(
-        tap(response => console.log('Avatar deletion response:', response)),
+        tap(response => {
+          console.log('Avatar deletion response:', response);
+          if (response.success && response.user) {
+            this.currentProfileSubject.next(response.user); 
+          }
+        }),
         catchError(this.handleError)
       );
   }
