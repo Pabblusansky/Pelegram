@@ -453,7 +453,7 @@ html, body {
     min-height: 60px;
     padding: 8px;
     border-radius: 8px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
     font-family: inherit;
     font-size: 14px;
     margin-bottom: 8px;
@@ -461,10 +461,18 @@ html, body {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     
+    background-color: var(--input-background, #ffffff);
+    color: var(--text-color, #333333);
+    line-height: 1.4;
+    
     &:focus {
       outline: none;
-      border-color: #4a76a8;
+      border-color: var(--primary-color, #4a76a8);
       box-shadow: 0 1px 3px rgba(74, 118, 168, 0.2);
+    }
+    
+    &::placeholder {
+      color: var(--text-secondary, #888888);
     }
   }
   
@@ -479,29 +487,30 @@ html, body {
       border: none;
       cursor: pointer;
       font-size: 12px;
+      font-weight: 500;
       transition: background-color 0.2s ease;
       
       &.cancel {
-        background-color: #f1f1f1;
-        color: #333;
+        background-color: var(--card-background, #f1f1f1);
+        color: var(--text-color, #333);
+        border: 1px solid var(--border-color, #ddd);
         
         &:hover {
-          background-color: #e5e5e5;
+          background-color: var(--hover-background, #e5e5e5);
         }
       }
       
       &.save {
-        background-color: #4a76a8;
+        background-color: var(--primary-color, #4a76a8);
         color: white;
         
         &:hover {
-          background-color: #3d6593;
+          background-color: var(--primary-hover, #3d6593);
         }
       }
     }
   }
 }
-
 .edited-tag {
   font-size: 0.7rem;
   color: #999;
@@ -596,7 +605,7 @@ html, body {
 
 .edit-keyboard-hints {
   font-size: 0.75rem;
-  color: #666;
+  color: var(--text-secondary, #666666);
   margin-bottom: 8px;
   text-align: right;
   

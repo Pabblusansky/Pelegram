@@ -382,6 +382,7 @@
               <div *ngSwitchDefault class="content text-content"
                 [ngClass]="{'highlight-edit': item.editedRecently}"
                 [innerHTML]="isSearchActive && item.isSearchResult ? getHighlightedText(item.content, searchQuery) : formatMessageContent(item.content)"
+                [style.display]="item.isEditing ? 'none' : 'block'"
               >
               </div>
             </ng-container>
