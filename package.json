@@ -1,45 +1,14 @@
 {
-  "name": "pelegram",
-  "version": "0.0.0",
-  "scripts": {
-    "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test"
-  },
+  "name": "pelegram-monorepo",
+  "version": "1.0.0",
   "private": true,
-  "dependencies": {
-    "@angular/animations": "^20.0.4",
-    "@angular/common": "^20.0.4",
-    "@angular/compiler": "^20.0.4",
-    "@angular/core": "^20.0.4",
-    "@angular/forms": "^20.0.4",
-    "@angular/platform-browser": "^20.0.4",
-    "@angular/platform-browser-dynamic": "^20.0.4",
-    "@angular/router": "^20.0.4",
-    "bcrypt": "^5.1.1",
-    "date-fns": "^4.1.0",
-    "esbuild": "^0.25.0",
-    "express": "^4.21.2",
-    "multer": "^2.0.0",
-    "rxjs": "~7.8.0",
-    "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1",
-    "tslib": "^2.3.0",
-    "zone.js": "~0.15.0"
+  "scripts": {
+    "install-all": "npm install && npm install --prefix client && npm install --prefix server",
+    "dev": "concurrently \"npm start --prefix client\" \"npm run dev --prefix server\"",
+    "build-client": "npm run build --prefix client",
+    "start-server": "npm start --prefix server"
   },
   "devDependencies": {
-    "@angular/build": "^20.0.3",
-    "@angular/cli": "^20.0.3",
-    "@angular/compiler-cli": "^20.0.4",
-    "@types/jasmine": "~5.1.0",
-    "jasmine-core": "~5.4.0",
-    "karma": "~6.4.0",
-    "karma-chrome-launcher": "~3.2.0",
-    "karma-coverage": "~2.2.0",
-    "karma-jasmine": "~5.1.0",
-    "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "~5.8.3"
+    "concurrently": "^8.2.2"
   }
 }

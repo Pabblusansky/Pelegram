@@ -502,11 +502,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
                 JSON.stringify(systemMessagesInSource.map(m => ({id: m._id, content: m.content.slice(0,10)})), null, 2)
               );
 
-    const newMessagesWithDividers = []; // ВАЖНО: Используем новый локальный массив
+    const newMessagesWithDividers = [];
     let lastDate = null;
-    let systemMessagesProcessedInLoop = 0; // Счетчик
+    let systemMessagesProcessedInLoop = 0;
 
-    for (const message of this.messages) { // Итерируемся по this.messages
+    for (const message of this.messages) {
       if (message.category === 'system_event') {
         systemMessagesProcessedInLoop++;
         console.log(`ChatRoom (updateMessagesWithDividers LOOP): Processing system_event msg ID ${message._id}, content: "${message.content.slice(0,10)}"`);

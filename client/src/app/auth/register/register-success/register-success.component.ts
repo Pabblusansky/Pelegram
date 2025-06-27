@@ -19,7 +19,7 @@ export class RegisterSuccessComponent implements OnInit {
     const interval = setInterval(() => {
       this.countdown -= 1;
       if (this.countdown <= 0) {
-        clearInterval(interval); // Остановка таймера
+        clearInterval(interval);
       }
     }, 1000);
     setTimeout(() => {

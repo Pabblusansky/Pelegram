@@ -3,156 +3,157 @@
 # Pelegram: Reimagining real-time chat. Built with Angular.
 
 Welcome to the Pelegram Messenger project! This is a feature-rich, real-time web chat application inspired by Telegram, built from the ground up with Angular for the frontend and a robust backend (NodeJS/Express with MongoDB). It's been challenging journey bringing this to life, and I'm excited to share it.
+
 # ✨ Features
 
 Pelegram aims to provide a seamless and engaging chat experience. Here's what's packed in (so far!):
 
-    📱 Real-Time Messaging: Instant message delivery and updates powered by Socket.IO.
+📱 Real-Time Messaging: Instant message delivery and updates powered by Socket.IO.
 
-    👤 User Authentication: Secure registration and login system.
+👤 User Authentication: Secure registration and login system.
 
-    👀 Online & Last Seen Status: See when your contacts are online or their last activity.
+👀 Online & Last Seen Status: See when your contacts are online or their last activity.
 
-    ✔️ Message Status: Track if your messages are sent, delivered, and read.
+✔️ Message Status: Track if your messages are sent, delivered, and read.
 
-    ✏️ Edit & Delete Messages: Easily correct mistakes by editing your messages or remove them entirely.
+✏️ Edit & Delete Messages: Easily correct mistakes by editing your messages or remove them entirely.
 
-    ↪️ Message Forwarding: Seamlessly forward messages from one chat to another, keeping the original sender's context.
-    
-    💬 Threaded Replies: Reply to messages with a quote of the original for context. Tap the quote to jump to the original message.
+↪️ Message Forwarding: Seamlessly forward messages from one chat to another, keeping the original sender's context.
 
-    🖼️ User Profiles & Avatars: Personalize your profile and see others' avatars. Clickable names and avatars to view profiles.
+💬 Threaded Replies: Reply to messages with a quote of the original for context. Tap the quote to jump to the original message.
 
-    🎨 Customizable Themes: Light and Dark mode support for comfortable viewing.
+🖼️ User Profiles & Avatars: Personalize your profile and see others' avatars. Clickable names and avatars to view profiles.
 
-    📜 Infinite Scroll / Message History Loading: Smoothly load older messages as you scroll up.
+🎨 Customizable Themes: Light and Dark mode support for comfortable viewing.
 
-    🔍 User & Chat Search: Easily find users to start new conversations.
+📜 Infinite Scroll / Message History Loading: Smoothly load older messages as you scroll up.
 
-    And more to come!
+🔍 User & Chat Search: Easily find users to start new conversations.
 
-#  Tech Stack
-  
+And more to come!
 
-Frontend:
+# Tech Stack
 
+**Frontend:**
 - Angular (Angular CLI)
-
 - TypeScript
-
 - Socket.IO Client
-
 - SCSS for styling
-
 - RxJS for reactive programming
 
-  
-
-Backend:
-
+**Backend:**
 - Node.js
-
 - Express.js
-
 - MongoDB with Mongoose
-
 - Socket.IO Server
-
 - JWT (JSON Web Tokens) for authentication
 
-  
-
-Development Tools:
-
+**Development Tools:**
 - npm
 - VS Code
 - Git
 
-
 # 🚀 Getting Started
 
-Want to run Pelegram locally? Here's how:
+Ready to run Pelegram on your local machine? The new monorepo structure makes it easier than ever.
 
-Prerequisites:
+## Prerequisites
 
-- Node.js v18.15.0 or higher (v20.x LTS recommended)
+- **Node.js**: v18.15.0 or higher (v20.x LTS recommended)
+- **npm**: v8 or higher (comes with Node.js)
+- **MongoDB**: A local instance running or a connection string to a cloud instance (like MongoDB Atlas)
+- **Angular CLI**: (Optional, but recommended for development) `npm install -g @angular/cli`
 
-- npm or yarn
-- MongoDB local instance or Atlas running
-- Angular CLI: npm install -g @angular/cli
+## 1. Clone the Repository
 
-
-1. Clone the repository:
+First, clone the project to your local machine and navigate into the project directory.
 
 ```bash
 git clone https://github.com/Pabblusansky/pelegram.git
 cd Pelegram
 ```
-2. Setup Backend:
 
-```bash   
-cd ./server
-npm install
-```
-### Create a .env file in the main repository containing SECRET_KEY= your_long_secret_text_here with your secret key for signing JSON Web Tokens.
-- Run the server:
+## 2. Setup Environment Variables (Backend)
+
+The server requires a `.env` file for configuration, such as your JWT secret key.
+
+- Navigate into the server directory:
 ```bash
-cd Pelegram
-node ./server/index.js
+cd server
 ```
 
-- The backend server will typically start on http://localhost:3000.
+- Create a new file named `.env`.
 
-3. Setup Frontend:
+- Open the `.env` file and add the following, replacing the placeholder with your own long, random string:
+```env
+# Used for signing JSON Web Tokens
+SECRET_KEY=your_very_long_and_super_secret_text_here
 
-```bash      
-cd Pelegram
-npm install
-npm start # or ng serve
+# Optional: If your MongoDB is not on the default localhost:27017
+# MONGO_URI=mongodb://user:password@host:port/database
+
+# Optional: The base URL for constructing full file paths
+# BASE_URL=http://localhost:3000
 ```
 
-- The Angular development server will typically start on http://localhost:4200.
-
-4. Open your browser and navigate to http://localhost:4200.
-
-# Additional information:
-1. To build the project run:
-
+- Navigate back to the root project directory:
 ```bash
-ng build
+cd ..
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+## 3. Install All Dependencies
 
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+From the root directory of the project (`Pelegram/`), run the install-all script. This will install dependencies for the root, the client, and the server all at once.
 
 ```bash
-ng test
+npm run install-all
+```
+
+## 4. Run Everything!
+
+That's it! Now, from the root directory, run the dev script. This will start both the backend server (with nodemon) and the Angular frontend development server simultaneously.
+
+```bash
+npm run dev
+```
+
+- The backend server will start on http://localhost:3000
+- The frontend application will be available at http://localhost:4200
+
+Open your browser and navigate to **http://localhost:4200** to start using Pelegram!
+
+## Other Useful Commands
+
+All commands should be run from the root directory.
+
+**Build the frontend for production:**
+```bash
+npm run build-client
+```
+The build artifacts will be stored in the `client/dist/` directory.
+
+**Run frontend unit tests:**
+```bash
+# Make sure you are in the client directory for this
+cd client
+npm test
 ```
 
 # 📜 License
 
 This project is licensed under the MIT License - see the LICENSE.md file for details.
 
-
-      
 [angular-shield]: https://img.shields.io/badge/angular-v20%2B-%23DD0031?logo=angular
 [angular-url]: https://angular.io/
-      
+
 [typescript-shield]: https://img.shields.io/badge/typescript-v5%2B-%233178C6?logo=typescript
 [typescript-url]: https://www.typescriptlang.org/
 
-      
 [nodejs-shield]: https://img.shields.io/badge/Node.js-v18.15+/20+-%2523339933?logo=node.js
 [nodejs-url]: https://nodejs.org/
 
-    
-      
 [socketio-shield]: https://img.shields.io/badge/Socket.IO-v4%2B-010101?logo=socket.io
 [socketio-url]: https://socket.io/
 
-      
 [license-shield]: https://img.shields.io/badge/License-MIT-yellow.svg
 [license-url]: https://opensource.org/licenses/MIT

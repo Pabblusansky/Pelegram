@@ -1,19 +1,31 @@
 # See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
-# Do not commit
+
+# Environment files
 .env
-# User Uploads - Do not commit user-generated files
-/server/uploads/
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
 # Compiled output
 /dist
+client/dist/
 /tmp
 /out-tsc
 /bazel-out
 
-# Node
-/node_modules
-/server/node_modules
+# User Uploads - Do not commit user-generated files
+uploads/
+server/uploads/
+client/uploads/
+
+# Logs
 npm-debug.log
 yarn-error.log
+*.log
 
 # IDEs and editors
 .idea/
@@ -34,6 +46,7 @@ yarn-error.log
 
 # Miscellaneous
 /.angular/cache
+client/.angular/cache
 .sass-cache/
 /connect.lock
 /coverage
@@ -44,3 +57,7 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Build artifacts
+client/dist/
+server/dist/

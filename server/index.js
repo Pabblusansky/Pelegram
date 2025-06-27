@@ -11,8 +11,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const envPath = path.resolve(__dirname, '../.env');
-dotenv.config({ path: envPath });
+dotenv.config();
 const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
 import { authRoutes } from './routes/auth.js';
 import chatRoutes from './routes/chatRoutes.js';
@@ -49,7 +48,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware
 app.use(cors({
   origin: 'http://localhost:4200',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -66,7 +64,6 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-//  Online users implementation
 const onlineUserStatuses = new Map();
 const onlineUsers = new Set();
 const userLastActive = new Map();
@@ -107,8 +104,6 @@ function updateUserStatus(userId, isOnline = true) {
   } else {
     onlineUsers.delete(userId);
   }
-  
-  // console.log(`User ${userId} status updated: online=${isOnline}, lastActive=${isoString}`);
   
   broadcastUserStatuses();
 }
@@ -155,13 +150,11 @@ async function loadInitialUserStatuses() {
 setInterval(cleanupInactiveUsers, 60 * 1000);
 loadInitialUserStatuses();
 
-// MongoDB connection
 mongoose.connect('mongodb://localhost:27017/Pelegram', {
 
 }).then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Websocket events
 io.on('connection', (socket) => {
   console.log('Connection attempt registered');
   const token = socket.handshake.auth.token;
@@ -170,8 +163,8 @@ io.on('connection', (socket) => {
     return socket.disconnect(true);
   }
   try {
-    const decoded = jwt.verify(token, SECRET_KEY); // Decode token
-    socket.user = decoded; // Save user data to socket
+    const decoded = jwt.verify(token, SECRET_KEY);
+    socket.user = decoded;
     console.log(`User connected: ${socket.id}`);
     if (socket.user && socket.user.id) {
       const userRoom = socket.user.id.toString();
@@ -218,7 +211,6 @@ io.on('connection', (socket) => {
   socket.on('send_message', async (data, callback) => {
     const { chatId, content, replyTo, fileInfo, messageType= 'text' } = data;
     const senderId = socket.user.id;
-      // Save message to database
     try {
       const sender = await User.findById(senderId).select('username avatar').lean(); 
       if (!sender) {
@@ -234,7 +226,6 @@ io.on('connection', (socket) => {
         return;
       }
       const isFirstMessageInChat = chatBeforeMessage.messages.length === 0;
-
 
       const message = new Message({
           chatId,
@@ -444,29 +435,24 @@ io.on('connection', (socket) => {
 
   socket.on('join_chat', (chatId) => {
       socket.join(chatId);
-      // console.log(`User ${socket.id} joined chat: ${chatId}`); // This is too noisy because it logs every join(auto-join in chat list is triggering this multiple times)
   });
 
   socket.on('disconnect', () => {
     if (socket.user && socket.user.id) {
       updateUserStatus(socket.user.id, false);
     }
-    // console.log(`User disconnected: ${socket.id}`);
   });
 });
 
-
-// user routes
 app.get('/users', async (_req, res) => {
   try {
-    const users = await User.find(); // Getting all users
-    res.json(users); // Returning all users as JSON
+    const users = await User.find();
+    res.json(users);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err });
   }
 });
 
-// Mount routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
@@ -482,7 +468,6 @@ app.use('/uploads', (req, res, next) => {
   }
   next();
 }, express.static(path.join(__dirname, 'uploads')));
-
 
 app.use('/media', (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
