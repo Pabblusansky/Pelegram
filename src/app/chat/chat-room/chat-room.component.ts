@@ -1923,7 +1923,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     this.chatService.toggleReaction(messageId, reactionType);
     this.activeContextMenuId = null; 
     this.selectedMessageId = null;
-    // this.cdr.detectChanges();        
   }
 
   private handleCurrentChatWasDeleted(deletedBy?: string): void {
