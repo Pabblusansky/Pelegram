@@ -31,17 +31,10 @@ html, body {
   color: var(--text-color);
   
   .messages {
-    scroll-behavior: smooth;
-    flex: 1;
-    padding: 15px;
+    height: 100% !important;
+    width: 100%;
     background-color: var(--background-color);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    // max-height: 92vh;
-    min-height: 0;
-    margin-bottom: 0;
     overflow-y: auto;
     overflow-x: hidden;
     z-index: 1;
@@ -188,6 +181,7 @@ html, body {
     justify-content: center;
     align-items: center;
     margin: 15px 0;
+    height:auto;
     position: relative;
     color: var(--text-secondary);
     border-bottom: 1px solid var(--border-color);
@@ -218,7 +212,7 @@ html, body {
   position: relative;
   padding: 8px 12px;
   transition: transform 0.2s ease, opacity 0.2s ease;
-  margin-bottom: 7px;
+  margin-bottom: 0;
   display: flex;
   flex-direction: column;
   padding: 11px;
@@ -231,6 +225,7 @@ html, body {
   border: 1px solid var(--border-color);
   animation: fadeIn 0.3s ease;
   position: relative;
+  max-width: 70%;
   
   &.message-selected, &.isSelected, &[class*="is-selected"] {
     background-color: var(--message-selected-bg, rgba(74, 118, 168, 0.25)) !important;
@@ -249,12 +244,14 @@ html, body {
     align-self: flex-end;
     background-color: var(--chat-my-message-bg, var(--accent-color));
     color: var(--chat-my-message-text, var(--text-color));
+    border-bottom-right-radius: 4px;
   }
 
   &.their-message {
     align-self: flex-start;
     background-color: var(--chat-their-message-bg, var(--card-background));
     color: var(--chat-their-message-text, var(--text-color));
+    border-bottom-left-radius: 4px;
   }
   
   // &.is-search-result {
@@ -1048,6 +1045,7 @@ html, body {
   height: 100vh;
   width: 100%;
   overflow: hidden;
+  background-color: var(--background-color);
 }
 
 .chat-deleted-message {
@@ -1235,7 +1233,7 @@ html, body {
   position: absolute;
   bottom: 25px;
   right: 15px;
-  z-index: 100;
+  z-index: 10;
   background-color: var(--button-secondary-bg, var(--card-background));
   color: var(--button-secondary-text, var(--primary-color));
   border: 1px solid var(--button-secondary-border, var(--border-color));
@@ -1303,14 +1301,11 @@ html, body {
 
 
 .messages-container-wrapper {
+  flex: 1 1 auto;
   position: relative;
-  flex: 1;
-  min-height: 0;
   overflow: hidden;
-  display: flex;
-  flex-direction: column; 
-
-
+  min-height: 0;
+  height: 100%;
 }
 
 // Reply styles
@@ -1781,4 +1776,47 @@ kbd {
     flex-grow: 1;
     min-height: 0; 
   }
+}
+
+
+::ng-deep .cdk-virtual-scroll-content-wrapper {
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 15px !important;
+  gap: 10px !important;
+  min-height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 15px 10px !important; 
+}
+
+
+
+.loading-indicator.top-indicator,
+.no-more-messages.top-indicator {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;  
+  background: var(--background-color);
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+
+cdk-virtual-scroll-viewport.messages {
+  height: auto;
+  width: 100%;
+  box-sizing: border-box;
+  scroll-behavior: auto !important;
+
+  // Стили для скроллбара (оставляем как есть)
+  &::-webkit-scrollbar { width: 8px; }
+  &::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb-color, #888); border-radius: 4px; }
+  &::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover-color, #555); }
+  &::-webkit-scrollbar-track { background: transparent; }
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-color, #888) transparent;
 }

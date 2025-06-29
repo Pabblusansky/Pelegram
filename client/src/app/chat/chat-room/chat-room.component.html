@@ -166,8 +166,6 @@
     </button>
   </div>
 
-
-        
   <!-- Pinned Message Bar -->
   <div class="pinned-message-bar" *ngIf="pinnedMessageDetails" (click)="scrollToPinnedMessage()">
     <div class="pinned-icon">
@@ -189,32 +187,26 @@
 
   <!-- Messages -->
   <div class="messages-container-wrapper">
-    <div class="messages" 
-    (scroll)="onScroll()"
-    (mousemove)="onMessagesContainerMouseMove($event)" 
-    (mouseup)="onMessagesContainerMouseUp()" 
-    (mouseleave)="onMessagesContainerMouseUp()">
+    <cdk-virtual-scroll-viewport 
+      #scrollViewport 
+      class="messages"
+      [itemSize]="50"
+      (scrolledIndexChange)="onVirtualScrollIndexChange()"
+      (mousemove)="onMessagesContainerMouseMove($event)" 
+      (mouseup)="onMessagesContainerMouseUp()" 
+      (mouseleave)="onMessagesContainerMouseUp()"
+    >
       <div *ngIf="messagesWithDividers.length === 0" class="no-messages">
         No messages yet. Start the conversation!
       </div>
 
-      
-      <div *ngIf="isLoadingMore" class="loading-indicator">
-        <div class="spinner"></div>
-        <span>Loading older messages...</span>
-      </div>
-
-      <div *ngIf="noMoreMessages && messages.length > 0" class="no-more-messages">
-        <span>Beginning of conversation</span>
-      </div>
-      <ng-container *ngFor="let item of messagesWithDividers; trackBy: trackByMessageId">
+      <ng-container *cdkVirtualFor="let item of messagesWithDividers; trackBy: trackByMessageId; templateCacheSize: 50">
         <!-- Date Divider -->
         <div *ngIf="item.type === 'divider'" class="date-divider">
           <span>{{ item.date }}</span>
         </div>
 
         <!-- Message -->
-         
         <div
           *ngIf="item.type === 'message'"
           [id]="'message-' + item._id"
@@ -451,6 +443,15 @@
           </div>
         </div>
       </ng-container>
+    </cdk-virtual-scroll-viewport>
+
+    <div *ngIf="isLoadingMore" class="loading-indicator top-indicator">
+      <div class="spinner"></div>
+      <span>Loading older messages...</span>
+    </div>
+
+    <div *ngIf="noMoreMessages && isAtTop && messages.length > 0" class="no-more-messages top-indicator">
+      <span>Beginning of conversation</span>
     </div>
 
     <button
@@ -470,7 +471,7 @@
           <path fill-rule="evenodd" d="M12.78 5.22a.75.75 0 010 1.06L9.56 9.5h5.69a.75.75 0 010 1.5H9.56l3.22 3.22a.75.75 0 11-1.06 1.06L7.22 10.53a.75.75 0 010-1.06l4.5-4.5a.75.75 0 011.06 0z" clip-rule="evenodd" />
         </svg>
       </ng-container>
-      <span *ngIf="!returnToMessageIdAfterQuoteJump && unreadMessagesCount > 0" class="unread-badge">]
+      <span *ngIf="!returnToMessageIdAfterQuoteJump && unreadMessagesCount > 0" class="unread-badge">
         {{ unreadMessagesCount > 99 ? '99+' : unreadMessagesCount }}
       </span>
     </button>

@@ -114,14 +114,22 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
     }, this.typingDelay);
   }
   
-  adjustTextareaHeight(): void {
-    if (this.messageTextarea && this.messageTextarea.nativeElement) {
-      const textarea = this.messageTextarea.nativeElement;
-      textarea.style.height = 'auto';
-      const maxHeight = 120; 
-      textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+adjustTextareaHeight(): void {
+  if (this.messageTextarea && this.messageTextarea.nativeElement) {
+    const textarea = this.messageTextarea.nativeElement;
+    
+    const chatRoom = document.querySelector('cdk-virtual-scroll-viewport.messages');
+    const scrollPosition = chatRoom ? chatRoom.scrollTop : 0;
+    
+    textarea.style.height = 'auto';
+    const maxHeight = 120; 
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+    
+    if (chatRoom && scrollPosition > 0) {
+      chatRoom.scrollTop = scrollPosition;
     }
   }
+}
 
   onEnterPress(event: Event): void {
     if ((event as KeyboardEvent).shiftKey) {

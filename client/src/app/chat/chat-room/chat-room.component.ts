@@ -18,6 +18,9 @@ import { ConfirmationService } from '../../shared/services/confirmation.service'
 import { GroupReactionsPipe } from '../../pipes/fileSize/groupReactions/group-reactions.pipe';
 import { SharedMediaGalleryComponent } from "../shared-media-gallery/shared-media-gallery.component";   
 import { LightboxComponent } from '../../shared/lightbox/lightbox.component';
+import { ScrollingModule } from '@angular/cdk/scrolling'; 
+import { AfterViewInit } from '@angular/core';
+import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 
 @Component({
   selector: 'app-chat-room',
@@ -33,7 +36,8 @@ import { LightboxComponent } from '../../shared/lightbox/lightbox.component';
     FileSizePipe,
     GroupInfoModalComponent,
     GroupReactionsPipe,
-    SharedMediaGalleryComponent
+    SharedMediaGalleryComponent,
+    ScrollingModule
 ],
   animations: [
     trigger('menuAnimation', [
@@ -75,7 +79,7 @@ import { LightboxComponent } from '../../shared/lightbox/lightbox.component';
 
 
 
-export class ChatRoomComponent implements OnInit, OnDestroy {
+export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   private componentIsCurrentlyFocused: boolean = document.hasFocus(); 
   @HostListener('window:focus', ['$event'])
   onWindowFocus(event: FocusEvent): void {
@@ -105,6 +109,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   userId: string | null = null;
   activeContextMenuId: string | null = null;
   public isAtBottom = true;
+  public isAtTop: boolean = false; 
   users: any[] = [];
   menuPosition: { x: number; y: number } = { x: 0, y: 0 };
   private markAsReadDebounce = new Subject<void>();
@@ -137,10 +142,12 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   private isDragging: boolean = false;
   private lastDraggedMessageId: string | null = null;
   @ViewChild(MessageInputComponent) messageInputComponent?: MessageInputComponent; 
+  @ViewChild(CdkVirtualScrollViewport) scrollViewport!: CdkVirtualScrollViewport;
   showKeyboardHelp: boolean = false;
   public returnToMessageIdAfterQuoteJump: string | null = null;
   showMediaGallery: boolean = false;
-
+  private resizeObserver: ResizeObserver | undefined;
+  private isScrollingToBottom: boolean = false;
   // Search functionality
   isSearchActive: boolean = false;
   searchQuery: string = '';
@@ -349,39 +356,40 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     });
   }
   
+  ngAfterViewInit(): void {
+    setTimeout(() => {
+        this.scrollToBottom(true, 'auto');
+        this.setupResizeObserver();
+    }, 100);
+  }
   triggerMarkAsRead(): void {
     this.markAsReadDebounce.next();
   }
 
-  onScroll(): void {
-    const messageContainer = document.querySelector('.messages');
-    if (!messageContainer) return;
+  onVirtualScrollIndexChange(): void {
+    if (!this.scrollViewport) return;
 
-    const threshold = 50;
-    const newIsAtBottom = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.clientHeight + threshold;
+    const offset = this.scrollViewport.measureScrollOffset('bottom');
 
-    if (newIsAtBottom && !this.isAtBottom) {
-      console.log('Scrolled to bottom by user.');
+    const wasAtBottom = this.isAtBottom;
+    this.isAtBottom = offset < 1; 
+    
+    const start = this.scrollViewport.getRenderedRange().start;
+    this.isAtTop = start === 0;
+
+    if (this.isAtBottom && !wasAtBottom) {
       this.clearUnreadMessagesIndicator();
       this.triggerMarkAsRead();
     }
-    if (this.returnToMessageIdAfterQuoteJump && (messageContainer.scrollTop > 0 && !newIsAtBottom)) {
-    console.log(`User scrolled up, but returnToMessageIdAfterQuoteJump is set to: ${this.returnToMessageIdAfterQuoteJump}. Not clearing it yet.`);
-    }
-    if (newIsAtBottom && this.returnToMessageIdAfterQuoteJump) {
-        console.log("User scrolled to actual bottom, clearing returnToMessageIdAfterQuoteJump.");
-        this.returnToMessageIdAfterQuoteJump = null;
-        this.cdr.detectChanges();
-    }
-    this.isAtBottom = newIsAtBottom;
 
-    if (messageContainer.scrollTop < 100 && !this.isLoadingMore && !this.noMoreMessages && this.messages.length > 0) {
+    if (start < 10 && !this.isLoadingMore && !this.noMoreMessages) {
       const now = Date.now();
       if (now - this.lastLoadTimestamp > 1000) {
         this.loadMoreDebounce.next();
       }
     }
   }
+
 
   private clearUnreadMessagesIndicator(): void {
     if (this.unreadMessagesCount > 0) {
@@ -398,6 +406,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();    
 
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
     this.editAnimationTimeouts.forEach(timeout => clearTimeout(timeout));
     this.editAnimationTimeouts.clear();
 
@@ -647,70 +658,100 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   }
 
   loadMessages(): void {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
     if (this.chatId) {
-      this.chatService.joinChat(this.chatId);
-      this.isLoadingMore = false;
-      this.noMoreMessages = false;
+        this.messages = [];
+        this.messagesWithDividers = [];
+        this.isLoadingMore = false;
+        this.noMoreMessages = false;
+        this.isAtTop = false;
+        this.isAtBottom = true;
+        this.unreadMessagesCount = 0;
+        this.newMessagesWhileScrolledUp = [];
+        
+        this.chatService.joinChat(this.chatId);
 
-      this.chatService.getMessages(this.chatId)!.subscribe({
-        next: (messagesFromServer: Message[]) => {
-          this.messages = messagesFromServer.map((msg) => {
-            let senderIdValue: string | undefined;
-            if (msg.senderId && typeof msg.senderId === 'object' && (msg.senderId as any)._id) {
-              senderIdValue = (msg.senderId as any)._id;
-            } else if (typeof msg.senderId === 'string') {
-              senderIdValue = msg.senderId;
+        this.chatService.getMessages(this.chatId)!.subscribe({
+            next: (messagesFromServer: Message[]) => {
+                this.messages = messagesFromServer.map((msg) => ({
+                    ...msg,
+                    ismyMessage: (msg.senderId && (msg.senderId as any)._id || msg.senderId) === this.userId,
+                    status: msg.status || 'sent'
+                }));
+                this.updateMessagesWithDividers();
+                
+                this.cdr.detectChanges();
+                requestAnimationFrame(() => {
+                    this.scrollToBottom(true, 'auto');
+                    this.setupResizeObserver(); 
+                });
+              
+                this.triggerMarkAsRead();
+            },
+            error: (error) => {
+                console.error('Error loading messages:', error);
             }
-            return {
-              ...msg,
-              ismyMessage: senderIdValue === this.userId,
-              status: msg.status || 'sent'
-            };
-          });
-          this.updateMessagesWithDividers();
-          this.scrollToBottom();
-          this.triggerMarkAsRead();
-        },
-        error: (error) => {
-          console.error('Error loading messages:', error); 
-        }
-      });
+        });
     }
   }
 
-  scrollToBottom(force: boolean = false): void {
+scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): void {
+    if (!this.scrollViewport) return;
+    if (this.isScrollingToBottom && !force) return;
+
     if (this.returnToMessageIdAfterQuoteJump) {
-      console.log(`ScrollToBottom called, but will scroll to return message: ${this.returnToMessageIdAfterQuoteJump}`);
-      this.scrollToMessage(this.returnToMessageIdAfterQuoteJump, 'center', true);
-      this.returnToMessageIdAfterQuoteJump = null; 
-      this.cdr.detectChanges();
-      return;
-    }
-    if (!force && !this.isAtBottom && this.unreadMessagesCount === 0) {
-      console.log('ScrollToBottom: Not scrolling, user is not at bottom and no unread.');
-      return;
+        this.scrollToMessage(this.returnToMessageIdAfterQuoteJump, 'center', true);
+        this.returnToMessageIdAfterQuoteJump = null;
+        return;
     }
 
-    try {
-      const messageContainer = document.querySelector('.messages');
-      if (messageContainer) {
-        this.clearUnreadMessagesIndicator();
+    if (!force && !this.isAtBottom && this.unreadMessagesCount === 0) {
+        return;
+    }
+
+    this.isScrollingToBottom = true;
+    this.clearUnreadMessagesIndicator();
+
+    const attemptScroll = (attempt = 1) => {
+        if (!this.scrollViewport) {
+            this.isScrollingToBottom = false;
+            return;
+        }
+        
+        const dataLength = this.scrollViewport.getDataLength();
+        if (dataLength === 0) {
+            this.isAtBottom = true;
+            this.isScrollingToBottom = false;
+            return;
+        }
+
+        this.scrollViewport.scrollToIndex(dataLength - 1, (attempt === 1) ? behavior : 'auto');
 
         setTimeout(() => {
-          messageContainer.scrollTop = messageContainer.scrollHeight;
-          this.isAtBottom = true;
-          this.returnToMessageIdAfterQuoteJump = null;
-          console.log(`Scrolled to bottom. New scrollTop: ${messageContainer.scrollTop}, scrollHeight: ${messageContainer.scrollHeight}`);
-          this.triggerMarkAsRead();
-          this.cdr.detectChanges();
-        }, 0);
-      } else {
-        console.warn('ScrollToBottom: Message container not found.');
-      }
-    } catch (e) {
-      console.error('Error in scrollToBottom:', e);
-    }
-  }
+            if (!this.scrollViewport) {
+                this.isScrollingToBottom = false;
+                return;
+            }
+
+            const offset = this.scrollViewport.measureScrollOffset('bottom');
+            
+            if (offset > 1 && attempt < 5) { 
+                console.warn(`ScrollToBottom: Attempt ${attempt} finished with offset ${offset}. Retrying...`);
+                attemptScroll(attempt + 1);
+            } else {
+                this.isAtBottom = true;
+                this.isScrollingToBottom = false;
+                this.cdr.detectChanges();
+                this.triggerMarkAsRead();
+                console.log(`ScrollToBottom: Finished after ${attempt} attempts. Final offset: ${offset}`);
+            }
+        }, 100 * attempt); 
+    };
+
+    attemptScroll();
+}
 
   formatTimestamp(timestamp: string): string {
     const date = new Date(timestamp);
@@ -1632,12 +1673,20 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
           };
         });
       
-        
+        const oldScrollHeight = this.scrollViewport!.measureRenderedContentSize();
+
         this.messages = [...newMessages, ...this.messages];
         this.updateMessagesWithDividers();
         this.cdr.detectChanges();
         
-        this.preserveScrollPosition();
+        requestAnimationFrame(() => {
+          const newScrollHeight = this.scrollViewport!.measureRenderedContentSize();
+          const scrollAdjustment = newScrollHeight - oldScrollHeight;
+          this.scrollViewport!.scrollTo({
+              top: this.scrollViewport!.measureScrollOffset() + scrollAdjustment,
+              behavior: 'auto'
+          });
+        });
       },
       error: (error) => {
         this.isLoadingMore = false;
@@ -1646,23 +1695,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     });
   }
   
-  preserveScrollPosition(): void {
-    requestAnimationFrame(() => {
-      const messageContainer = document.querySelector('.messages');
-      if (messageContainer) {
-        const newScrollHeight = messageContainer.scrollHeight;
-        const scrollDiff = newScrollHeight - this.scrollHeightBeforeLoad;
-        messageContainer.scrollTop = scrollDiff > 0 ? scrollDiff : 0;
-      }
-    });  
-  }
+
 
   private addOrUpdateMessage(message: Message, isMyOwnMessageJustSent: boolean = false): void {
     if (this.messages.find(m => m._id === message._id)) {
-      console.warn(`ChatRoom (addOrUpdateMessage): Message with ID ${message._id} ALREADY EXISTS in this.messages. Content: "${message.content.slice(0,30)}". IGNORING.`);
       return;
     }
-    console.log(`ChatRoom (addOrUpdateMessage START): Msg ID ${message._id}, Cat: ${message.category}, Content: "${message.content.slice(0,30)}"`);
+    const wasAtBottom = this.isAtBottom;
 
     if (message.category === 'system_event') {
       message.ismyMessage = false;
@@ -1671,6 +1710,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       (typeof message.senderId === 'object' && message.senderId?._id === this.userId);
     }
 
+    
     const existingMessageIndex = this.messages.findIndex(m => m._id === message._id);
     let isNewMessageAdded = false;
     if (existingMessageIndex > -1) {
@@ -1683,9 +1723,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     this.updateMessagesWithDividers();
     this.cdr.detectChanges();
 
-    if (isMyOwnMessageJustSent) {
-      console.log('My own message just sent, forcing scroll to bottom.');
-      this.scrollToBottom(true);
+    if (isMyOwnMessageJustSent || wasAtBottom) {
+      requestAnimationFrame(() => this.scrollToBottom(true, 'smooth'));
     } else if (isNewMessageAdded && !message.ismyMessage) {
       if (!this.isAtBottom) {
         if (!this.newMessagesWhileScrolledUp.find(m => m._id === message._id)) {
@@ -1701,7 +1740,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
         }
       }
     }
-    if (message.senderId !== this.userId && this.isAtBottom && document.hasFocus()) {
+    if (!message.ismyMessage && this.isAtBottom && this.isWindowFocused) {
       this.triggerMarkAsRead();
     }
   }
@@ -1785,76 +1824,103 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   }
 
         
-  scrollToMessage(messageId: string, block: ScrollLogicalPosition = 'center', forceScroll: boolean = false): void {
+  public async scrollToMessage(messageId: string, block: ScrollLogicalPosition = 'center', forceScroll: boolean = false): Promise<void> {
+    if (!this.scrollViewport) {
+      console.warn('ScrollToMessage: CdkVirtualScrollViewport is not available.');
+      return;
+    }
+
     const isReturningToQuoteOrigin = this.returnToMessageIdAfterQuoteJump === messageId;
     if (!forceScroll && !this.isAtBottom && !this.isSearchActive && !isReturningToQuoteOrigin) {
       console.log('ScrollToMessage: Not scrolling, conditions not met.');
       return;
     }
 
-    const messageElement = document.getElementById('message-' + messageId);
-    if (messageElement) {
-      document.querySelectorAll('.message.highlighted-reply').forEach(el => 
-        el.classList.remove('highlighted-reply')
-      );
-      const isSearchResult = this.isSearchActive && this.messages.some(m => m._id === messageId && m.isCurrentSearchResult);
-    
-      if (!isSearchResult) {
-        messageElement.classList.add('highlighted-reply');
-        setTimeout(() => {
-          messageElement.classList.remove('highlighted-reply');
-        }, 2000);
-        messageElement.animate([
-          { backgroundColor: 'transparent' },
-          { backgroundColor: 'rgba(74, 118, 168, 0.2)' },
-          { backgroundColor: 'transparent' }
-        ], {
-          duration: 1500,
-          easing: 'ease-in-out'
-        });
-        setTimeout(() => {
-          messageElement.classList.remove('highlighted-reply');
-        }, 2000);
-      }
-      messageElement.scrollIntoView({ behavior: 'smooth', block: block });
+    const index = this.messagesWithDividers.findIndex((item: { type: string; _id: string; }) => item.type === 'message' && item._id === messageId);
+
+    if (index !== -1) {
+      this.scrollViewport.scrollToIndex(index, 'smooth');
+
+      setTimeout(() => {
+        this.highlightMessageInDOM(messageId);
+      }, 300);
+
     } else {
-    this.showToast('Loading message context...', 2000);
-    console.warn(`Message element with ID 'message-${messageId}' not found. Attempting to load.`);
-    
-    if (this.chatId) {
-      this.chatService.loadMessageContext(this.chatId, messageId)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe({
-          next: (contextMessages) => {
-            if (contextMessages && contextMessages.length > 0) {
-              this.mergeMessages(contextMessages);
-              this.updateMessagesWithDividers();
-              this.cdr.detectChanges();
-              setTimeout(() => {
-                const newMessageElement = document.getElementById('message-' + messageId);
-                if (newMessageElement) {
-                  newMessageElement.scrollIntoView({ behavior: 'smooth', block: block });
-                  newMessageElement.classList.add('highlighted-reply');
-                  setTimeout(() => {
-                    newMessageElement.classList.remove('highlighted-reply');
-                  }, 2000);
-                } else {
-                  this.showToast('Cannot find the original message', 3000);
-                }
-              }, 100);
-            } else {
-              this.showToast('Original message not found', 3000);
-            }
-          },
-          error: (err) => {
-            console.error('Error loading message context:', err);
-            this.showToast('Failed to load original message', 3000);
-          }
-        });
-    }
+      this.loadMessageContextAndScroll(messageId, block);
     }
   }
 
+  private loadMessageContextAndScroll(messageId: string, block: ScrollLogicalPosition): void {
+    this.showToast('Loading message context...', 2000);
+    if (!this.chatId) return;
+    this.chatService.loadMessageContext(this.chatId, messageId)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+            next: (contextMessages) => {
+                if (contextMessages?.length > 0) {
+                    this.mergeMessages(contextMessages);
+                    this.updateMessagesWithDividers();
+                    this.cdr.detectChanges();
+                    setTimeout(() => this.scrollToMessage(messageId, block, true), 100);
+                } else {
+                    this.showToast('Original message not found', 3000);
+                }
+            },
+            error: (err) => {
+                this.showToast('Failed to load original message', 3000);
+            }
+        });
+  }
+
+  private highlightMessageInDOM(messageId: string): void {
+    const messageElement = document.getElementById('message-' + messageId);
+    if (!messageElement) {
+      console.warn(`Highlight: Could not find element 'message-${messageId}' in DOM even after scroll.`);
+      return;
+    }
+
+    document.querySelectorAll('.message.highlighted-reply').forEach(el =>
+      el.classList.remove('highlighted-reply')
+    );
+
+    const isSearchResult = this.isSearchActive && this.messages.some(m => m._id === messageId && m.isCurrentSearchResult);
+    if (isSearchResult) {
+    } else {
+      messageElement.classList.add('highlighted-reply');
+
+      messageElement.animate([
+        { backgroundColor: 'transparent' },
+        { backgroundColor: 'rgba(74, 118, 168, 0.2)' },
+        { backgroundColor: 'transparent' }
+      ], {
+        duration: 1500,
+        easing: 'ease-in-out'
+      });
+
+      setTimeout(() => {
+        messageElement.classList.remove('highlighted-reply');
+      }, 2000);
+    }
+  }
+
+  private setupResizeObserver(): void {
+      if (!this.scrollViewport || !this.scrollViewport.elementRef.nativeElement) {
+          setTimeout(() => this.setupResizeObserver(), 100);
+          return;
+      }
+
+      const contentWrapper = this.scrollViewport.elementRef.nativeElement.querySelector('.cdk-virtual-scroll-content-wrapper');
+      
+      if (contentWrapper) {
+          this.resizeObserver = new ResizeObserver(entries => {
+              if (this.isAtBottom) {
+                  this.scrollToBottom(true, 'auto'); 
+              }
+          });
+
+          this.resizeObserver.observe(contentWrapper);
+      }
+  }
 
   onQuoteClick(targetMessageId: string, sourceMessageId: string | undefined): void {
     if (!targetMessageId || !sourceMessageId) return;
@@ -2823,10 +2889,9 @@ getHighlightedText(text: string, query: string): SafeHtml {
   }
 
   scrollToTop(): void {
-    const messagesContainer = document.querySelector('.messages');
-    if (messagesContainer) {
-      messagesContainer.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+      if (this.scrollViewport) {
+        this.scrollViewport.scrollToIndex(0, 'smooth');
+      }
   }
 
   toggleKeyboardHelp(): void {
