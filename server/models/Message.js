@@ -9,7 +9,7 @@ const messageSchema = new mongoose.Schema({
     chatId: { type: mongoose.Schema.Types.ObjectId, ref: 'Chat', required: true },
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', },
     senderName: { type: String, required: true },
-    content: { type: String, required: true },
+    content: { type: String },
     messageType: {
       type: String,
       enum: ['text', 'image', 'video', 'audio', 'file', 'event'],

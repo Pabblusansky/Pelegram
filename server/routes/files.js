@@ -43,7 +43,7 @@ const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = [
     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
     'video/mp4', 'video/webm', 'video/quicktime',
-    'audio/mpeg', 'audio/ogg', 'audio/wav',
+    'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm',
     'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'text/plain'
   ];
@@ -123,12 +123,34 @@ export default (io) => {
         determinedMessageType = 'file';
       }
 
+      let messageContent = '';
+      if (caption && caption.trim()) {
+        messageContent = caption.trim();
+      } else {
+        switch (determinedMessageType) {
+          case 'image':
+            messageContent = '';
+            break;
+          case 'video':
+            messageContent = '';
+            break;
+          case 'audio':
+            messageContent = '';
+            break;
+          case 'file':
+            messageContent = req.file.originalname;
+            break;
+          default:
+            messageContent = req.file.originalname;
+        }
+      }
+
       const newMessage = new Message({
         chatId: chatId,
         senderId: userId,
         senderName: senderName,
         messageType: determinedMessageType,
-        content: caption || req.file.originalname,
+        content: messageContent,
         filePath: `/media/${req.file.filename}`,
         originalFileName: req.file.originalname,
         fileMimeType: req.file.mimetype,

@@ -35,30 +35,70 @@
     </div>
     
     <div class="main-input-area">
-      <button class="attach-file-button" (click)="fileInput.click()" title="Attach file">
+      <button 
+      *ngIf="!isRecording"
+      class="attach-file-button" 
+      (click)="fileInput.click()" 
+      title="Attach file">
         <svg width="800px" height="800px" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
           <path d="M24,48A15,15,0,0,1,9,33V11a11,11,0,0,1,22,0V31c-0.06,4.42-3.24,8-7.09,8a6.45,6.45,0,0,1-4.61-2A8.43,8.43,0,0,1,17,31V16.87a2,2,0,0,1,2-2h0a2,2,0,0,1,2,2V31a4.44,4.44,0,0,0,1.16,3.19,2.48,2.48,0,0,0,1.76.79C25.55,35,27,33.16,27,31V11a7,7,0,0,0-14,0V33a11,11,0,0,0,22,0V16.6a2,2,0,0,1,4,0V33A15,15,0,0,1,24,48Z" fill="#876cb7"/>
         </svg>
       </button>
       <input type="file" #fileInput hidden (change)="onFileSelected($event)">
 
-      <textarea 
-        #messageTextarea 
-        class="message-textarea"
-        [(ngModel)]="newMessage" 
-        (input)="onInput()" 
-        (keydown.enter)="onEnterPress($event)" 
-        placeholder="Write a message..."
-        rows="1"
-      ></textarea>
+      <div class="input-field-wrapper">
+        <textarea 
+          #messageTextarea 
+          class="message-textarea"
+          [class.hidden]="isRecording"
+          [(ngModel)]="newMessage" 
+          (input)="onInput()" 
+          (keydown.enter)="onEnterPress($event)" 
+          placeholder="Write a message..."
+          rows="1"
+        ></textarea>
+
+        <div class="recording-ui" *ngIf="isRecording">
+          <div class="recording-indicator"></div>
+          <span class="recording-timer">{{ formatRecordingTime(recordingTime) }}</span>
+          <span class="recording-info-text">Release to send or slide away to cancel</span>
+        </div>
+
+        <div class="action-buttons-container">
+          <button
+            [ngClass]="{'visible': !isRecording && (newMessage.trim() || selectedFile)}" 
+            class="send-button" 
+            (click)="send()" 
+            title="Send message"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+              <path d="M3.478 2.405a.75.75 0 0 0-.926.94l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.405Z" />
+            </svg>
+          </button>
+          <button
+            [ngClass]="{'visible': !isRecording && (!newMessage.trim() || selectedFile)}" 
+            class="mic-button"
+            (mousedown)="startRecording($event)"
+            (touchstart)="startRecording($event)"
+            title="Record voice message"
+          >
+            <svg width="800" height="800" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+              <rect x="20" y="8" width="8" height="18" rx="4" fill="#876cb7"/>
+              <path d="M14 22v2c0 5.5 4.5 10 10 10s10-4.5 10-10v-2" stroke="#876cb7" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+              <line x1="24" y1="34" x2="24" y2="40" stroke="#876cb7" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="18" y1="40" x2="30" y2="40" stroke="#876cb7" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
 
       <button 
-        class="send-button" 
-        (click)="send()" 
-        [disabled]="!newMessage.trim() && !selectedFile" 
-        title="Send message"
+        *ngIf="isRecording"
+        class="cancel-recording-button"
+        (click)="cancelRecording()"
+        title="Cancel recording"
       >
-        Send
+        Cancel
       </button>
     </div>
   </div>

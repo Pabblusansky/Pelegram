@@ -1490,6 +1490,22 @@ html, body {
       max-width: 300px;
       height: 54px;
       border-radius: var(--border-radius-medium, 8px);
+      &::-webkit-media-controls-panel {
+        background-color: var(--audio-player-bg, rgba(74, 118, 168, 0.1));
+        border-radius: 8px;
+      }
+      
+      &::-webkit-media-controls-play-button {
+        background-color: var(--primary-color, #4a76a8);
+        border-radius: 50%;
+      }
+      
+      &::-webkit-media-controls-current-time-display,
+      &::-webkit-media-controls-time-remaining-display {
+        color: var(--text-color);
+        font-family: monospace;
+        font-size: 12px;
+      }
     }
   }
 
@@ -1812,7 +1828,6 @@ cdk-virtual-scroll-viewport.messages {
   box-sizing: border-box;
   scroll-behavior: auto !important;
 
-  // Стили для скроллбара (оставляем как есть)
   &::-webkit-scrollbar { width: 8px; }
   &::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb-color, #888); border-radius: 4px; }
   &::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover-color, #555); }

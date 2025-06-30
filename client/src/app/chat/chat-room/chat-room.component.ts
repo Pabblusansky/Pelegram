@@ -38,7 +38,6 @@ import { ObserveContentSizeDirective } from '../observe-content-size.directive';
     GroupReactionsPipe,
     SharedMediaGalleryComponent,
     ScrollingModule,
-    ObserveContentSizeDirective
 ],
   animations: [
     trigger('menuAnimation', [

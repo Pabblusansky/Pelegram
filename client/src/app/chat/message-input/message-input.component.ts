@@ -42,6 +42,76 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
   filePreviewUrl: SafeUrl | null = null;
   isPreviewLoading: boolean = false;
 
+  // Recording state
+  isRecording: boolean = false;
+  recordingTime: number = 0;
+  private mediaRecorder: MediaRecorder | null = null;
+  private audioChunks: Blob[] = [];
+  private recordingTimerInterval: any;
+  private recordingStartTime: number = 0;
+
+  private micButtonRect: DOMRect | null = null;
+
+
+  @HostListener('document:mouseup', ['$event'])
+  onGlobalMouseUp(event: MouseEvent): void {
+    if (this.isRecording) {
+      if (!this.micButtonRect) {
+        console.warn('Mic button rect not saved');
+        this.stopRecording(false);
+        return;
+      }
+      
+      const isPointerOverButton = (
+        event.clientX >= this.micButtonRect.left &&
+        event.clientX <= this.micButtonRect.right &&
+        event.clientY >= this.micButtonRect.top &&
+        event.clientY <= this.micButtonRect.bottom
+      );
+      
+      console.log('Mouse release:', { 
+        x: event.clientX, 
+        y: event.clientY, 
+        rect: this.micButtonRect,
+        isOver: isPointerOverButton 
+      });
+      
+      this.stopRecording(isPointerOverButton);
+    }
+  }
+
+  @HostListener('document:touchend', ['$event'])
+  onGlobalTouchEnd(event: TouchEvent): void {
+    if (this.isRecording) {
+      const touch = event.changedTouches[0];
+      if (!touch) {
+        this.stopRecording(false);
+        return;
+      }
+
+      if (!this.micButtonRect) {
+        console.warn('Mic button rect not saved');
+        this.stopRecording(false);
+        return;
+      }
+      
+      const isPointerOverButton = (
+        touch.clientX >= this.micButtonRect.left &&
+        touch.clientX <= this.micButtonRect.right &&
+        touch.clientY >= this.micButtonRect.top &&
+        touch.clientY <= this.micButtonRect.bottom
+      );
+      
+      console.log('Touch release:', { 
+        x: touch.clientX, 
+        y: touch.clientY, 
+        rect: this.micButtonRect,
+        isOver: isPointerOverButton 
+      });
+      
+      this.stopRecording(isPointerOverButton);
+    }
+  }
   constructor(
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef,
@@ -142,6 +212,10 @@ adjustTextareaHeight(): void {
   }
 
   send(): void {
+    if (this.isRecording) {
+      this.cancelRecording();
+      return;
+    }
     const textContent = this.newMessage.trim();
 
     if (!textContent && !this.selectedFile) { 
@@ -361,4 +435,88 @@ adjustTextareaHeight(): void {
       }
     }, 0);
   }
+
+
+  // Recording functionality
+  async startRecording(event?: MouseEvent | TouchEvent): Promise<void> {
+      if (event) event.preventDefault();
+      if (this.isRecording) return;
+
+      const micButton = document.querySelector('.mic-button') as HTMLElement;
+      if (micButton) {
+        this.micButtonRect = micButton.getBoundingClientRect();
+        console.log('Saved mic button rect:', this.micButtonRect);
+      }
+
+      try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          this.isRecording = true;
+          this.audioChunks = [];
+          this.mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+          this.mediaRecorder.ondataavailable = (e) => this.audioChunks.push(e.data);
+          this.mediaRecorder.onstop = () => {
+              stream.getTracks().forEach(track => track.stop());
+          };
+          this.mediaRecorder.start();
+          this.recordingStartTime = Date.now();
+          this.recordingTimerInterval = setInterval(() => {
+              this.recordingTime = Math.floor((Date.now() - this.recordingStartTime) / 1000);
+              this.cdr.detectChanges();
+          }, 1000);
+          this.cdr.detectChanges();
+      } catch (err) {
+          console.error('Error accessing microphone:', err);
+          this.ToastService.showToast('Microphone access denied.', 5000, 'error');
+          this.isRecording = false;
+          this.micButtonRect = null;
+      }
+    }
+
+  stopRecording(shouldSend: boolean): void {
+    if (!this.isRecording || !this.mediaRecorder) return;
+    
+    console.log(`Stopping recording. Should send: ${shouldSend}`);
+    
+    this.mediaRecorder.onstop = () => {
+        if (shouldSend) {
+            const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+            const audioFile = new File([audioBlob], `voice-message-${new Date().toISOString()}.webm`, {
+                type: audioBlob.type,
+                lastModified: Date.now()
+            });
+
+            if (audioFile.size > 1000) { 
+                this.sendMessageEvent.emit({ content: '', file: audioFile });
+            } else {
+                console.warn("Recorded audio is too short, not sending.");
+            }
+        }
+        this.resetRecordingState();
+    };
+    
+    if (this.mediaRecorder.state === 'recording') {
+        this.mediaRecorder.stop();
+    }
+  }
+  cancelRecording(): void {
+      this.stopRecording(false);
+  }
+
+  private resetRecordingState(): void {
+    clearInterval(this.recordingTimerInterval);
+    this.isRecording = false;
+    this.recordingTime = 0;
+    this.audioChunks = [];
+    this.mediaRecorder = null;
+    this.micButtonRect = null;
+    this.cdr.detectChanges();
+  }
+
+  formatRecordingTime(seconds: number): string {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    const formattedSeconds = remainingSeconds < 10 ? `0${remainingSeconds}` : remainingSeconds;
+    return `${minutes}:${formattedSeconds}`;
+  }
+
 }
