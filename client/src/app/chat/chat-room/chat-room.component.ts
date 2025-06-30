@@ -21,7 +21,7 @@ import { LightboxComponent } from '../../shared/lightbox/lightbox.component';
 import { ScrollingModule } from '@angular/cdk/scrolling'; 
 import { AfterViewInit } from '@angular/core';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
-
+import { ObserveContentSizeDirective } from '../observe-content-size.directive';
 @Component({
   selector: 'app-chat-room',
   templateUrl: './chat-room.component.html',
@@ -37,7 +37,8 @@ import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
     GroupInfoModalComponent,
     GroupReactionsPipe,
     SharedMediaGalleryComponent,
-    ScrollingModule
+    ScrollingModule,
+    ObserveContentSizeDirective
 ],
   animations: [
     trigger('menuAnimation', [

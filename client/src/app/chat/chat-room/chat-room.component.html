@@ -190,7 +190,7 @@
     <cdk-virtual-scroll-viewport 
       #scrollViewport 
       class="messages"
-      [itemSize]="50"
+      [itemSize]="80"
       (scrolledIndexChange)="onVirtualScrollIndexChange()"
       (mousemove)="onMessagesContainerMouseMove($event)" 
       (mouseup)="onMessagesContainerMouseUp()" 
@@ -200,7 +200,7 @@
         No messages yet. Start the conversation!
       </div>
 
-      <ng-container *cdkVirtualFor="let item of messagesWithDividers; trackBy: trackByMessageId; templateCacheSize: 50">
+      <ng-container *cdkVirtualFor="let item of messagesWithDividers; trackBy: trackByMessageId; templateCacheSize: 50" class="virtual-scroll-item-wrapper" appObserveContentSize>
         <!-- Date Divider -->
         <div *ngIf="item.type === 'divider'" class="date-divider">
           <span>{{ item.date }}</span>
