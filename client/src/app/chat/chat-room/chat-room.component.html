@@ -445,7 +445,14 @@
       </ng-container>
     </cdk-virtual-scroll-viewport>
 
-    <div *ngIf="isLoadingMore" class="loading-indicator top-indicator">
+    <!-- Loading indicator for initial load (center) -->
+    <div *ngIf="isLoadingMore && messages.length === 0" class="loading-indicator initial-loading">
+      <div class="spinner"></div>
+      <span>Loading messages...</span>
+    </div>
+
+    <!-- Loading indicator for loading older messages (top) -->
+    <div *ngIf="isLoadingMore && messages.length > 0" class="loading-indicator top-indicator">
       <div class="spinner"></div>
       <span>Loading older messages...</span>
     </div>

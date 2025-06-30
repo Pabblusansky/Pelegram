@@ -1354,6 +1354,33 @@ html, body {
   }
 }
 
+.loading-indicator.initial-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  background: var(--background-color);
+  padding: 20px 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  
+  .spinner {
+    width: 40px;
+    height: 40px;
+  }
+  
+  span {
+    font-size: 16px;
+    color: var(--text-color);
+    font-weight: 500;
+  }
+}
+
 .cancel-reply-btn {
   position: absolute;
   top: 8px;
@@ -1806,22 +1833,6 @@ kbd {
   padding: 15px 10px !important; 
 }
 
-
-
-.loading-indicator.top-indicator,
-.no-more-messages.top-indicator {
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;  
-  background: var(--background-color);
-  padding: 8px 16px;
-  border-radius: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-
 cdk-virtual-scroll-viewport.messages {
   height: auto;
   width: 100%;
@@ -1834,4 +1845,94 @@ cdk-virtual-scroll-viewport.messages {
   &::-webkit-scrollbar-track { background: transparent; }
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb-color, #888) transparent;
+}
+
+
+.loading-indicator.initial-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  background: var(--background-color);
+  padding: 20px 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  
+  .spinner {
+    width: 40px;
+    height: 40px;
+  }
+  
+  span {
+    font-size: 16px;
+    color: var(--text-color);
+    font-weight: 500;
+  }
+}
+
+// Loading indicator for loading older messages (top)
+.loading-indicator.top-indicator {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  background: var(--background-color);
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  .spinner {
+    width: 20px;
+    height: 20px;
+  }
+  
+  span {
+    font-size: 14px;
+    color: var(--text-color);
+    font-weight: 500;
+  }
+}
+
+// No more messages indicator
+.no-more-messages.top-indicator {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  background: var(--background-color);
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  
+  span {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+}
+
+// Generic spinner animation
+.spinner {
+  border: 3px solid var(--border-color-light, rgba(74, 118, 168, 0.2));
+  border-top-color: var(--primary-color, #4a76a8);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

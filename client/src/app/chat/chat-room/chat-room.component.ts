@@ -369,24 +369,22 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   onVirtualScrollIndexChange(): void {
     if (!this.scrollViewport) return;
 
-    const offset = this.scrollViewport.measureScrollOffset('bottom');
-
-    const wasAtBottom = this.isAtBottom;
-    this.isAtBottom = offset < 1; 
+    const offsetBottom = this.scrollViewport.measureScrollOffset('bottom');
+    const offsetTop = this.scrollViewport.measureScrollOffset('top');
     
-    const start = this.scrollViewport.getRenderedRange().start;
-    this.isAtTop = start === 0;
+    const wasAtBottom = this.isAtBottom;
+    this.isAtBottom = offsetBottom < 1;
 
     if (this.isAtBottom && !wasAtBottom) {
-      this.clearUnreadMessagesIndicator();
-      this.triggerMarkAsRead();
+        this.clearUnreadMessagesIndicator();
+        this.triggerMarkAsRead();
     }
 
-    if (start < 10 && !this.isLoadingMore && !this.noMoreMessages) {
-      const now = Date.now();
-      if (now - this.lastLoadTimestamp > 1000) {
-        this.loadMoreDebounce.next();
-      }
+    if (offsetTop < 300 && !this.isLoadingMore && !this.noMoreMessages) {
+        const now = Date.now();
+        if (now - this.lastLoadTimestamp > 1000) {
+            this.loadMoreDebounce.next();
+        }
     }
   }
 
@@ -658,45 +656,48 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   loadMessages(): void {
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-    }
-    if (this.chatId) {
-        this.messages = [];
-        this.messagesWithDividers = [];
-        this.isLoadingMore = false;
-        this.noMoreMessages = false;
-        this.isAtTop = false;
-        this.isAtBottom = true;
-        this.unreadMessagesCount = 0;
-        this.newMessagesWhileScrolledUp = [];
-        
-        this.chatService.joinChat(this.chatId);
+      if (!this.chatId) return;
 
-        this.chatService.getMessages(this.chatId)!.subscribe({
-            next: (messagesFromServer: Message[]) => {
-                this.messages = messagesFromServer.map((msg) => ({
-                    ...msg,
-                    ismyMessage: (msg.senderId && (msg.senderId as any)._id || msg.senderId) === this.userId,
-                    status: msg.status || 'sent'
-                }));
-                this.updateMessagesWithDividers();
-                
-                this.cdr.detectChanges();
-                requestAnimationFrame(() => {
-                    this.scrollToBottom(true, 'auto');
-                    this.setupResizeObserver(); 
-                });
+      // Показываем индикатор загрузки для начальной загрузки
+      this.isLoadingMore = true;
+      this.noMoreMessages = false;
+      
+      if (this.resizeObserver) {
+          this.resizeObserver.disconnect();
+      }
+
+      this.chatService.joinChat(this.chatId);
+
+      this.chatService.getMessages(this.chatId)?.subscribe({
+          next: (messagesFromServer: Message[]) => {
+              this.messages = messagesFromServer.map((msg) => ({
+                  ...msg,
+                  ismyMessage: (msg.senderId && (msg.senderId as any)._id || msg.senderId) === this.userId,
+                  status: msg.status || 'sent'
+              }));
+              this.updateMessagesWithDividers();
+
+              this.isAtTop = false;
+              this.isAtBottom = true;
+              this.unreadMessagesCount = 0;
+              this.newMessagesWhileScrolledUp = [];
+              this.isLoadingMore = false;
               
-                this.triggerMarkAsRead();
-            },
-            error: (error) => {
-                console.error('Error loading messages:', error);
-            }
-        });
-    }
-  }
+              this.cdr.detectChanges();
 
+              requestAnimationFrame(() => {
+                  this.scrollToBottom(true, 'auto');
+                  this.setupResizeObserver(); 
+              });
+            
+              this.triggerMarkAsRead();
+          },
+          error: (error) => {
+              console.error('Error loading messages:', error);
+              this.isLoadingMore = false;
+          }
+      });
+  }
 scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): void {
     if (!this.scrollViewport) return;
     if (this.isScrollingToBottom && !force) return;
@@ -1625,77 +1626,68 @@ scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): voi
   }
 
   executeLoadMoreMessages(): void {
-    if (!this.chatId || this.isLoadingMore || this.noMoreMessages || this.messages.length === 0) {
+    if (!this.chatId || this.isLoadingMore || this.noMoreMessages) {
+      return;
+    }
+    if (this.messages.length === 0) {
+      this.noMoreMessages = true;
       return;
     }
     
     this.isLoadingMore = true;
     this.lastLoadTimestamp = Date.now();
     
-    const messageContainer = document.querySelector('.messages');
-    if (messageContainer) {
-      this.scrollHeightBeforeLoad = messageContainer.scrollHeight;
-    }
-    
     const oldestMessage = this.messages[0];
-    
-    if (!oldestMessage || !oldestMessage._id) {
-      console.error('No valid oldest message found');
-      this.isLoadingMore = false;
-      return;
+    if (!oldestMessage?._id) {
+        this.isLoadingMore = false;
+        return;
     }
-    
-    console.log(`Loading messages before: ${oldestMessage._id}`);
-    
-    this.chatService.getMessagesBefore(this.chatId, oldestMessage._id, 20).subscribe({
-      next: (olderMessages: Message[]) => {
-        this.isLoadingMore = false;
-        
-        if (olderMessages.length === 0) {
-          console.log('No more messages to load');
-          this.noMoreMessages = true;
-          return;
-        }
-        
-        console.log(`Loaded ${olderMessages.length} older messages`);
-        
-        const newMessages = olderMessages.map(msg => {
-          let senderIdValue: string | undefined;
-          if (msg.senderId && typeof msg.senderId === 'object' && (msg.senderId as any)._id) {
-            senderIdValue = (msg.senderId as any)._id;
-          } else if (typeof msg.senderId === 'string') {
-            senderIdValue = msg.senderId;
-          }
-          return {
-            ...msg,
-            ismyMessage: senderIdValue === this.userId, 
-            status: msg.status || 'sent'
-          };
-        });
-      
-        const oldScrollHeight = this.scrollViewport!.measureRenderedContentSize();
 
-        this.messages = [...newMessages, ...this.messages];
-        this.updateMessagesWithDividers();
-        this.cdr.detectChanges();
-        
-        requestAnimationFrame(() => {
-          const newScrollHeight = this.scrollViewport!.measureRenderedContentSize();
-          const scrollAdjustment = newScrollHeight - oldScrollHeight;
-          this.scrollViewport!.scrollTo({
-              top: this.scrollViewport!.measureScrollOffset() + scrollAdjustment,
-              behavior: 'auto'
-          });
-        });
-      },
-      error: (error) => {
-        this.isLoadingMore = false;
-        console.error('Failed to load older messages:', error);
-      }
+    const oldFirstMessageId = oldestMessage._id;
+
+    this.chatService.getMessagesBefore(this.chatId, oldestMessage._id, 30)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (olderMessages) => {
+            if (olderMessages.length === 0) {
+              this.noMoreMessages = true;
+              this.isLoadingMore = false;
+              this.cdr.detectChanges();
+              return;
+            }
+            const newMessages = olderMessages.map(msg => ({
+                ...msg,
+                ismyMessage: (msg.senderId && (msg.senderId as any)._id || msg.senderId) === this.userId,
+                status: msg.status || 'sent'
+            }));
+
+            this.messages = [...newMessages, ...this.messages];
+            this.updateMessagesWithDividers();
+
+            this.cdr.detectChanges();
+
+            if (this.scrollViewport && oldFirstMessageId) {
+              const newIndexOfOldFirstMessage = this.messagesWithDividers.findIndex((item: { _id: string; }) => item._id === oldFirstMessageId);
+              requestAnimationFrame(() => {
+                  if (this.scrollViewport && newIndexOfOldFirstMessage !== -1) {
+                      this.scrollViewport.scrollToIndex(newIndexOfOldFirstMessage, 'auto');
+                  }
+                  setTimeout(() => {
+                      this.isLoadingMore = false;
+                      this.cdr.detectChanges();
+                  }, 50);
+              });
+            } else {
+              this.isLoadingMore = false;
+              this.cdr.detectChanges();
+            }
+        },
+        error: (error) => {
+            this.isLoadingMore = false;
+            console.error('Failed to load older messages:', error);
+        }
     });
   }
-  
-
 
   private addOrUpdateMessage(message: Message, isMyOwnMessageJustSent: boolean = false): void {
     if (this.messages.find(m => m._id === message._id)) {
@@ -1826,28 +1818,62 @@ scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): voi
         
   public async scrollToMessage(messageId: string, block: ScrollLogicalPosition = 'center', forceScroll: boolean = false): Promise<void> {
     if (!this.scrollViewport) {
-      console.warn('ScrollToMessage: CdkVirtualScrollViewport is not available.');
-      return;
+        console.warn('ScrollToMessage: CdkVirtualScrollViewport is not available.');
+        return;
     }
 
     const isReturningToQuoteOrigin = this.returnToMessageIdAfterQuoteJump === messageId;
     if (!forceScroll && !this.isAtBottom && !this.isSearchActive && !isReturningToQuoteOrigin) {
-      console.log('ScrollToMessage: Not scrolling, conditions not met.');
-      return;
+        console.log('ScrollToMessage: Not scrolling, conditions not met.');
+        return;
     }
 
+    this.scrollViewport.checkViewportSize();
+    
     const index = this.messagesWithDividers.findIndex((item: { type: string; _id: string; }) => item.type === 'message' && item._id === messageId);
 
     if (index !== -1) {
-      this.scrollViewport.scrollToIndex(index, 'smooth');
-
-      setTimeout(() => {
-        this.highlightMessageInDOM(messageId);
-      }, 300);
-
+        const dataLength = this.scrollViewport.getDataLength();
+        if (dataLength === 0 || index >= dataLength) {
+            setTimeout(() => this.scrollToMessage(messageId, block, forceScroll), 100);
+            return;
+        }
+        
+        this.scrollViewport.scrollToIndex(index, 'auto');
+        
+        setTimeout(() => {
+            const renderedRange = this.scrollViewport.getRenderedRange();
+            if (index < renderedRange.start || index > renderedRange.end) {
+                console.warn('Message not in rendered range, retrying scroll...');
+                this.scrollViewport.scrollToIndex(index, 'smooth');
+            }
+            
+            setTimeout(() => {
+                this.highlightMessageInDOM(messageId);
+            }, 100);
+        }, 200);
+        
     } else {
-      this.loadMessageContextAndScroll(messageId, block);
+        this.loadMessageContextAndScroll(messageId, block);
     }
+  }
+
+  private ensureCdkStability(): Promise<void> {
+    return new Promise((resolve) => {
+        if (!this.scrollViewport) {
+            resolve();
+            return;
+        }
+        
+        this.scrollViewport.checkViewportSize();
+        this.cdr.detectChanges();
+        
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                resolve();
+            });
+        });
+    });
   }
 
   private loadMessageContextAndScroll(messageId: string, block: ScrollLogicalPosition): void {
@@ -2086,107 +2112,61 @@ scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): voi
     }, 200);
   }
 
-  async navigateToSearchResult(index: number, isInitialSearch: boolean = false): Promise<void> {
-    if (this.isLoadingContext || index < 0 || index >= this.searchResults.length) return;
 
-    const targetMessageSearchResult = this.searchResults[index];
-    if (!targetMessageSearchResult?._id) return;
+  async navigateToSearchResult(index: number, isInitialSearch: boolean = false): Promise<void> {
+    if (index < 0 || index >= this.searchResults.length) {
+        return;
+    }
+
+    const targetMessage = this.searchResults[index];
+    if (!targetMessage?._id) {
+        console.error('Search result has no _id, cannot navigate.');
+        return;
+    }
 
     this.currentSearchResultIndex = index;
 
-    this.messages.forEach(m => m.isCurrentSearchResult = false);
-
-    let messageInView = this.messages.find(m => m._id === targetMessageSearchResult._id);
-
+    this.messages.forEach(m => {
+        m.isCurrentSearchResult = m._id === targetMessage._id;
+    });
+    const messageInView = this.messages.find(m => m._id === targetMessage._id);
     if (messageInView) {
-      // Message is already loaded
-      messageInView.isCurrentSearchResult = true;
-      if (targetMessageSearchResult._id) {
-        this.updateMessagesAndScroll(targetMessageSearchResult._id, 'center');
-      }
-    } else {
-      // Message not in view, we need to load its context
-      console.log(`Message ${targetMessageSearchResult._id} not in view. Loading context...`);
-      this.isLoadingContext = true;
-      this.showToast('Loading message context...', 5000);
-
-      this.chatService.loadMessageContext(this.chatId!, targetMessageSearchResult._id)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe({
-          next: (contextMessages) => {
-            this.isLoadingContext = false;
-            if (contextMessages && contextMessages.length > 0) {
-              this.mergeMessages(contextMessages);
-              
-              const newlyLoadedMessage = this.messages.find(m => m._id === targetMessageSearchResult._id);
-              if (newlyLoadedMessage) {
-                newlyLoadedMessage.isCurrentSearchResult = true;
-              } else {
-                console.error('Target message still not found after loading context!');
-              }
-              this.applyHighlightsToMessages();
-              if (targetMessageSearchResult._id) {
-                this.updateMessagesAndScroll(targetMessageSearchResult._id, 'center');
-              } else {
-                console.error('Cannot scroll to message: Missing message ID');
-                this.cdr.detectChanges();
-              }
-            } else {
-              this.showToast('Could not load message context.', 3000);
-              this.applyHighlightsToMessages();
-              this.cdr.detectChanges();
-            }
-          },
-          error: (err) => {
-            this.isLoadingContext = false;
-            console.error('Error loading message context:', err);
-            this.showToast('Failed to load message context.', 3000);
-            this.applyHighlightsToMessages();
-            this.cdr.detectChanges();
-          }
-        });
+        messageInView.isCurrentSearchResult = true;
     }
-  }
-
-  private mergeMessages(newMessages: Message[]): void {
-    const existingMessageIds = new Set(this.messages.map(m => m._id));
-    const messagesToAdd = newMessages
-      .filter(nm => nm._id && !existingMessageIds.has(nm._id)) 
-      .map(nm => {
-        // Check if senderId is an object and extract _id, or we are dealing with a string directly
-        const senderIdFromMessage = nm.senderId && typeof nm.senderId === 'object' && (nm.senderId as any)._id 
-          ? (nm.senderId as any)._id 
-          : (typeof nm.senderId === 'string' ? nm.senderId : undefined);
-
-        return {
-          ...nm,
-          ismyMessage: senderIdFromMessage === this.userId 
-        };
-      });
-
-      if (messagesToAdd.length > 0) {
-        this.messages.push(...messagesToAdd);
-        this.messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-        console.log(`Merged ${messagesToAdd.length} new messages. Total messages now: ${this.messages.length}`);
-        messagesToAdd.forEach(msg => {
-          if (msg.senderId && 
-            ((typeof msg.senderId === 'object' && msg.senderId !== null && 'id' in msg.senderId && (msg.senderId as any)._id === this.userId) || 
-            (typeof msg.senderId === 'string' && msg.senderId === this.userId))) {
-            console.log(`DEBUG MERGE: Message ${msg._id} by ME, ismyMessage: ${msg.ismyMessage}`);
-          }
-        });
-      }
-  }
-
-  private updateMessagesAndScroll(messageId: string, block: ScrollLogicalPosition): void {
+    
     this.updateMessagesWithDividers();
     this.cdr.detectChanges();
 
-    setTimeout(() => {
-      this.scrollToMessage(messageId, block, true); // Force scroll to the message
-    }, 100); 
+    this.scrollToMessage(targetMessage._id, 'center', true);
   }
 
+  private mergeMessages(newMessages: Message[]): void {
+      const existingMessageIds = new Set(this.messages.map(m => m._id));
+      const messagesToAdd = newMessages
+          .filter(nm => nm._id && !existingMessageIds.has(nm._id)) 
+          .map(nm => {
+              const senderIdFromMessage = nm.senderId && typeof nm.senderId === 'object' && (nm.senderId as any)._id 
+                  ? (nm.senderId as any)._id 
+                  : (typeof nm.senderId === 'string' ? nm.senderId : undefined);
+
+              return {
+                  ...nm,
+                  ismyMessage: senderIdFromMessage === this.userId 
+              };
+          });
+
+      if (messagesToAdd.length > 0) {
+          this.messages.push(...messagesToAdd);
+          this.messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+          
+          console.log(`Merged ${messagesToAdd.length} new messages. Total messages now: ${this.messages.length}`);
+          
+          this.cdr.detectChanges();
+          if (this.scrollViewport) {
+              this.scrollViewport.checkViewportSize();
+          }
+      }
+  }
 
   scrollToSearchResult(index: number): void {
     if (index < 0 || index >= this.searchResults.length) return;
