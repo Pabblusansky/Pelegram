@@ -157,6 +157,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('searchInputEl') searchInputEl!: ElementRef;
   private searchDebounce = new Subject<string>();
   isLoadingContext: boolean = false;
+  private isScrollingProgrammatically: boolean = false;
   // Group chat functionality
   isGroupChat: boolean = false;
   groupAdmin: User | null = null;
@@ -700,6 +701,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): void {
     if (!this.scrollViewport) return;
+    if (this.isScrollingProgrammatically && !force) {
+      console.log('ScrollToBottom: Aborted, programmatic scroll is in progress.');
+      return;
+    }
     if (this.isScrollingToBottom && !force) return;
 
     if (this.returnToMessageIdAfterQuoteJump) {
@@ -1830,29 +1835,11 @@ scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): voi
 
     this.scrollViewport.checkViewportSize();
     
-    const index = this.messagesWithDividers.findIndex((item: { type: string; _id: string; }) => item.type === 'message' && item._id === messageId);
+    const index = this.messagesWithDividers.findIndex((item: any) => item.type === 'message' && item._id === messageId);
 
     if (index !== -1) {
-        const dataLength = this.scrollViewport.getDataLength();
-        if (dataLength === 0 || index >= dataLength) {
-            setTimeout(() => this.scrollToMessage(messageId, block, forceScroll), 100);
-            return;
-        }
-        
-        this.scrollViewport.scrollToIndex(index, 'auto');
-        
-        setTimeout(() => {
-            const renderedRange = this.scrollViewport.getRenderedRange();
-            if (index < renderedRange.start || index > renderedRange.end) {
-                console.warn('Message not in rendered range, retrying scroll...');
-                this.scrollViewport.scrollToIndex(index, 'smooth');
-            }
-            
-            setTimeout(() => {
-                this.highlightMessageInDOM(messageId);
-            }, 100);
-        }, 200);
-        
+        this.scrollViewport.scrollToIndex(index, 'smooth');
+        setTimeout(() => this.highlightMessageInDOM(messageId), 300);
     } else {
         this.loadMessageContextAndScroll(messageId, block);
     }
@@ -1878,7 +1865,11 @@ scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): voi
 
   private loadMessageContextAndScroll(messageId: string, block: ScrollLogicalPosition): void {
     this.showToast('Loading message context...', 2000);
-    if (!this.chatId) return;
+    if (!this.chatId) {
+        this.isScrollingProgrammatically = false;
+        return;
+    }
+    this.isLoadingContext = true; 
     this.chatService.loadMessageContext(this.chatId, messageId)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
@@ -1887,13 +1878,16 @@ scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): voi
                     this.mergeMessages(contextMessages);
                     this.updateMessagesWithDividers();
                     this.cdr.detectChanges();
-                    setTimeout(() => this.scrollToMessage(messageId, block, true), 100);
+                    this.scrollToMessage(messageId, block, true);
                 } else {
                     this.showToast('Original message not found', 3000);
+                    this.isScrollingProgrammatically = false;
                 }
             },
             error: (err) => {
-                this.showToast('Failed to load original message', 3000);
+              this.showToast('Failed to load original message', 3000);
+              this.isScrollingProgrammatically = false;
+              console.error('Error loading message context:', err);
             }
         });
   }
@@ -1939,9 +1933,9 @@ scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): voi
       
       if (contentWrapper) {
           this.resizeObserver = new ResizeObserver(entries => {
-              if (this.isAtBottom) {
-                  this.scrollToBottom(true, 'auto'); 
-              }
+            if (this.isAtBottom && !this.isScrollingProgrammatically) {
+                this.scrollToBottom(true, 'auto');
+            }
           });
 
           this.resizeObserver.observe(contentWrapper);
@@ -2114,30 +2108,25 @@ scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): voi
 
 
   async navigateToSearchResult(index: number, isInitialSearch: boolean = false): Promise<void> {
-    if (index < 0 || index >= this.searchResults.length) {
-        return;
-    }
+    if (index < 0 || index >= this.searchResults.length) return;
 
     const targetMessage = this.searchResults[index];
-    if (!targetMessage?._id) {
-        console.error('Search result has no _id, cannot navigate.');
-        return;
-    }
+    if (!targetMessage?._id) return;
 
     this.currentSearchResultIndex = index;
 
-    this.messages.forEach(m => {
-        m.isCurrentSearchResult = m._id === targetMessage._id;
-    });
-    const messageInView = this.messages.find(m => m._id === targetMessage._id);
-    if (messageInView) {
-        messageInView.isCurrentSearchResult = true;
-    }
-    
+    this.messages.forEach(m => m.isCurrentSearchResult = (m._id === targetMessage._id));
     this.updateMessagesWithDividers();
-    this.cdr.detectChanges();
 
-    this.scrollToMessage(targetMessage._id, 'center', true);
+    this.isScrollingProgrammatically = true;
+    console.log(`Programmatic scroll STARTING for search result ${targetMessage._id}`);
+
+    await this.scrollToMessage(targetMessage._id, 'center', true);
+
+    setTimeout(() => {
+        this.isScrollingProgrammatically = false;
+        console.log(`Programmatic scroll ENDED for search result ${targetMessage._id}`);
+    }, 1000);
   }
 
   private mergeMessages(newMessages: Message[]): void {
