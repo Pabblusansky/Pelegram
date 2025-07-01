@@ -51,7 +51,7 @@ export class AuthService {
           localStorage.setItem('tokenExpiration', tokenExpiration.toString());
           this.isAuthenticatedSubject.next(true);
           this.chatService.logoutAndReconnectSocket();
-          this.router.navigate(['/home']);
+          this.router.navigate(['/']);
         } else {
           console.error('Token is missing in the response');
           throw new Error('Authentication failed. Invalid server response.');
@@ -73,7 +73,7 @@ export class AuthService {
     localStorage.removeItem('tokenExpiration');
     this.isAuthenticatedSubject.next(false);
     this.chatService.logoutAndReconnectSocket();
-    this.router.navigate(['/login']);
+    this.router.navigate(['/auth/login']);
   }
 
   isTokenExpired(): boolean {

@@ -659,7 +659,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   loadMessages(): void {
       if (!this.chatId) return;
 
-      // Показываем индикатор загрузки для начальной загрузки
       this.isLoadingMore = true;
       this.noMoreMessages = false;
       
@@ -1843,24 +1842,6 @@ scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): voi
     } else {
         this.loadMessageContextAndScroll(messageId, block);
     }
-  }
-
-  private ensureCdkStability(): Promise<void> {
-    return new Promise((resolve) => {
-        if (!this.scrollViewport) {
-            resolve();
-            return;
-        }
-        
-        this.scrollViewport.checkViewportSize();
-        this.cdr.detectChanges();
-        
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                resolve();
-            });
-        });
-    });
   }
 
   private loadMessageContextAndScroll(messageId: string, block: ScrollLogicalPosition): void {

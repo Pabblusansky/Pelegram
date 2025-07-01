@@ -53,7 +53,7 @@ export class RegisterComponent {
     this.authService.register(this.formData).subscribe({
       next: () => {
         this.isSubmitting = false;
-        this.router.navigate(['/registration-success']); 
+        this.router.navigate(['/auth/registration-success']); 
       },
       error: (err) => {
         console.error('Error:', err);
