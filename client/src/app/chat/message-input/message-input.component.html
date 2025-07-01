@@ -61,6 +61,11 @@
         <div class="recording-ui" *ngIf="isRecording">
           <div class="recording-indicator"></div>
           <span class="recording-timer">{{ formatRecordingTime(recordingTime) }}</span>
+          <canvas #waveformCanvas 
+            class="equalizer-canvas" 
+            width="200" 
+            height="40">
+          </canvas>
           <span class="recording-info-text">Release to send or slide away to cancel</span>
         </div>
 
@@ -76,7 +81,7 @@
             </svg>
           </button>
           <button
-            [ngClass]="{'visible': !isRecording && (!newMessage.trim() || selectedFile)}" 
+            [ngClass]="{'visible': !isRecording && (!newMessage.trim() && !selectedFile)}" 
             class="mic-button"
             (mousedown)="startRecording($event)"
             (touchstart)="startRecording($event)"

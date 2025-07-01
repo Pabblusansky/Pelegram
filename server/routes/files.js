@@ -74,6 +74,7 @@ export default (io) => {
 
     const { chatId } = req.params;
     const { messageType = 'file', caption = '' } = req.body;
+    const duration = req.body.duration ? parseFloat(req.body.duration) : 0;
     const userId = req.user.id;
     let replyToInput = req.body.replyTo;
 
@@ -157,6 +158,7 @@ export default (io) => {
         fileSize: req.file.size,
         status: 'sent',
         replyTo: replyToData,
+        duration: duration
       });
 
       const savedMessage = await newMessage.save();

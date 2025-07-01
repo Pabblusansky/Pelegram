@@ -52,6 +52,7 @@ export interface Message {
   status?: string;
   senderAvatar?: string | null;
   category?: MessageContentCategory;
+  duration?: number;
 
   edited?: boolean;
   editedAt?: Date;

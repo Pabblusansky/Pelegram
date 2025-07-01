@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, Input, ViewChild, ElementRef, HostListener, OnDestroy, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef, AfterViewInit } from '@angular/core';
+import { Component, EventEmitter, Output, Input, ViewChild, ElementRef, HostListener, OnDestroy, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef, AfterViewInit, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
@@ -23,6 +23,7 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
     content: string;
     file?: File;
     replyTo?: any;
+    duration?: number;
   }>(); 
   @Output() inputChange = new EventEmitter<boolean>(); 
   @Output() editLastMessageRequest = new EventEmitter<void>();
@@ -51,7 +52,18 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
   private recordingStartTime: number = 0;
 
   private micButtonRect: DOMRect | null = null;
+  @ViewChild('waveformCanvas') waveformCanvas?: ElementRef<HTMLCanvasElement>;
+  
+  private audioContext?: AudioContext;
+  private analyser?: AnalyserNode;
+  private mediaStreamSource?: MediaStreamAudioSourceNode;
+  private animationFrameId?: number;
+  private dataArray: Uint8Array = new Uint8Array();
+  private smoothedBars: number[] = new Array(20).fill(0); 
 
+  private bars: number = 20;
+  private barWidth: number = 0;
+  private barSpacing: number = 2;
 
   @HostListener('document:mouseup', ['$event'])
   onGlobalMouseUp(event: MouseEvent): void {
@@ -115,7 +127,8 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
   constructor(
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef,
-    private ToastService: ToastService
+    private ToastService: ToastService,
+    private ngZone: NgZone
   ) {
     this.boundOnPaste = this.onPaste.bind(this);
   }
@@ -146,6 +159,7 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
     if (this.messageTextarea && this.messageTextarea.nativeElement) {
       this.messageTextarea.nativeElement.removeEventListener('paste', this.boundOnPaste);
     }
+    this.cleanupWaveform();
   }
 
   resetAllInputState(): void {
@@ -464,6 +478,7 @@ adjustTextareaHeight(): void {
               this.cdr.detectChanges();
           }, 1000);
           this.cdr.detectChanges();
+          this.initializeWaveform(stream); // Инициализируем эквалайзер
       } catch (err) {
           console.error('Error accessing microphone:', err);
           this.ToastService.showToast('Microphone access denied.', 5000, 'error');
@@ -474,7 +489,8 @@ adjustTextareaHeight(): void {
 
   stopRecording(shouldSend: boolean): void {
     if (!this.isRecording || !this.mediaRecorder) return;
-    
+
+    const recordedDuration = this.recordingTime;
     console.log(`Stopping recording. Should send: ${shouldSend}`);
     
     this.mediaRecorder.onstop = () => {
@@ -486,7 +502,7 @@ adjustTextareaHeight(): void {
             });
 
             if (audioFile.size > 1000) { 
-                this.sendMessageEvent.emit({ content: '', file: audioFile });
+              this.sendMessageEvent.emit({ content: '', file: audioFile, duration: recordedDuration });
             } else {
                 console.warn("Recorded audio is too short, not sending.");
             }
@@ -509,6 +525,7 @@ adjustTextareaHeight(): void {
     this.audioChunks = [];
     this.mediaRecorder = null;
     this.micButtonRect = null;
+    this.cleanupWaveform();
     this.cdr.detectChanges();
   }
 
@@ -519,4 +536,140 @@ adjustTextareaHeight(): void {
     return `${minutes}:${formattedSeconds}`;
   }
 
+  private async initializeWaveform(stream: MediaStream): Promise<void> {
+    try {
+      if (!this.audioContext) {
+        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
+
+      this.analyser = this.audioContext.createAnalyser();
+      this.analyser.fftSize = 64;
+      this.analyser.smoothingTimeConstant = 0.6;
+      
+      const bufferLength = this.analyser.frequencyBinCount; 
+      this.dataArray = new Uint8Array(bufferLength);
+
+      this.mediaStreamSource = this.audioContext.createMediaStreamSource(stream);
+      this.mediaStreamSource.connect(this.analyser);
+
+      setTimeout(() => {
+        this.startWaveformAnimation();
+      }, 100);
+
+    } catch (error) {
+      console.error('Error initializing equalizer:', error);
+    }
+  }
+
+
+  private startWaveformAnimation(): void {
+    if (!this.analyser || !this.waveformCanvas) return;
+
+    const animate = () => {
+      if (!this.isRecording) return;
+
+      this.animationFrameId = requestAnimationFrame(animate);
+      this.drawWaveform();
+    };
+
+    this.ngZone.runOutsideAngular(() => {
+      animate();
+    });
+  }
+
+  private cleanupWaveform(): void {
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = undefined;
+    }
+    
+    if (this.mediaStreamSource) {
+      this.mediaStreamSource.disconnect();
+      this.mediaStreamSource = undefined;
+    }
+    
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      this.audioContext.close();
+      this.audioContext = undefined;
+    }
+    
+    this.analyser = undefined;
+  }
+
+  private drawWaveform(): void {
+    if (!this.analyser || !this.waveformCanvas?.nativeElement) return;
+
+    this.analyser.getByteFrequencyData(this.dataArray);
+
+    const canvas = this.waveformCanvas.nativeElement;
+    const canvasCtx = canvas.getContext('2d');
+    if (!canvasCtx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const bufferLength = this.analyser.frequencyBinCount;
+    const numBars = this.bars; 
+
+    const barSpacing = 2;
+    const barWidth = (width - (numBars - 1) * barSpacing) / numBars;
+    const cornerRadius = 2;
+    const smoothingFactor = 0.1; 
+
+    canvasCtx.clearRect(0, 0, width, height);
+
+    let x = 0;
+
+    for (let i = 0; i < numBars; i++) {
+      const dataIndexStart = Math.floor(i * (bufferLength / numBars));
+      const dataIndexEnd = Math.floor((i + 1) * (bufferLength / numBars));
+      let sum = 0;
+      for (let j = dataIndexStart; j < dataIndexEnd; j++) {
+          sum += this.dataArray[j];
+      }
+      const avg = sum / (dataIndexEnd - dataIndexStart) || 0;
+
+      const targetHeight = (avg / 255.0) * height + 1;
+
+      this.smoothedBars[i] += (targetHeight - this.smoothedBars[i]) * smoothingFactor;
+      const barHeight = this.smoothedBars[i];
+
+      const gradient = canvasCtx.createLinearGradient(x, height, x, height - barHeight);
+      
+      gradient.addColorStop(0, 'rgba(135, 108, 183, 0.2)');
+      gradient.addColorStop(0.7, 'rgba(135, 108, 183, 0.4)');
+      gradient.addColorStop(1, 'rgba(168, 85, 247, 0.5)');
+      
+      canvasCtx.fillStyle = gradient;
+
+      this.drawRoundedRect(canvasCtx, x, height - barHeight, barWidth, barHeight, cornerRadius);
+
+      const highlightHeight = Math.min(barHeight, 5); 
+      if (highlightHeight > 1) {
+          canvasCtx.fillStyle = 'rgba(192, 132, 252, 0.8)';
+          canvasCtx.shadowColor = 'rgba(168, 85, 247, 0.7)';
+          canvasCtx.shadowBlur = 5;
+          this.drawRoundedRect(canvasCtx, x, height - highlightHeight, barWidth, highlightHeight, cornerRadius);
+          canvasCtx.shadowBlur = 0;
+      }
+      
+      x += barWidth + barSpacing;
+    }
+  }
+
+  private drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number): void {
+    if (width < 2 * radius) radius = width / 2;
+    if (height < 2 * radius) radius = height / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.arcTo(x + width, y, x + width, y + height, radius);
+    ctx.arcTo(x + width, y + height, x, y + height, radius);
+    ctx.arcTo(x, y + height, x, y, radius);
+    ctx.arcTo(x, y, x + width, y, radius);
+    ctx.closePath();
+    ctx.fill();
+  }
 }

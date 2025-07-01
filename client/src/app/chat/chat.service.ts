@@ -829,7 +829,8 @@ export class ChatService implements OnDestroy {
     chatId: string, 
     file: File, 
     caption?: string, 
-    replyToContext?: any
+    replyToContext?: any,
+    durationInSeconds?: number
   ): Observable<any> {
 
     const headers = this.getHeaders();
@@ -845,6 +846,9 @@ export class ChatService implements OnDestroy {
 
     if (caption) {
       formData.append('caption', caption);
+    }
+    if (durationInSeconds !== undefined) {
+      formData.append('duration', durationInSeconds.toString());
     }
     if (replyToContext) {
       try {

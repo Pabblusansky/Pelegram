@@ -20,7 +20,8 @@ const messageSchema = new mongoose.Schema({
       enum: ['user_content', 'system_event'],
       default: 'user_content'
     },
-    filePath: { type: String, default: null },        
+    filePath: { type: String, default: null },
+    duration: { type: Number, default: 0 },
     originalFileName: { type: String, default: null },
     fileMimeType: { type: String, default: null },
     fileSize: { type: Number, default: null },

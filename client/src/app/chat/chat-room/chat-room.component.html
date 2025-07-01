@@ -340,14 +340,14 @@
 
               <!-- AUDIO -->
               <div *ngSwitchCase="'audio'" class="media-content audio-attachment">
-                <audio 
+                <app-audio-player 
                   *ngIf="item.filePath"
-                  controls 
                   [src]="chatService.getApiUrl() + item.filePath"
-                  (canplaythrough)="onMediaLoad(item, $event)" 
                   (error)="onMediaError(item, $event)"
-                  preload="metadata"
-                ></audio>
+                  [preloadedDuration]="item.duration"
+                  (loadSuccess)="onMediaLoad(item, $event)" 
+                  (loadError)="onMediaError(item, $event)"
+                ></app-audio-player>
                 <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
                   <span>Failed to load audio</span>
                 </div>

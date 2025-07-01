@@ -22,6 +22,8 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
 import { AfterViewInit } from '@angular/core';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { ObserveContentSizeDirective } from '../observe-content-size.directive';
+import { AudioPlayerComponent } from "../../shared/components/audio-player/audio-player.component";
+
 @Component({
   selector: 'app-chat-room',
   templateUrl: './chat-room.component.html',
@@ -38,6 +40,7 @@ import { ObserveContentSizeDirective } from '../observe-content-size.directive';
     GroupReactionsPipe,
     SharedMediaGalleryComponent,
     ScrollingModule,
+    AudioPlayerComponent
 ],
   animations: [
     trigger('menuAnimation', [
@@ -1754,7 +1757,7 @@ scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): voi
     this.replyingToMessage = null; 
   }
 
-  onMessageSend(eventData: { content: string; file?: File; caption?: string; replyTo?: Message }): void {
+  onMessageSend(eventData: { content: string; file?: File; caption?: string; replyTo?: Message; duration?: number; }): void {
     if (!this.chatId) {
       console.error('ChatRoom: onMessageSend - ERROR: chatId is missing. Cannot send message.');
       this.showToast('Error: Chat context is not available.'); 
@@ -1784,7 +1787,7 @@ scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): voi
     }
 
     if (fileToSend) {
-      this.chatService.uploadMediaFile(this.chatId, fileToSend, textOrCaption, replyToPayload)
+      this.chatService.uploadMediaFile(this.chatId, fileToSend, textOrCaption, replyToPayload, eventData.duration)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (response) => {
