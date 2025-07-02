@@ -88,7 +88,15 @@
         <span *ngIf="!chat.isSelfChat && !chat.lastMessage.forwarded && !isMyLastMessage(chat) && chat.lastMessage.senderName" class="message-prefix-list">
           {{ chat.lastMessage.senderName }}:
         </span>
-        {{ chat.lastMessage.content | slice:0:30 }}{{ chat.lastMessage.content?.length > 30 ? '...' : '' }}
+        <ng-container [ngSwitch]="chat.lastMessage.messageType">
+          <span *ngSwitchCase="'audio'">🎵 Audio message</span>
+          <span *ngSwitchCase="'image'">📷 Photo</span>
+          <span *ngSwitchCase="'video'">🎥 Video</span>
+          <span *ngSwitchCase="'file'">📎 {{ chat.lastMessage.originalFileName || 'File' }}</span>
+          <span *ngSwitchDefault>
+            {{ chat.lastMessage.content | slice:0:30 }}{{ chat.lastMessage.content?.length > 30 ? '...' : '' }}
+          </span>
+        </ng-container>
       </div>
       <div class="chat-last-message no-message" *ngIf="!chat.lastMessage">
         No messages yet

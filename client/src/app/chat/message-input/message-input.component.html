@@ -7,8 +7,8 @@
 >
   <div class="message-input-wrapper">
     <div class="file-preview-container" *ngIf="selectedFile">
-      <div class="preview-thumbnail-container">
-        <img *ngIf="filePreviewUrl && selectedFile.type.startsWith('image/')" [src]="filePreviewUrl" alt="Image preview" class="image-preview">
+      <div class="preview-thumbnail-wrapper">
+        <img *ngIf="filePreviewUrl && selectedFile.type.startsWith('image/')" [src]="filePreviewUrl" alt="Image preview" class="image-preview-thumb">
         <div *ngIf="!filePreviewUrl && selectedFile?.type?.startsWith('image/') && isPreviewLoading" class="preview-loader-thumb">
           <div class="spinner-small"></div>
         </div>

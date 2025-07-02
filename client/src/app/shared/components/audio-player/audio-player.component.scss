@@ -12,7 +12,8 @@
   color: var(--chat-my-message-text-color, white);
   height: 48px;
   width: 100%;
-  max-width: 400px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .play-pause-btn, .volume-btn {
