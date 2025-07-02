@@ -1,6 +1,6 @@
 [![Angular Version][angular-shield]][angular-url][![Node.js Version][nodejs-shield]][nodejs-url][![Socket.IO Shield][socketio-shield]][socketio-url][![License: MIT][license-shield]][license-url][![TypeScript][typescript-shield]][typescript-url]
 
-![Pelegram](README files/README.png)
+![Pelegram](README.png)
 # Pelegram: Reimagining real-time chat. Built with Angular.
 
 Welcome to the Pelegram Messenger project! This is a feature-rich, real-time web chat application inspired by Telegram, built from the ground up with Angular for the frontend and a robust backend (NodeJS/Express with MongoDB). It's been challenging journey bringing this to life, and I'm excited to share it.
@@ -32,7 +32,7 @@ Pelegram aims to provide a seamless and engaging chat experience. Here's what's 
 🔍 User & Chat Search: Easily find users to start new conversations.
 
 And more to come!
-![Main GIF](README files/Main.gif)
+![Main GIF](Main.gif)
 
 # Tech Stack
 
