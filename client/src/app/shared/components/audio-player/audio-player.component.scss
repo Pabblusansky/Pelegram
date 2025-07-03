@@ -5,14 +5,13 @@
 .audio-player-container {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
-  background-color: var(--chat-my-message-bg, #3a71b2); 
-  border-radius: var(--border-radius-large, 12px);
-  gap: 12px;
-  color: var(--chat-my-message-text-color, white);
-  height: 48px;
+  padding: 4px 12px 4px 8px;
+  background-color: var(--audio-player-bg, #3a71b2);
+  border-radius: 24px;
+  gap: 10px;
+  color: var(--audio-player-text-color, white);
+  height: 40px;
   width: 100%;
-  max-width: 100%;
   box-sizing: border-box;
 }
 
@@ -20,7 +19,7 @@
   flex-shrink: 0;
   width: 32px;
   height: 32px;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.15);
   border: none;
   border-radius: 50%;
   color: white;
@@ -28,10 +27,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.1s ease;
 
   &:hover {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+  
+  &:active {
+    transform: scale(0.9);
   }
 
   svg {
@@ -44,17 +47,22 @@
   flex-grow: 1;
   height: 100%;
   position: relative;
-  cursor: default;
   display: flex;
   align-items: center;
   min-width: 0;
 
   &.ready {
     cursor: pointer;
+
+    &:hover .waveform-canvas {
+      filter: brightness(1.2);
+    }
   }
+
   .waveform-canvas {
     width: 100%;
     height: 100%;
+    transition: filter 0.2s ease;
   }
 }
 
@@ -63,42 +71,102 @@
   font-family: monospace;
   white-space: nowrap;
   flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .volume-control {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
   flex-shrink: 0;
 
   .volume-slider {
-    width: 80px;
-    cursor: pointer;
-    -webkit-appearance: none;
-    appearance: none;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
-    outline: none;
-    opacity: 0.9;
-    transition: opacity .2s;
+    position: absolute;
+    bottom: calc(100% + 12px);
+    right: 0;
+    transform: none; 
+    
+    padding: 12px 6px;
+    background-color: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px) scale(0.9);
+    transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    z-index: 1000;
 
-    &:hover {
-      opacity: 1;
-    }
-
-    &::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 14px;
-      height: 14px;
-      background: white;
-      border-radius: 50%;
+    input[type="range"] {
+      writing-mode: bt-lr;
+      -webkit-appearance: slider-vertical;
+      appearance: slider-vertical;
+      width: 4px;
+      height: 80px;
+      background: linear-gradient(to top, #42a5f5 0%, rgba(255,255,255,0.4) 100%);
+      border-radius: 2px;
+      outline: none;
       cursor: pointer;
+      margin: 0;
+      padding: 0;
+
+      &::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        background: #ffffff;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        transition: all 0.1s ease;
+        
+        &:hover {
+          transform: scale(1.15);
+          box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+        }
+      }
+
+      &::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        background: #ffffff;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      }
+
+      &::-moz-range-track {
+        width: 4px;
+        height: 80px;
+        background: linear-gradient(to top, #42a5f5 0%, rgba(255,255,255,0.4) 100%);
+        border-radius: 2px;
+        border: none;
+      }
     }
   }
-}
 
+  &:hover .volume-slider {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+  }
+
+  &:hover .volume-slider::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 18px;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid rgba(0, 0, 0, 0.85);
+  }
+}
 
 .play-pause-wrapper {
   width: 32px;
@@ -107,7 +175,6 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-
 }
 
 @keyframes spin {

@@ -73,11 +73,14 @@ export class AudioPlayerComponent implements OnChanges, AfterViewInit, OnDestroy
   }
 
   onSeek(event: MouseEvent): void {
+    if (this.isLoading || !this.duration) return;
+
     const canvas = this.waveformCanvasRef.nativeElement;
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const percentage = x / rect.width;
-    this.audioElement.currentTime = this.audioElement.duration * percentage;
+    
+    this.audioElement.currentTime = this.duration * percentage;
   }
 
   onVolumeChange(event: Event): void {
