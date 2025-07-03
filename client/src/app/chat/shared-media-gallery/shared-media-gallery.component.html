@@ -14,6 +14,11 @@
       Videos
     </button>
     <button 
+      (click)="setFilter('audio')" 
+      [class.active]="currentFilter === 'audio'">
+      Audio
+    </button>
+    <button 
       (click)="setFilter('documents')" 
       [class.active]="currentFilter === 'documents'">
       Documents

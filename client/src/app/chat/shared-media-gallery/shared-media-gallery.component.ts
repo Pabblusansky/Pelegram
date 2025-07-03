@@ -20,7 +20,7 @@ export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
   isLoading: boolean = false;
   error: string | null = null;
 
-  currentFilter: 'images' | 'videos' | 'documents' = 'images';
+  currentFilter: 'images' | 'videos' | 'documents' | 'audio' = 'images';
   currentPage: number = 1;
   totalPages: number = 1;
   hasMoreToLoad: boolean = true;
@@ -73,7 +73,7 @@ export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
       });
   }
 
-  setFilter(filter: 'images' | 'videos' | 'documents'): void {
+  setFilter(filter: 'images' | 'videos' | 'documents' | 'audio'): void {
     if (this.currentFilter === filter) return;
 
     this.currentFilter = filter;

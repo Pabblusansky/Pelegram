@@ -1046,7 +1046,7 @@ export class ChatService implements OnDestroy {
   }
   getChatMedia(
     chatId: string,
-    type: 'images' | 'videos' | 'documents' = 'images',
+    type: 'images' | 'videos' | 'documents' | 'audio' = 'images',
     page: number = 1,
     limit: number = 30
   ): Observable<MediaGalleryResponse> {

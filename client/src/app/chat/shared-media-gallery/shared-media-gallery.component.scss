@@ -94,7 +94,6 @@
     text-align: center;
     padding: 8px;
     font-size: 12px;
-    word-break: break-all;
     background-color: var(--hover-background);
 
     svg {
@@ -113,6 +112,10 @@
       -webkit-line-clamp: 2;
       line-clamp: 2;
       -webkit-box-orient: vertical;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      line-height: 1.3;
+      text-align: center;
     }
   }
 }
