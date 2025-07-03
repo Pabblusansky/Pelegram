@@ -187,7 +187,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnInit(): void {
     this.componentIsCurrentlyFocused = document.hasFocus();
     this.loadMoreDebounce.pipe(
-      debounceTime(500),
+      debounceTime(100),
       takeUntil(this.destroy$)
     ).subscribe(() => {
       this.executeLoadMoreMessages();
@@ -386,7 +386,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (offsetTop < 300 && !this.isLoadingMore && !this.noMoreMessages) {
         const now = Date.now();
-        if (now - this.lastLoadTimestamp > 1000) {
+        if (now - this.lastLoadTimestamp > 250) {
             this.loadMoreDebounce.next();
         }
     }
@@ -1692,7 +1692,13 @@ scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): voi
         error: (error) => {
             this.isLoadingMore = false;
             console.error('Failed to load older messages:', error);
+        },
+        complete: () => {
+        // Ensure isLoadingMore is reset even if no messages were loaded (this would trigger in very rare cases I think)
+        if (this.isLoadingMore) {
+           this.isLoadingMore = false;
         }
+      }
     });
   }
 
