@@ -24,7 +24,7 @@ export class AudioPlayerComponent implements OnChanges, AfterViewInit, OnDestroy
 
   // Flags
   isLoading: boolean = true;
-  private waveformDrawn: boolean = false; 
+  private volumeBeforeMute: number = 1;
 
   // Audio context and buffer
   private audioContext: AudioContext | null = null;
@@ -87,10 +87,23 @@ export class AudioPlayerComponent implements OnChanges, AfterViewInit, OnDestroy
     const value = parseFloat((event.target as HTMLInputElement).value);
     this.volume = value;
     this.audioElement.volume = value;
+    if (this.volume > 0) {
+      this.audioElement.muted = false;
+    }
   }
 
   toggleMute(): void {
-    this.audioElement.muted = !this.audioElement.muted;
+    if (this.audioElement.muted || this.volume === 0) {
+      const newVolume = this.volumeBeforeMute > 0 ? this.volumeBeforeMute : 1;
+      this.volume = newVolume;
+      this.audioElement.volume = this.volume;
+      this.audioElement.muted = false;
+    } else {
+      this.volumeBeforeMute = this.volume;
+      this.volume = 0;
+      this.audioElement.volume = 0;
+    }
+    this.cdr.detectChanges(); 
   }
 
 
@@ -221,7 +234,6 @@ export class AudioPlayerComponent implements OnChanges, AfterViewInit, OnDestroy
     this.isPlaying = false;
     this.duration = this.preloadedDuration || 0;
     this.currentTime = 0;
-    this.waveformDrawn = false;
     this.cdr.detectChanges();
     this.loadAndDrawWaveform();
   }
