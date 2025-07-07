@@ -509,7 +509,7 @@ export class ForwardDialogComponent implements OnInit {
     }
     
     if (otherParticipant.avatar.startsWith('/uploads')) {
-      return `http://localhost:3000${otherParticipant.avatar}`;
+      return `${this.chatService.getApiUrl()}${otherParticipant.avatar}`;
     }
     
     return otherParticipant.avatar;

@@ -542,7 +542,9 @@ loadRegularChats(): void {
     if (query.trim()) {
       this.loadingUserSearch = true;
       this.searchResults = [];
-      this.http.get<User[]>(`http://localhost:3000/chats/search?query=${query}`, {
+      const baseUrl = this.chatService.getApiUrl(); 
+      const searchUrl = `${baseUrl}/chats/search?query=${query}`;
+      this.http.get<User[]>(searchUrl, {
         headers: { 'Authorization': `Bearer ${token}` }
       }).subscribe({
         next: users => {

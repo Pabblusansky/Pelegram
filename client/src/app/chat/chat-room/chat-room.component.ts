@@ -1261,19 +1261,17 @@ scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): voi
     }
   }
 
-  getUserAvatar(userId: string): string {
-    const user = this.users.find(u => u._id === userId);
-    
-    if (!user || !user.avatar) {
-      return 'assets/images/default-avatar.png';
-    }
-  
-    if (user.avatar.startsWith('/uploads')) {
-      return `http://localhost:3000${user.avatar}`;
-    }
-  
-    return user.avatar;
+getUserAvatar(userId: string): string {
+  const user = this.users.find(u => u._id === userId);
+  if (!user || !user.avatar) {
+    return 'assets/images/default-avatar.png';
   }
+
+  if (user.avatar.startsWith('/')) {
+    return `${this.chatService.getApiUrl()}${user.avatar}`;
+  }
+  return user.avatar;
+}
   
   forwardMessage(message: any): void {
     if (!message) return;

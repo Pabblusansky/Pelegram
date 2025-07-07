@@ -74,7 +74,7 @@ export class CreateGroupChatComponent implements OnInit {
       tap(() => this.isLoadingUsers = true),
       switchMap(query => {
         const startTime = Date.now();
-        return this.http.get<User[]>(`http://localhost:3000/chats/search?query=${query}`, {
+        return this.http.get<User[]>(`${this.chatService.getApiUrl()}/chats/search?query=${query}`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         }).pipe(
           switchMap(users => {

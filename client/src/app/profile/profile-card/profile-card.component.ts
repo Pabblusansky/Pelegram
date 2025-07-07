@@ -5,6 +5,7 @@ import { RouterModule } from '@angular/router';
 import { ProfileService } from '../profile.service';
 import { Subject } from 'rxjs';
 import { takeUntil, distinctUntilChanged } from 'rxjs/operators';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-profile-card',
@@ -22,6 +23,7 @@ export class ProfileCardComponent implements OnInit, OnChanges, OnDestroy {
   private destroy$ = new Subject<void>();
 
   private readonly defaultAvatarPath = 'assets/images/default-avatar.png';
+  private apiUrl = environment.apiUrl;
 
   constructor(
     private profileService: ProfileService,
@@ -84,7 +86,7 @@ export class ProfileCardComponent implements OnInit, OnChanges, OnDestroy {
         return avatarPath;
       }
       if (avatarPath.startsWith('/uploads')) {
-        return `http://localhost:3000${avatarPath}`;
+        return `${this.apiUrl}${avatarPath}`;
       }
       return avatarPath;
     }

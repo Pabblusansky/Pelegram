@@ -1,3 +1,5 @@
+import { environment } from '../../environments/environment';
+
 export function getFullAvatarUrl(avatarPath: string | null | undefined): string {
     if (!avatarPath) {
       return 'assets/images/default-avatar.png';
@@ -8,7 +10,7 @@ export function getFullAvatarUrl(avatarPath: string | null | undefined): string 
     }
     
    if (avatarPath.startsWith('/uploads')) {
-      return `http://localhost:3000${avatarPath}`;
+      return `${environment.apiUrl}${avatarPath}`;
     }
     
     if (avatarPath.startsWith('http')) {

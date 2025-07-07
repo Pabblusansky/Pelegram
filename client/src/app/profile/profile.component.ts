@@ -8,6 +8,7 @@ import { ThemeService } from '../services/theme.service';
 import { NotificationService } from '../services/notifications.service';
 import { SoundService } from '../services/sound.service';
 import { AuthService } from '../auth/auth.service';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-profile',
@@ -26,6 +27,8 @@ export class ProfileComponent implements OnInit {
   @Output() profileClick = new EventEmitter<void>();
   uploadProgress = 0;
   
+  private apiUrl = environment.apiUrl;
+  
   get displayName(): string {
     if (!this.profile) return 'User';
     return this.profile.displayName || this.profile.username;
@@ -35,10 +38,11 @@ export class ProfileComponent implements OnInit {
   if (!this.profile || !this.profile.avatar) {
     return 'assets/images/default-avatar.png';
   }
-
+  
   if (this.profile.avatar.startsWith('/uploads')) {
-    return `http://localhost:3000${this.profile.avatar}`;
+    return `${this.apiUrl}${this.profile.avatar}`;
   }
+
 
   return this.profile.avatar;
   }

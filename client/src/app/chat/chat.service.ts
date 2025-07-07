@@ -715,7 +715,6 @@ export class ChatService implements OnDestroy {
       this.router.navigate(['/login']);
       return throwError(() => new Error('Not authorized for deleteChat'));
     }
-    // URL will be: http://localhost:3000/chats/:chatId
     return this.http.delete(`${this.apiUrl}/chats/${chatId}`, { headers });
   }
 

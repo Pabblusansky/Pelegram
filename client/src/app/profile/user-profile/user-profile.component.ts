@@ -6,6 +6,7 @@ import { UserProfile } from '../profile.model';
 import { ChatService } from '../../chat/chat.service';
 import { Observable } from 'rxjs';
 import { Location } from '@angular/common';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-user-profile',
@@ -21,7 +22,7 @@ export class UserProfileComponent implements OnInit {
   error: string | null = null;
   userStatus$: Observable<string> | null = null;
   isOnline$: Observable<boolean> | null = null;
-  
+  private apiUrl = environment.apiUrl
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -47,7 +48,7 @@ export class UserProfileComponent implements OnInit {
     }
 
     if (this.profile.avatar.startsWith('/uploads')) {
-      return `http://localhost:3000${this.profile.avatar}`;
+      return `${this.apiUrl}${this.profile.avatar}`;
     }
 
     return this.profile.avatar;
