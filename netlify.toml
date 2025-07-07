@@ -1,7 +1,7 @@
 [build]
   command = "ng build"
   
-  publish = "/dist/pelegram/"
+  publish = "dist/pelegram/browser/"
 
   base = "client/"
 
