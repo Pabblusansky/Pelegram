@@ -15,7 +15,6 @@ dotenv.config();
 const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/Pelegram';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:4200';
-
 import { authRoutes } from './routes/auth.js';
 import chatRoutes from './routes/chatRoutes.js';
 import Message from './models/Message.js';
@@ -25,24 +24,46 @@ import messageRoutes from './routes/messages.js';
 import authenticateToken from './middleware/authenticateToken.js';
 import { differenceInMinutes } from 'date-fns';
 import { profileRoutes } from './routes/profileRoutes.js';
-import fileRoutes from './routes/files.js';
+import  fileRoutes from './routes/files.js';
 
 const app = express();
+
 const httpServer = createServer(app);
 
-const corsOptions = {
+const io = new Server(httpServer, {
+  cors: {
+    origin: CORS_ORIGIN,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders:['Content-Type', 'Authorization'],
+  },
+});
+
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', CORS_ORIGIN);
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+app.use(cors({
   origin: CORS_ORIGIN,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
-};
+}));
 
-app.use(cors(corsOptions));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+mongoose.connection.on('error', err => {
+  console.error('MongoDB connection error:', err);
+  process.exit(1);
+});
 
-const io = new Server(httpServer, {
-  cors: corsOptions
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 const onlineUserStatuses = new Map();
@@ -128,120 +149,13 @@ async function loadInitialUserStatuses() {
   }
 }
 
-mongoose.connection.on('error', err => {
-  console.error('MongoDB connection error:', err);
-  process.exit(1);
-});
+setInterval(cleanupInactiveUsers, 60 * 1000);
+loadInitialUserStatuses();
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
+mongoose.connect(MONGO_URI, {
 
-mongoose.connect(MONGO_URI, {})
-  .then(() => console.log('MongoDB connected successfully.'))
-  .catch(err => {
-    console.error('FATAL: MongoDB connection error:', err);
-    process.exit(1);
-  });
-
-app.use('/api/auth', authRoutes);
-
-app.get('/users', async (_req, res) => {
-  try {
-    const users = await User.find();
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err });
-  }
-});
-
-app.use(authenticateToken);
-
-app.use('/chats', chatRoutes(io));
-app.use('/messages', messageRoutes(io));
-app.use('/api/files', fileRoutes(io));
-app.use('/api/profile', profileRoutes);
-
-app.get('/api/users/status', async (req, res) => {
-  try {
-    const users = await User.find(
-      { lastActive: { $ne: null } },
-      '_id lastActive'
-    );
-    
-    const statusesObject = {};
-    
-    users.forEach(user => {
-      const userId = user._id.toString(); 
-      
-      let lastActiveStr;
-      try {
-        if (user.lastActive instanceof Date && !isNaN(user.lastActive.getTime())) {
-          lastActiveStr = user.lastActive.toISOString();
-        } else {
-          lastActiveStr = new Date().toISOString();
-          console.warn(`Replaced invalid lastActive for user ${userId}`);
-        }
-      } catch (e) {
-        lastActiveStr = new Date().toISOString();
-        console.error(`Error with lastActive for user ${userId}:`, e);
-      }
-      
-      statusesObject[userId] = {
-        lastActive: lastActiveStr,
-        online: onlineUsers.has(userId)
-      };
-    });
-    
-    for (const userId of onlineUsers) {
-      const lastActive = userLastActive.get(userId);
-      if (lastActive) {
-        try {
-          const testDate = new Date(lastActive);
-          if (!isNaN(testDate.getTime())) {
-            statusesObject[userId] = {
-              lastActive: lastActive,
-              online: true
-            };
-          } else {
-            statusesObject[userId] = {
-              lastActive: new Date().toISOString(),
-              online: true
-            };
-          }
-        } catch (e) {
-          statusesObject[userId] = {
-            lastActive: new Date().toISOString(),
-            online: true
-          };
-        }
-      }
-    }
-    
-    res.json(statusesObject);
-  } catch (err) {
-    console.error('Error getting user statuses:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.use('/uploads', (req, res, next) => {
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-}, express.static(path.join(__dirname, 'uploads')));
-
-app.use('/media', (req, res, next) => {
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
-  next();
-}, express.static(path.join(__dirname, 'uploads/media')));
+}).then(() => console.log('MongoDB connected successfully.'))
+  .catch(err => console.error('FATAL: MongoDB connection error:', err));
 
 io.on('connection', (socket) => {
   console.log('Connection attempt registered');
@@ -250,7 +164,6 @@ io.on('connection', (socket) => {
     console.log('No token provided during socket connection');
     return socket.disconnect(true);
   }
-  
   try {
     const decoded = jwt.verify(token, SECRET_KEY);
     socket.user = decoded;
@@ -297,11 +210,9 @@ io.on('connection', (socket) => {
       }
     }
   });
-
   socket.on('send_message', async (data, callback) => {
-    const { chatId, content, replyTo, fileInfo, messageType = 'text' } = data;
+    const { chatId, content, replyTo, fileInfo, messageType= 'text' } = data;
     const senderId = socket.user.id;
-    
     try {
       const sender = await User.findById(senderId).select('username avatar').lean(); 
       if (!sender) {
@@ -375,7 +286,6 @@ io.on('connection', (socket) => {
           ? `${process.env.BASE_URL || 'http://localhost:3000'}${sender.avatar}` 
           : null
       };
-      
       if (messageForClient.replyTo && messageForClient.replyTo.senderId) {
         const originalSenderForReply = await User.findById(messageForClient.replyTo.senderId).select('avatar').lean();
         messageForClient.replyTo.senderAvatar = originalSenderForReply?.avatar
@@ -386,14 +296,15 @@ io.on('connection', (socket) => {
       io.to(chatId).emit('receive_message', messageForClient);
       console.log('Emitted receive_message with senderAvatar:', messageForClient.senderAvatar, 'and replyTo:', messageForClient.replyTo);
 
-      const updatedChat = await Chat.findById(chatId)
+      const updatedChat = await Chat.findById(
+        chatId, 
+      )
         .populate('participants', '_id username avatar')
         .populate({
           path: 'lastMessage',
           populate: { path: 'senderId', select: '_id username avatar' }
         })
         .lean();
-        
       if (updatedChat) {
         if (updatedChat.lastMessage && updatedChat.lastMessage.senderId && typeof updatedChat.lastMessage.senderId === 'object') {
           const lmSender = updatedChat.lastMessage.senderId;
@@ -414,11 +325,9 @@ io.on('connection', (socket) => {
           }
         });
       }
-      
       if (typeof callback === 'function') {
         callback({ success: true, message: messageForClient })
-      }
-      
+      };
       setTimeout(async () => {
         const msgToUpdate = await Message.findById(message._id);
         if (msgToUpdate) {
@@ -434,16 +343,14 @@ io.on('connection', (socket) => {
         }
     }
   });
-
   socket.on('typing', (data) => {
     const { chatId, isTyping } = data;
     const senderId = socket.user.id;
     socket.to(chatId).emit('typing', { 
       chatId, 
       senderId,
-      isTyping 
-    });
-  });
+      isTyping });
+  })
 
   socket.on('edit_message', async (data) => {
     try {
@@ -539,8 +446,103 @@ io.on('connection', (socket) => {
   });
 });
 
-setInterval(cleanupInactiveUsers, 60 * 1000);
-loadInitialUserStatuses();
+app.get('/users', async (_req, res) => {
+  try {
+    const users = await User.find();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err });
+  }
+});
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use('/api/auth', authRoutes);
+
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+}, express.static(path.join(__dirname, 'uploads')));
+
+app.use('/media', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
+  next();
+}, express.static(path.join(__dirname, 'uploads/media')));
+app.use(authenticateToken);
+app.use('/chats', chatRoutes(io));
+app.use('/messages', messageRoutes(io));
+app.use('/api/files', fileRoutes(io));
+app.use('/api/profile', profileRoutes);
+
+app.get('/api/users/status', authenticateToken, async (req, res) => {
+  try {
+    const users = await User.find(
+      { lastActive: { $ne: null } },
+      '_id lastActive'
+    );
+    
+    const statusesObject = {};
+    
+    users.forEach(user => {
+      const userId = user._id.toString(); 
+      
+      let lastActiveStr;
+      try {
+        if (user.lastActive instanceof Date && !isNaN(user.lastActive.getTime())) {
+          lastActiveStr = user.lastActive.toISOString();
+        } else {
+          lastActiveStr = new Date().toISOString();
+          console.warn(`Replaced invalid lastActive for user ${userId}`);
+        }
+      } catch (e) {
+        lastActiveStr = new Date().toISOString();
+        console.error(`Error with lastActive for user ${userId}:`, e);
+      }
+      
+      statusesObject[userId] = {
+        lastActive: lastActiveStr,
+        online: onlineUsers.has(userId)
+      };
+    });
+    
+    for (const userId of onlineUsers) {
+      const lastActive = userLastActive.get(userId);
+      if (lastActive) {
+        try {
+          const testDate = new Date(lastActive);
+          if (!isNaN(testDate.getTime())) {
+            statusesObject[userId] = {
+              lastActive: lastActive,
+              online: true
+            };
+          } else {
+            statusesObject[userId] = {
+              lastActive: new Date().toISOString(),
+              online: true
+            };
+          }
+        } catch (e) {
+          statusesObject[userId] = {
+            lastActive: new Date().toISOString(),
+            online: true
+          };
+        }
+      }
+    }
+    
+    res.json(statusesObject);
+  } catch (err) {
+    console.error('Error getting user statuses:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
