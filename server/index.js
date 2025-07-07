@@ -13,6 +13,8 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/Pelegram';
+const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:4200';
 import { authRoutes } from './routes/auth.js';
 import chatRoutes from './routes/chatRoutes.js';
 import Message from './models/Message.js';
@@ -30,14 +32,14 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:4200',
+    origin: CORS_ORIGIN,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders:['Content-Type', 'Authorization'],
   },
 });
 
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:4200');
+  res.header('Access-Control-Allow-Origin', CORS_ORIGIN);
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');
@@ -49,7 +51,7 @@ app.use((req, res, next) => {
 });
 
 app.use(cors({
-  origin: 'http://localhost:4200',
+  origin: CORS_ORIGIN,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -150,10 +152,10 @@ async function loadInitialUserStatuses() {
 setInterval(cleanupInactiveUsers, 60 * 1000);
 loadInitialUserStatuses();
 
-mongoose.connect('mongodb://localhost:27017/Pelegram', {
+mongoose.connect(MONGO_URI, {
 
-}).then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
+}).then(() => console.log('MongoDB connected successfully.'))
+  .catch(err => console.error('FATAL: MongoDB connection error:', err));
 
 io.on('connection', (socket) => {
   console.log('Connection attempt registered');
@@ -459,7 +461,7 @@ app.use('/api/auth', authRoutes);
 
 app.use('/uploads', (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:4200');
+  res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
@@ -471,7 +473,7 @@ app.use('/uploads', (req, res, next) => {
 
 app.use('/media', (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:4200');
+  res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
   next();
 }, express.static(path.join(__dirname, 'uploads/media')));
 app.use(authenticateToken);
