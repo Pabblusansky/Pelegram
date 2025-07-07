@@ -4,13 +4,13 @@ import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, tap, map, finalize, filter } from 'rxjs/operators';
 import { UserProfile, ProfileUpdateDto } from './profile.model';
 import { ThemeService } from '../services/theme.service';
-
+import { environment } from '../../environments/environment';
 @Injectable({
   providedIn: 'root'
 })
 
 export class ProfileService {
-  private apiUrl = 'http://localhost:3000/api/profile';
+  private apiUrl = `${environment.apiUrl}/api/profile`;
   private currentProfileSubject = new BehaviorSubject<UserProfile | null>(null);
   
   public currentProfile$ = this.currentProfileSubject.asObservable();
