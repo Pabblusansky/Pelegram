@@ -8,7 +8,7 @@ import { BehaviorSubject, interval } from 'rxjs';
 import { first, shareReplay, takeUntil } from 'rxjs/operators';
 import { SoundService } from '../services/sound.service'; 
 import { NotificationService } from '../services/notifications.service';
-
+import { environment } from '../../environments/environment';
 interface MessageDeletedEvent {
   messageId: string;
   chatId: string;
@@ -36,14 +36,13 @@ interface NewChatCreatedData {
   updatedAt?: string;
   lastMessage?: any;
 }
-declare const process: any;
 @Injectable({
   providedIn: 'root',
 })
 
 export class ChatService implements OnDestroy {
   private currentActiveChatId: string | null = null;
-  private apiUrl = process.env['NG_APP_API_URL'] || 'http://localhost:3000';
+  private apiUrl = environment.apiUrl;
   private socket: Socket | undefined;
   private destroySocket$ = new Subject<void>(); 
   private newMessageSubject = new Subject<Message>();
