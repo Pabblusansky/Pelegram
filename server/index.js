@@ -86,7 +86,7 @@ function updateUserStatus(userId, isOnline = true) {
     onlineUsers.delete(userId);
   }
   
-  broadcastUserStatus();
+  broadcastUserStatuses();
 }
 
 function cleanupInactiveUsers() {
