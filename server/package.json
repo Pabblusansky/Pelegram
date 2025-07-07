@@ -13,7 +13,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
@@ -23,7 +22,6 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.1",
     "multer": "^2.0.1",
-    "pelegram-monorepo": "file:..",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
