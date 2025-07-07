@@ -471,6 +471,12 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, express.static(path.join(__dirname, 'uploads')));
 
+app.use('/uploads/avatars', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
+  next();
+}, express.static(path.join(__dirname, 'uploads/avatars')));
+
 app.use('/media', (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
