@@ -1,4 +1,4 @@
-import { inject, Injectable, OnDestroy } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { io, Socket } from 'socket.io-client';
 import { Router } from '@angular/router';
@@ -36,13 +36,14 @@ interface NewChatCreatedData {
   updatedAt?: string;
   lastMessage?: any;
 }
+declare const process: any;
 @Injectable({
   providedIn: 'root',
 })
 
 export class ChatService implements OnDestroy {
   private currentActiveChatId: string | null = null;
-  public apiUrl = 'http://localhost:3000';
+  private apiUrl = process.env['NG_APP_API_URL'] || 'http://localhost:3000';
   private socket: Socket | undefined;
   private destroySocket$ = new Subject<void>(); 
   private newMessageSubject = new Subject<Message>();
