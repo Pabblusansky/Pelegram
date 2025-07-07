@@ -422,6 +422,32 @@ export default (io) => {
         isAdmin = chat.admin.some(adminId => adminId.toString() === userId);
         if (isAdmin) {
           if (chat.participants.length === 0) {
+            const messagesWithFiles = await Message.find({ 
+              chatId: chat._id, 
+              filePath: { $exists: true, $ne: null, $ne: '' } 
+            }).select('filePath').lean();
+
+            const UPLOAD_BASE_DIR = path.resolve(__dirname, '../uploads');
+            for (const message of messagesWithFiles) {
+              if (message.filePath) {
+                let diskPath = '';
+                if (message.filePath.startsWith('/media/')) {
+                  diskPath = path.join(UPLOAD_BASE_DIR, message.filePath.substring(1));
+                } else if (message.filePath.startsWith('/uploads/')) {
+                  diskPath = path.join(__dirname, '..', message.filePath.replace('/uploads/', 'uploads/'));
+                }
+
+                try {
+                  if (fs.existsSync(diskPath)) {
+                    fs.unlinkSync(diskPath);
+                    console.log(`Deleted file on group dissolution: ${diskPath}`);
+                  }
+                } catch (err) {
+                  console.error(`Failed to delete file on group dissolution ${diskPath}:`, err);
+                }
+              }
+            }
+
             await Message.deleteMany({ chatId: chat._id });
             await Chat.findByIdAndDelete(chatId);
             console.log(`Last participant (admin ${userId}) left group ${chatId}. Group and messages deleted.`);
@@ -438,6 +464,32 @@ export default (io) => {
         }
       } else if (chat.admin && chat.admin.toString() === userId) {
         if (chat.participants.length === 0) {
+          const messagesWithFiles = await Message.find({ 
+            chatId: chat._id, 
+            filePath: { $exists: true, $ne: null, $ne: '' } 
+          }).select('filePath').lean();
+
+          const UPLOAD_BASE_DIR = path.resolve(__dirname, '../uploads');
+          for (const message of messagesWithFiles) {
+            if (message.filePath) {
+              let diskPath = '';
+              if (message.filePath.startsWith('/media/')) {
+                diskPath = path.join(UPLOAD_BASE_DIR, message.filePath.substring(1));
+              } else if (message.filePath.startsWith('/uploads/')) {
+                diskPath = path.join(__dirname, '..', message.filePath.replace('/uploads/', 'uploads/'));
+              }
+
+              try {
+                if (fs.existsSync(diskPath)) {
+                  fs.unlinkSync(diskPath);
+                  console.log(`Deleted file on group dissolution: ${diskPath}`);
+                }
+              } catch (err) {
+                console.error(`Failed to delete file on group dissolution ${diskPath}:`, err);
+              }
+            }
+          }
+
           await Message.deleteMany({ chatId: chat._id });
           await Chat.findByIdAndDelete(chatId);
           console.log(`Last participant (admin ${userId}) left group ${chatId}. Group and messages deleted.`);
@@ -773,6 +825,39 @@ export default (io) => {
       }
       
       const participantIds = chat.participants.map(p => p.toString());
+
+      const messagesWithFiles = await Message.find({ 
+        chatId: chat._id, 
+        filePath: { $exists: true, $ne: null, $ne: '' } 
+      }).select('filePath').lean();
+
+      console.log(`Found ${messagesWithFiles.length} messages with files to delete for chat ${chatId}`);
+
+      const UPLOAD_BASE_DIR = path.resolve(__dirname, '../uploads');
+      for (const message of messagesWithFiles) {
+        if (message.filePath) {
+          let diskPath = '';
+          if (message.filePath.startsWith('/media/')) {
+            diskPath = path.join(UPLOAD_BASE_DIR, message.filePath.substring(1));
+          } else if (message.filePath.startsWith('/uploads/')) {
+            diskPath = path.join(__dirname, '..', message.filePath.replace('/uploads/', 'uploads/'));
+          } else {
+            console.warn(`Unexpected filePath format: ${message.filePath}`);
+            continue;
+          }
+
+          try {
+            if (fs.existsSync(diskPath)) {
+              fs.unlinkSync(diskPath);
+              console.log(`Deleted file: ${diskPath}`);
+            } else {
+              console.warn(`File not found on disk: ${diskPath}`);
+            }
+          } catch (err) {
+            console.error(`Failed to delete file ${diskPath}:`, err);
+          }
+        }
+      }
 
       const deleteMessagesResult = await Message.deleteMany({ chatId: chat._id });
       console.log(`Deleted ${deleteMessagesResult.deletedCount} messages for chat ${chatId}`);
