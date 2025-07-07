@@ -1,0 +1,11 @@
+[build]
+  command = "ng build"
+  
+  publish = "client/dist/pelegram/"
+
+  base = "client/"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
