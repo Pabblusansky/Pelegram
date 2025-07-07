@@ -3,11 +3,12 @@ import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 import { ChatService } from '../chat/chat.service';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { environment } from '../../environments/environment';
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
-  private apiUrl = 'http://localhost:3000/api/auth';
+    private apiUrl = `${environment.apiUrl}/api/auth`;
 
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(this.hasInitialToken());
   public isAuthenticated$: Observable<boolean> = this.isAuthenticatedSubject.asObservable();
