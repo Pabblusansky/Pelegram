@@ -23,7 +23,7 @@ export class RegisterSuccessComponent implements OnInit {
       }
     }, 1000);
     setTimeout(() => {
-      this.router.navigate(['/login']);
+      this.router.navigate(['/auth/login']);
     }, 7000);
   }
 }
