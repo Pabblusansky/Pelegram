@@ -191,6 +191,8 @@
       #scrollViewport 
       class="messages"
       [itemSize]="80"
+      [minBufferPx]="200"
+      [maxBufferPx]="400"
       (scrolledIndexChange)="onVirtualScrollIndexChange()"
       (mousemove)="onMessagesContainerMouseMove($event)" 
       (mouseup)="onMessagesContainerMouseUp()" 

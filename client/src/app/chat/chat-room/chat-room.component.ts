@@ -364,6 +364,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     setTimeout(() => {
         this.scrollToBottom(true, 'auto');
         this.setupResizeObserver();
+        this.forceVirtualScrollRefresh();
     }, 100);
   }
   triggerMarkAsRead(): void {
@@ -551,6 +552,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
                 JSON.stringify(systemMessagesInResult.map((m: { _id: any; content: string | any[]; }) => ({id: m._id, content: m.content.slice(0,10)})), null, 2)
               );
     this.cdr.detectChanges();
+
+    setTimeout(() => {
+      this.forceVirtualScrollRefresh();
+    }, 0);
   }
   
   loadChatDetails(): void {
@@ -701,65 +706,65 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
           }
       });
   }
-scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): void {
-    if (!this.scrollViewport) return;
-    if (this.isScrollingProgrammatically && !force) {
-      console.log('ScrollToBottom: Aborted, programmatic scroll is in progress.');
-      return;
-    }
-    if (this.isScrollingToBottom && !force) return;
-
-    if (this.returnToMessageIdAfterQuoteJump) {
-        this.scrollToMessage(this.returnToMessageIdAfterQuoteJump, 'center', true);
-        this.returnToMessageIdAfterQuoteJump = null;
+  scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): void {
+      if (!this.scrollViewport) return;
+      if (this.isScrollingProgrammatically && !force) {
+        console.log('ScrollToBottom: Aborted, programmatic scroll is in progress.');
         return;
-    }
+      }
+      if (this.isScrollingToBottom && !force) return;
 
-    if (!force && !this.isAtBottom && this.unreadMessagesCount === 0) {
-        return;
-    }
+      if (this.returnToMessageIdAfterQuoteJump) {
+          this.scrollToMessage(this.returnToMessageIdAfterQuoteJump, 'center', true);
+          this.returnToMessageIdAfterQuoteJump = null;
+          return;
+      }
 
-    this.isScrollingToBottom = true;
-    this.clearUnreadMessagesIndicator();
+      if (!force && !this.isAtBottom && this.unreadMessagesCount === 0) {
+          return;
+      }
 
-    const attemptScroll = (attempt = 1) => {
-        if (!this.scrollViewport) {
-            this.isScrollingToBottom = false;
-            return;
-        }
-        
-        const dataLength = this.scrollViewport.getDataLength();
-        if (dataLength === 0) {
-            this.isAtBottom = true;
-            this.isScrollingToBottom = false;
-            return;
-        }
+      this.isScrollingToBottom = true;
+      this.clearUnreadMessagesIndicator();
 
-        this.scrollViewport.scrollToIndex(dataLength - 1, (attempt === 1) ? behavior : 'auto');
+      const attemptScroll = (attempt = 1) => {
+          if (!this.scrollViewport) {
+              this.isScrollingToBottom = false;
+              return;
+          }
+          
+          const dataLength = this.scrollViewport.getDataLength();
+          if (dataLength === 0) {
+              this.isAtBottom = true;
+              this.isScrollingToBottom = false;
+              return;
+          }
 
-        setTimeout(() => {
-            if (!this.scrollViewport) {
-                this.isScrollingToBottom = false;
-                return;
-            }
+          this.scrollViewport.scrollToIndex(dataLength - 1, (attempt === 1) ? behavior : 'auto');
 
-            const offset = this.scrollViewport.measureScrollOffset('bottom');
-            
-            if (offset > 1 && attempt < 5) { 
-                console.warn(`ScrollToBottom: Attempt ${attempt} finished with offset ${offset}. Retrying...`);
-                attemptScroll(attempt + 1);
-            } else {
-                this.isAtBottom = true;
-                this.isScrollingToBottom = false;
-                this.cdr.detectChanges();
-                this.triggerMarkAsRead();
-                console.log(`ScrollToBottom: Finished after ${attempt} attempts. Final offset: ${offset}`);
-            }
-        }, 100 * attempt); 
-    };
+          setTimeout(() => {
+              if (!this.scrollViewport) {
+                  this.isScrollingToBottom = false;
+                  return;
+              }
 
-    attemptScroll();
-}
+              const offset = this.scrollViewport.measureScrollOffset('bottom');
+              
+              if (offset > 1 && attempt < 5) { 
+                  console.warn(`ScrollToBottom: Attempt ${attempt} finished with offset ${offset}. Retrying...`);
+                  attemptScroll(attempt + 1);
+              } else {
+                  this.isAtBottom = true;
+                  this.isScrollingToBottom = false;
+                  this.cdr.detectChanges();
+                  this.triggerMarkAsRead();
+                  console.log(`ScrollToBottom: Finished after ${attempt} attempts. Final offset: ${offset}`);
+              }
+          }, 100 * attempt); 
+      };
+
+      attemptScroll();
+  }
 
   formatTimestamp(timestamp: string): string {
     const date = new Date(timestamp);
@@ -2928,4 +2933,19 @@ getHighlightedText(text: string, query: string): SafeHtml {
       }
     }
   }
+  private forceVirtualScrollRefresh(): void {
+    if (this.scrollViewport) {
+      this.scrollViewport.checkViewportSize();
+      
+      setTimeout(() => {
+        if (this.scrollViewport) {
+          this.scrollViewport.setTotalContentSize(
+            this.messagesWithDividers.length * 80
+          );
+          this.scrollViewport.checkViewportSize();
+        }
+      }, 50);
+    }
+  }
+
 }
