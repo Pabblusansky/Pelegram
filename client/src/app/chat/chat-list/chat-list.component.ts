@@ -366,36 +366,40 @@ loadRegularChats(): void {
   }
 
   private handleNewChatCreated(newChat: Chat): void {
+    const isSelfChat = newChat.participants.length === 1 &&
+                      newChat.participants[0]?._id === this.currentUserId;
 
     const existingChatIndex = this.chats.findIndex(c => c._id === newChat._id);
 
-    if (existingChatIndex === -1) {
-
-
-      const isSelfChat = newChat.participants.length === 1 &&
-                         newChat.participants[0]?._id === this.currentUserId;
-
+    if (existingChatIndex !== -1) {
+      console.log(`CHAT-LIST (handleNewChatCreated): Chat ${newChat._id} already exists. Updating it.`);
+      
+      const targetChat = this.chats[existingChatIndex];
+      targetChat.lastMessage = newChat.lastMessage;
+      targetChat.updatedAt = newChat.updatedAt;
+      
+      if (isSelfChat && this.savedMessagesChat) {
+        targetChat.participantsString = this.savedMessagesChat.participantsString;
+        targetChat.displayAvatarUrl = this.savedMessagesChat.displayAvatarUrl;
+      }
+      
+    } else {
+      console.log(`CHAT-LIST (handleNewChatCreated): Adding completely new chat ${newChat._id}.`);
+      
       const formattedChat = this.formatChatForDisplay(newChat, isSelfChat);
-
       this.chats.unshift(formattedChat);
 
       if (isSelfChat) {
         this.savedMessagesChat = formattedChat;
-        console.log('CHAT-LIST: New chat is Saved Messages, updated savedMessagesChat reference.');
       }
-
-      this.sortChatsInPlace()
-      this.applyChatFilter();
+      
       this.loadParticipantProfilesForSingleChat(formattedChat);
-      this.cdr.detectChanges();
-    } else {
-      console.warn('CHAT-LIST: newChatReceived event for an already existing chat ID:', newChat._id, '. Updating existing chat.');
-      const isSelfChat = this.chats[existingChatIndex].isSelfChat
-      this.chats[existingChatIndex] = this.formatChatForDisplay(newChat, isSelfChat);
-      this.sortChatsInPlace();
-      this.applyChatFilter();
-      this.cdr.detectChanges();
     }
+
+    this.sortChatsInPlace();
+    this.applyChatFilter();
+    this.cdr.detectChanges();
+    
   }
 
   private handleChatUpdate(updatedChatFromServer: Chat): void {
@@ -427,14 +431,26 @@ loadRegularChats(): void {
 
   handleNewMessage(message: Message): void {
     const chatIndex = this.chats.findIndex(chat => chat._id === message.chatId);
+    
     if (chatIndex !== -1) {
-      this.chats[chatIndex].lastMessage = message;
+      const targetChat = this.chats[chatIndex];
+
+      targetChat.lastMessage = message;
+
+      const isSelfChat = targetChat.isSelfChat || 
+                        (targetChat.participants.length === 1 && targetChat.participants[0]._id === this.currentUserId);
+
+      if (isSelfChat && this.savedMessagesChat) {
+        targetChat.participantsString = this.savedMessagesChat.participantsString;
+        targetChat.displayAvatarUrl = this.savedMessagesChat.displayAvatarUrl;
+      }
       
       this.sortChatsInPlace();
       this.applyChatFilter();
       this.cdr.detectChanges();
+
     } else {
-      console.warn(`Chat for new message (ID: ${message.chatId}) not found. Consider reloading or investigating.`);
+      console.warn(`Chat for new message (ID: ${message.chatId}) not found. Reloading all chats.`);
       this.loadInitialChats(); 
     }
   }
@@ -787,12 +803,17 @@ loadRegularChats(): void {
 
 
   isMyLastMessage(chat: any): boolean {
-    if (!chat || !chat.lastMessage || !chat.lastMessage.senderId || !this.currentUserId) {
-      return false;
-    }
-    const senderId = (typeof chat.lastMessage.senderId === 'object' && chat.lastMessage.senderId !== null) 
-                    ? chat.lastMessage.senderId._id 
-                    : chat.lastMessage.senderId;
-    return senderId === this.currentUserId;
+      if (!chat || !chat.lastMessage || !chat.lastMessage.senderId || !this.currentUserId) {
+          return false;
+      }
+
+      if (chat.isSelfChat) {
+          return true;
+      }
+
+      const senderId = (typeof chat.lastMessage.senderId === 'object' && chat.lastMessage.senderId !== null) 
+                      ? chat.lastMessage.senderId._id 
+                      : chat.lastMessage.senderId;
+      return senderId === this.currentUserId;
   }
 }
