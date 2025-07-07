@@ -50,7 +50,7 @@
             "polyfills": [ "zone.js", "zone.js/testing" ],
             "tsConfig": "tsconfig.spec.json",
             "inlineStyleLanguage": "scss",
-            "assets": [ { "glob": "**/*", "input": "public" }, "src/_redirects" ],
+            "assets": [ { "glob": "**/*", "input": "public" }, "src/_redirects", "_redirects" ],
             "scripts": [  ]
           }
         }
