@@ -328,14 +328,36 @@ io.on('connection', (socket) => {
       if (typeof callback === 'function') {
         callback({ success: true, message: messageForClient })
       };
-      setTimeout(async () => {
-        const msgToUpdate = await Message.findById(message._id);
-        if (msgToUpdate) {
-          msgToUpdate.status = 'delivered';
-          await msgToUpdate.save();
-          io.to(chatId).emit('messageStatusUpdated', { messageId: msgToUpdate._id, status: 'delivered' });
+      (async () => {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          const chat = await Chat.findById(chatId).lean();
+          if (!chat) return;
+
+          const recipients = chat.participants.filter(p_id => p_id.toString() !== senderId.toString());
+
+          if (recipients.length > 0) {
+            const updated = await Message.findOneAndUpdate(
+              { _id: message._id, status: 'sent' },
+              { $set: { status: 'delivered' } },
+              { new: true }
+            );
+
+            if (updated) { 
+              io.to(chatId).emit('messageStatusUpdated', {
+                messageId: message._id,
+                status: 'delivered'
+              });
+            } else {
+              console.log(`ℹ️ Message ${message._id} status was NOT 'sent', skipping 'delivered' update.`);
+            }
+          }
+        } catch (err) {
+          console.error(`❌ Error in background status update for message ${message._id}:`, err);
         }
-      }, 1000);
+      })();
+
     } catch (err) {
         console.error('Error sending message:', err);
         if (typeof callback === 'function') {

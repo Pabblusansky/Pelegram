@@ -191,21 +191,36 @@ export default (io) => {
         io.to(chatId.toString()).emit('chat_updated', updatedChat);
       }
 
-      setTimeout(async () => {
+      (async () => {
         try {
-          const msgToUpdate = await Message.findById(savedMessage._id);
-          if (msgToUpdate) {
-            msgToUpdate.status = 'delivered';
-            await msgToUpdate.save();
-            io.to(chatId.toString()).emit('messageStatusUpdated', {
-              messageId: msgToUpdate._id,
-              status: 'delivered'
-            });
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          const chat = await Chat.findById(chatId).lean();
+          if (!chat) return;
+
+          const recipients = chat.participants.filter(p_id => p_id.toString() !== userId.toString());
+
+          if (recipients.length > 0) {
+            const updated = await Message.findOneAndUpdate(
+              { _id: savedMessage._id, status: 'sent' },
+              { $set: { status: 'delivered' } },
+              { new: true }
+            );
+
+            if (updated) {
+              io.to(chatId.toString()).emit('messageStatusUpdated', {
+                messageId: savedMessage._id,
+                status: 'delivered'
+              });
+              console.log(`✅ File message ${savedMessage._id} status updated to 'delivered'`);
+            } else {
+              console.log(`ℹ️ File message ${savedMessage._id} status was NOT 'sent', skipping 'delivered' update.`);
+            }
           }
-        } catch (e) {
-          console.error(`AUDIO/FILE MSG: Error updating status to delivered for message ${savedMessage._id}`, e);
+        } catch (err) {
+          console.error(`❌ Error updating file message status for ${savedMessage._id}:`, err);
         }
-      }, 1000);
+      })();
       res.status(201).json({ message: 'File uploaded successfully', savedMessage: populatedMessageForSocket });
 
     } catch (error) {
