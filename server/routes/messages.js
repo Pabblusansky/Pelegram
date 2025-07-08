@@ -130,44 +130,6 @@ export default (io) => {
     }
   });
 
-  router.post('/markAsRead', authenticateToken, async (req, res) => {
-    const { chatId } = req.body;
-    const userId = req.user.id;
-
-    try {
-      const messagesToUpdate = await Message.find({
-        chatId: chatId,
-        senderId: { $ne: userId },
-        status: { $in: ['sent', 'delivered'] }
-      }).select('_id');
-
-      const messageIdsToUpdate = messagesToUpdate.map(m => m._id);
-
-      if (messageIdsToUpdate.length === 0) {
-        return res.status(200).json({ message: 'No messages to mark as read.', updatedCount: 0 });
-      }
-
-      const updateResult = await Message.updateMany(
-        { _id: { $in: messageIdsToUpdate } },
-        { $set: { status: 'read' } }
-      );
-
-      messageIdsToUpdate.forEach(messageId => {
-        io.to(chatId.toString()).emit('messageStatusUpdated', {
-          messageId: messageId,
-          status: 'read'
-        });
-      });
-
-      console.log(`Marked ${updateResult.modifiedCount} messages as read in chat ${chatId}`);
-
-      res.status(200).json({ message: 'Messages marked as read', updatedCount: updateResult.modifiedCount });
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
-      res.status(500).json({ error: 'Server error' });
-    }
-  });
-
   router.post('/forward-multiple', authenticateToken, async (req, res) => {
     const { messageIds, targetChatId } = req.body;
     const userId = req.user.id;

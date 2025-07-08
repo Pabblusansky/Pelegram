@@ -608,6 +608,74 @@ export default (io) => {
     }
   });
 
+  router.post('/:chatId/mark-as-read', authenticateToken, async (req, res) => {
+    const { chatId } = req.params;
+    const userId = req.user.id;
+
+    try {
+      const chat = await Chat.findOne({ _id: chatId, participants: userId });
+      if (!chat) {
+        return res.status(404).json({ message: 'Chat not found or you are not a participant.' });
+      }
+
+      if (chat.unreadCounts && chat.unreadCounts.length > 0) {
+        const userUnreadIndex = chat.unreadCounts.findIndex(uc => uc.userId.toString() === userId);
+        if (userUnreadIndex !== -1) {
+          if (chat.unreadCounts[userUnreadIndex].count > 0) {
+            chat.unreadCounts[userUnreadIndex].count = 0;
+            await chat.save();
+            console.log(`Unread count reset for user ${userId} in chat ${chatId}`);
+          }
+        } else {
+          chat.unreadCounts.push({ userId, count: 0 });
+          await chat.save();
+        }
+      } else {
+        chat.unreadCounts = [{ userId, count: 0 }];
+        await chat.save();
+      }
+
+      const messagesToUpdate = await Message.find({
+        chatId: chatId,
+        senderId: { $ne: userId },
+        status: { $in: ['sent', 'delivered'] }
+      }).select('_id');
+
+      const messageIdsToUpdate = messagesToUpdate.map(m => m._id);
+
+      if (messageIdsToUpdate.length > 0) {
+        await Message.updateMany(
+          { _id: { $in: messageIdsToUpdate } },
+          { $set: { status: 'read' } }
+        );
+
+        messageIdsToUpdate.forEach(messageId => {
+          io.to(chatId.toString()).emit('messageStatusUpdated', {
+            messageId: messageId,
+            status: 'read'
+          });
+        });
+      }
+
+      const updatedChat = await Chat.findById(chatId)
+        .populate('participants', '_id username avatar name')
+        .populate({
+          path: 'lastMessage',
+          populate: { path: 'senderId', select: '_id username avatar name' }
+        });
+        
+      if (updatedChat) {
+        io.to(chatId.toString()).emit('chat_updated', updatedChat);
+      }
+      
+      res.status(200).json({ message: 'Chat marked as read successfully' });
+
+    } catch (error) {
+      console.error(`Error marking chat ${chatId} as read:`, error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
   router.get('/:chatId/media', authenticateToken, async (req, res) => {
     const { chatId } = req.params;
     const userId = req.user.id;

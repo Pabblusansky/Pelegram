@@ -440,15 +440,18 @@ export class ChatService implements OnDestroy {
       });
     });
   }
+
   markMessagesAsRead(chatId: string) {
     const headers = this.getHeaders();
     if (!headers) {
       return throwError(() => new Error('No token provided'));
     }
-    console.log('Sending request to mark messages as read:', { chatId });
-    return this.http.post(`${this.apiUrl}/messages/markAsRead`, { chatId }, { headers }).pipe(
+    
+    const url = `${this.apiUrl}/chats/${chatId}/mark-as-read`;
+    console.log('Sending request to mark messages and unread count as read:', url);
+    
+    return this.http.post(url, {}, { headers }).pipe(
       tap(() => {
-        this.getChats()?.pipe(first()).subscribe(allChats => this.recalculateTotalUnread(allChats as Chat[]));
       }),
     );
   }
@@ -883,6 +886,10 @@ export class ChatService implements OnDestroy {
     );
   }
 
+  public updateTotalUnreadCount(count: number): void {
+    this.totalUnreadCountSubject.next(count);
+  }
+  
   createGroupChat(groupData: { name: string; participantIds: string[] }): Observable<Chat> {
     const httpOptions = this.getHttpOptions();
     if (!httpOptions) {

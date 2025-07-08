@@ -413,13 +413,13 @@ loadRegularChats(): void {
         isSelfChat: isSelf,
         displayAvatarUrl: isSelf ? this.chats[chatIndex].displayAvatarUrl : undefined 
       };
-      console.log(`HANDLE_CHAT_UPDATE (${id}): Chat in list AFTER update:`, JSON.parse(JSON.stringify(this.chats[chatIndex])));
       if (!isSelf) {
         const formatted = this.formatChatForDisplay(updatedChatFromServer, false);
         this.chats[chatIndex].displayAvatarUrl = formatted.displayAvatarUrl;
         this.chats[chatIndex].participantsString = formatted.participantsString;
       }
-
+      
+      this.recalculateTotalUnreadCount();
       this.sortChatsInPlace();
       this.applyChatFilter();
       this.cdr.detectChanges();
@@ -429,6 +429,14 @@ loadRegularChats(): void {
     }
   }
 
+  private recalculateTotalUnreadCount(): void {
+    if (!this.currentUserId) return;
+    let total = 0;
+    this.chats.forEach(chat => {
+      total += this.getUnreadCountForChat(chat);
+    });
+    this.chatService.updateTotalUnreadCount(total);
+  }
   handleNewMessage(message: Message): void {
     const chatIndex = this.chats.findIndex(chat => chat._id === message.chatId);
     
