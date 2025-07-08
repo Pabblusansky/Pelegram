@@ -1700,26 +1700,40 @@ getUserAvatar(userId: string): string {
   }
 
   private addOrUpdateMessage(message: Message, isMyOwnMessageJustSent: boolean = false): void {
-    if (this.messages.find(m => m._id === message._id)) {
-      return;
-    }
-    const wasAtBottom = this.isAtBottom;
-
     if (message.category === 'system_event') {
       message.ismyMessage = false;
     } else {
       message.ismyMessage = message.senderId === this.userId || 
-      (typeof message.senderId === 'object' && message.senderId?._id === this.userId);
+        (typeof message.senderId === 'object' && message.senderId?._id === this.userId);
     }
 
-    
     const existingMessageIndex = this.messages.findIndex(m => m._id === message._id);
-    let isNewMessageAdded = false;
+    const wasAtBottom = this.isAtBottom;
+
     if (existingMessageIndex > -1) {
-      this.messages[existingMessageIndex] = { ...this.messages[existingMessageIndex], ...message };
+      const existingMessage = this.messages[existingMessageIndex];
+      
+      this.messages[existingMessageIndex] = {
+        ...existingMessage,
+        ...message,
+        status: this.getNewerStatus(existingMessage.status, message.status), 
+        ismyMessage: existingMessage.ismyMessage,
+        isSelected: existingMessage.isSelected, 
+      };
+      console.log(`Updated existing message ${message._id}. Final status: ${this.messages[existingMessageIndex].status}`);
     } else {
       this.messages.push(message);
-      isNewMessageAdded = true;
+      
+      if (!message.ismyMessage) { 
+        if (!wasAtBottom) { 
+          if (!this.newMessagesWhileScrolledUp.find(m => m._id === message._id)) {
+            this.newMessagesWhileScrolledUp.push(message);
+            this.unreadMessagesCount = this.newMessagesWhileScrolledUp.length;
+          }
+        } else if (this.isWindowFocused) {
+          this.triggerMarkAsRead();
+        }
+      }
     }
 
     this.updateMessagesWithDividers();
@@ -1727,24 +1741,17 @@ getUserAvatar(userId: string): string {
 
     if (isMyOwnMessageJustSent || wasAtBottom) {
       requestAnimationFrame(() => this.scrollToBottom(true, 'smooth'));
-    } else if (isNewMessageAdded && !message.ismyMessage) {
-      if (!this.isAtBottom) {
-        if (!this.newMessagesWhileScrolledUp.find(m => m._id === message._id)) {
-          this.newMessagesWhileScrolledUp.push(message);
-          this.unreadMessagesCount = this.newMessagesWhileScrolledUp.length;
-          console.log(`New unread message. Count: ${this.unreadMessagesCount}`);
-        }
-      } else {
-        console.log('Incoming message, user is at bottom. Scrolling and marking read.');
-        this.scrollToBottom();
-        if (document.hasFocus()) {
-          this.triggerMarkAsRead();
-        }
-      }
     }
-    if (!message.ismyMessage && this.isAtBottom && this.isWindowFocused) {
-      this.triggerMarkAsRead();
-    }
+  }
+
+
+  private getNewerStatus(oldStatus: string | undefined, newStatus: string | undefined): string | undefined {
+    const statusOrder: { [key: string]: number } = { 'sent': 1, 'delivered': 2, 'read': 3 };
+
+    const oldRank = oldStatus ? statusOrder[oldStatus] || 0 : 0;
+    const newRank = newStatus ? statusOrder[newStatus] || 0 : 0;
+
+    return oldRank > newRank ? oldStatus : newStatus;
   }
   
   startReply(message: Message): void {
