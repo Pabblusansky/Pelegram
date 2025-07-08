@@ -483,16 +483,21 @@ export class ForwardDialogComponent implements OnInit {
     if (!chat || !chat.participants) {
       return 'Chat';
     }
-    
-    const otherParticipants = chat.participants.filter(
-      (p: any) => p._id !== this.currentUserId
-    );
-    
-    if (otherParticipants.length === 0) {
+
+    if (chat.isGroupChat) {
+      return chat.name || 'Group Chat';
+    }
+
+    if (chat.participants.length === 1 && chat.participants[0]._id === this.currentUserId) {
       return 'Saved Messages';
     }
-    
-    return otherParticipants.map((p: any) => p.username).join(', ');
+
+    const otherParticipant = chat.participants.find(
+      (p: any) => p._id !== this.currentUserId
+    );
+
+    return otherParticipant?.username || 'Chat';
+
   }
   
   getChatAvatar(chat: any): string {

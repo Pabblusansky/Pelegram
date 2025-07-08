@@ -309,25 +309,20 @@ export default (io) => {
       const userId = req.user.id;
       const { messageId } = req.params;
       const { targetChatId } = req.body;
-      
+
       const user = await User.findById(userId);
       const senderName = user ? (user.name || user.username) : 'Unknown User';
-      
+
       const originalMessage = await Message.findById(messageId);
       if (!originalMessage) {
         return res.status(404).json({ message: 'Message not found' });
       }
-      
-      const sourceChat = await Chat.findById(originalMessage.chatId);
-      if (!sourceChat.participants.includes(userId)) {
-        return res.status(403).json({ message: 'Access denied to source chat' });
-      }
-      
-      const targetChat = await Chat.findById(targetChatId);
-      if (!targetChat || !targetChat.participants.includes(userId)) {
+
+      const chatForValidation = await Chat.findOne({ _id: targetChatId, participants: userId });
+      if (!chatForValidation) {
         return res.status(403).json({ message: 'Access denied to target chat' });
       }
-      
+
       const forwardedMessage = new Message({
         chatId: targetChatId,
         content: originalMessage.content,
@@ -336,44 +331,70 @@ export default (io) => {
         timestamp: new Date(),
         status: 'sent',
         forwarded: true,
-        originalMessageId: messageId,
+        originalMessageId: originalMessage._id,
         originalSenderId: originalMessage.senderId,
-        originalSenderName: originalMessage.senderName
+        originalSenderName: originalMessage.senderName,
+        messageType: originalMessage.messageType,
+        filePath: originalMessage.filePath,
+        originalFileName: originalMessage.originalFileName,
+        fileMimeType: originalMessage.fileMimeType,
+        fileSize: originalMessage.fileSize,
+        duration: originalMessage.duration
       });
-      
+
       const savedMessage = await forwardedMessage.save();
-      targetChat.lastMessage = savedMessage._id;
-      targetChat.updatedAt = new Date();
-      await targetChat.save();
-      
+
+      await Chat.findByIdAndUpdate(targetChatId, {
+        lastMessage: savedMessage._id,
+        updatedAt: new Date(),
+      });
+
       const updatedTargetChat = await Chat.findById(targetChatId)
-        .populate('participants', '_id username avatar')
+        .populate('participants', '_id username avatar name')
         .populate({
           path: 'lastMessage',
-          populate: { path: 'senderId', select: '_id username avatar' }
+          populate: { path: 'senderId', select: '_id username avatar name' }
         });
-
       
       if (updatedTargetChat) {
         io.to(targetChatId).emit('chat_updated', updatedTargetChat);
-        io.to(targetChatId).emit('message', savedMessage);
-        const populatedSavedMessage = await Message.findById(savedMessage._id)
-          .populate('senderId', '_id username avatar')
-          .lean();
-      io.to(targetChatId).emit('receive_message', populatedSavedMessage);
-    } else {
-      console.error(`Chat with ID ${targetChatId} not found after update for forwarding message.`);
-    }
-      targetChat.participants.forEach(participantId => {
-        if (participantId !== userId) {
-          io.to(participantId.toString()).emit('message:status', {
-            messageId: savedMessage._id,
-            status: 'delivered'
-          });
-        }
-      });
+      }
+
+      const populatedSavedMessage = await Message.findById(savedMessage._id)
+        .populate('senderId', '_id username avatar name')
+        .populate({ path: 'replyTo', populate: { path: 'senderId', select: '_id username' } })
+        .lean();
       
+      io.to(targetChatId).emit('receive_message', populatedSavedMessage);
+
+      (async () => {
+        try {
+          const currentTargetChat = await Chat.findById(targetChatId).lean();
+          if (!currentTargetChat) return;
+
+          const recipients = currentTargetChat.participants.filter(p_id => p_id.toString() !== userId.toString());
+
+          if (recipients.length > 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            const updatedMsg = await Message.findByIdAndUpdate(savedMessage._id, { status: 'delivered' }, { new: true });
+            
+            if (updatedMsg) {
+              io.to(targetChatId).emit('messageStatusUpdated', { 
+                  messageId: savedMessage._id, 
+                  status: 'delivered' 
+              });
+            }
+          } else {
+            console.log(`ℹ️ Forwarded message ${savedMessage._id} has no other recipients, status remains 'sent'.`);
+          }
+        } catch (err) {
+          console.error(`❌ Error in background status update for forwarded message ${savedMessage._id}:`, err);
+        }
+      })();
+
       res.status(201).json(savedMessage);
+
     } catch (error) {
       console.error('Error forwarding message:', error);
       res.status(500).json({ message: 'Internal server error' });
