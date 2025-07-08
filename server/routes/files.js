@@ -191,6 +191,21 @@ export default (io) => {
         io.to(chatId.toString()).emit('chat_updated', updatedChat);
       }
 
+      setTimeout(async () => {
+        try {
+          const msgToUpdate = await Message.findById(savedMessage._id);
+          if (msgToUpdate) {
+            msgToUpdate.status = 'delivered';
+            await msgToUpdate.save();
+            io.to(chatId.toString()).emit('messageStatusUpdated', {
+              messageId: msgToUpdate._id,
+              status: 'delivered'
+            });
+          }
+        } catch (e) {
+          console.error(`AUDIO/FILE MSG: Error updating status to delivered for message ${savedMessage._id}`, e);
+        }
+      }, 1000);
       res.status(201).json({ message: 'File uploaded successfully', savedMessage: populatedMessageForSocket });
 
     } catch (error) {

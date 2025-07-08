@@ -434,7 +434,7 @@
             </div>
             
             <!-- Message status -->
-            <span *ngIf="item.senderId === userId" class="status">
+            <span *ngIf="item.ismyMessage" class="status">
               <img
                 [src]="getMessageStatusIcon(item.status ?? 'sent')"
                 [alt]="item.status || 'Sent'"
