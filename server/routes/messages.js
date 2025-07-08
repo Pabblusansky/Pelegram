@@ -132,59 +132,39 @@ export default (io) => {
 
   router.post('/markAsRead', authenticateToken, async (req, res) => {
     const { chatId } = req.body;
-    console.log('Received request to mark messages as read for chat:', chatId);
+    const userId = req.user.id;
 
     try {
       const messagesToUpdate = await Message.find({
-        chatId,
-        status: 'delivered',
-        senderId: { $ne: req.user.id }
-      });
+        chatId: chatId,
+        senderId: { $ne: userId },
+        status: { $in: ['sent', 'delivered'] }
+      }).select('_id');
 
-      if (messagesToUpdate.length === 0) {
-        return res.status(200).json({ message: 'No messages for update' });
+      const messageIdsToUpdate = messagesToUpdate.map(m => m._id);
+
+      if (messageIdsToUpdate.length === 0) {
+        return res.status(200).json({ message: 'No messages to mark as read.', updatedCount: 0 });
       }
 
-      await Message.updateMany(
-        { _id: { $in: messagesToUpdate.map(msg => msg._id) } },
+      const updateResult = await Message.updateMany(
+        { _id: { $in: messageIdsToUpdate } },
         { $set: { status: 'read' } }
       );
 
-      console.log(`Updated  ${messagesToUpdate.length} messages in chat: ${chatId}`);
-      
-      const chat = await Chat.findById(chatId);
-      if (chat) {
-        const userId = req.user.id;
-        const unreadEntryIndex = chat.unreadCounts.findIndex(uc => 
-          uc.userId.toString() === userId.toString()
-        );
-        
-        if (unreadEntryIndex !== -1 && chat.unreadCounts[unreadEntryIndex].count > 0) {
-          chat.unreadCounts[unreadEntryIndex].count = 0;
-          await chat.save();
-          
-          const populatedChat = await Chat.findById(chatId)
-            .populate('participants', '_id username avatar')
-            .populate({
-              path: 'lastMessage',
-              populate: { path: 'senderId', select: '_id username avatar name' }
-            })
-            .lean();
-          
-          if (populatedChat) {
-            io.to(chatId.toString()).emit('chat_updated', populatedChat);
-          }
-        }
-      }
-      
-      messagesToUpdate.forEach(msg => {
-        io.to(chatId).emit('messageStatusUpdated', { messageId: msg._id, status: 'read' });
+      messageIdsToUpdate.forEach(messageId => {
+        io.to(chatId.toString()).emit('messageStatusUpdated', {
+          messageId: messageId,
+          status: 'read'
+        });
       });
 
-      res.status(200).json({ message: 'All messages are marked as read' });
+      console.log(`Marked ${updateResult.modifiedCount} messages as read in chat ${chatId}`);
+
+      res.status(200).json({ message: 'Messages marked as read', updatedCount: updateResult.modifiedCount });
     } catch (error) {
-      console.error('Error when marking the messages:', error);
-      res.status(500).json({ error: 'Error when marking the messages!!!' });
+      console.error('Error marking messages as read:', error);
+      res.status(500).json({ error: 'Server error' });
     }
   });
 

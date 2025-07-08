@@ -632,26 +632,20 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   
   markMessagesAsRead(): void {
     if (this.chatId) {
-      const unreadMessages = this.messages.filter(msg => 
-        msg.senderId !== this.userId && msg.status === 'delivered'
+      const hasUnread = this.messages.some(msg => 
+        !msg.ismyMessage && msg.status !== 'read'
       );
       
-      if (unreadMessages.length === 0) return;
-  
-      console.log('Marking messages as read for chat:', this.chatId);
+      if (!hasUnread) return;
+    
+      console.log('Found unread messages. Sending markAsRead request for chat:', this.chatId);
       
       this.chatService.markMessagesAsRead(this.chatId).subscribe({
-        next: () => {
-          this.messages.forEach(msg => {
-            if (msg.senderId !== this.userId && msg.status !== 'read') {
-              msg.status = 'read';
-            }
-          });
-          this.updateMessagesWithDividers();
-          this.cdr.detectChanges();
+        next: (response) => {
+          console.log(`markAsRead request successful:`, response);
         },
         error: (err) => {
-          console.error('Failed to mark messages as read:', err);
+          console.error('Failed to send markMessagesAsRead request:', err);
         }
       });
     }
