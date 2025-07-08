@@ -466,7 +466,17 @@ adjustTextareaHeight(): void {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           this.isRecording = true;
           this.audioChunks = [];
-          this.mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+          const mimeType = 'audio/ogg; codecs=opus';
+          let options: MediaRecorderOptions;
+          if (MediaRecorder.isTypeSupported(mimeType)) {
+            console.log(`Using preferred mimeType: ${mimeType}`);
+            options = { mimeType: mimeType };
+          } else {
+            console.warn(`Mime type ${mimeType} is not supported. Falling back to default.`);
+            options = {}; 
+          }
+    
+          this.mediaRecorder = new MediaRecorder(stream, options);
           this.mediaRecorder.ondataavailable = (e) => this.audioChunks.push(e.data);
           this.mediaRecorder.onstop = () => {
               stream.getTracks().forEach(track => track.stop());
@@ -478,7 +488,7 @@ adjustTextareaHeight(): void {
               this.cdr.detectChanges();
           }, 1000);
           this.cdr.detectChanges();
-          this.initializeWaveform(stream); // Инициализируем эквалайзер
+          this.initializeWaveform(stream);
       } catch (err) {
           console.error('Error accessing microphone:', err);
           this.ToastService.showToast('Microphone access denied.', 5000, 'error');
@@ -495,8 +505,11 @@ adjustTextareaHeight(): void {
     
     this.mediaRecorder.onstop = () => {
         if (shouldSend) {
-            const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
-            const audioFile = new File([audioBlob], `voice-message-${new Date().toISOString()}.webm`, {
+            const usedMimeType = this.mediaRecorder?.mimeType || 'audio/ogg'; // 'audio/ogg' is a common fallback
+            console.log(`Creating blob with used mimeType: ${usedMimeType}`);
+            const audioBlob = new Blob(this.audioChunks, { type: usedMimeType });
+            const fileExtension = usedMimeType.includes('ogg') ? 'ogg' : 'webm';
+            const audioFile = new File([audioBlob], `voice-message-${new Date().toISOString()}.${fileExtension}`, {
                 type: audioBlob.type,
                 lastModified: Date.now()
             });
