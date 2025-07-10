@@ -8,6 +8,14 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { fileURLToPath } from 'url';
 
+import { 
+  generalLimiter, 
+  authLimiter, 
+  uploadLimiter, 
+  messageLimiter 
+} from './middleware/limiter.js';
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -37,6 +45,8 @@ const io = new Server(httpServer, {
     allowedHeaders:['Content-Type', 'Authorization'],
   },
 });
+
+app.use(generalLimiter);
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', CORS_ORIGIN);
@@ -479,7 +489,7 @@ app.get('/users', async (_req, res) => {
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 
 app.use('/uploads', (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -504,10 +514,12 @@ app.use('/media', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
   next();
 }, express.static(path.join(__dirname, 'uploads/media')));
+
 app.use(authenticateToken);
+
 app.use('/chats', chatRoutes(io));
-app.use('/messages', messageRoutes(io));
-app.use('/api/files', fileRoutes(io));
+app.use('/messages', messageLimiter, messageRoutes(io));
+app.use('/api/files', uploadLimiter, fileRoutes(io));
 app.use('/api/profile', profileRoutes);
 
 app.get('/api/users/status', authenticateToken, async (req, res) => {

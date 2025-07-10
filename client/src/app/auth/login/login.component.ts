@@ -47,6 +47,16 @@ export class LoginComponent {
         } else if(err.status === 400) {
           this.errorMessage = "Invalid username or password.";
           this.triggerErrorAnimation();
+        } else if(err.status === 429) {
+            const retryAfter = err.headers?.get('Retry-After');
+            let waitTime = '15 minutes';
+            if (retryAfter) {
+              const seconds = parseInt(retryAfter);
+              waitTime = seconds > 60 ? `${Math.ceil(seconds / 60)} minutes` : `${seconds} seconds`;
+            }
+            
+            this.errorMessage = `Too many login attempts. Please wait ${waitTime} before trying again.`;
+            this.triggerErrorAnimation();
         } else {
           this.errorMessage = "An unexpected error occurred. Please try again.";
           this.triggerErrorAnimation();
