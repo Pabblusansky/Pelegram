@@ -1,4 +1,4 @@
-import { animate, state, style, transition, trigger } from '@angular/animations';
+import { animate,  style, transition, trigger } from '@angular/animations';
 import { Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
@@ -10,7 +10,7 @@ import { Message, Reaction, User} from '../chat.model';
 import { MessageInputComponent } from "../message-input/message-input.component";
 import { Router } from '@angular/router';
 import { ForwardDialogComponent } from '../forward/forward-dialogue.component';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { SafeHtml } from '@angular/platform-browser';
 import { SoundService } from '../../services/sound.service';
 import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
 import { GroupInfoModalComponent } from '../group/group-info-modal/group-info-modal/group-info-modal.component';
@@ -22,8 +22,10 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
 import { AfterViewInit } from '@angular/core';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { ObserveContentSizeDirective } from '../observe-content-size.directive';
-import { AudioPlayerComponent } from "../../shared/components/audio-player/audio-player.component";
+import { AudioPlayerComponent } from "../../shared/components/audio-player/audio-player.component";   
+import DOMPurify from 'dompurify';
 
+    
 @Component({
   selector: 'app-chat-room',
   templateUrl: './chat-room.component.html',
@@ -175,7 +177,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     private router: Router,
     public chatService: ChatService,
     private cdr: ChangeDetectorRef,
-    private sanitizer: DomSanitizer,
     private soundService: SoundService,
     private confirmationService: ConfirmationService
   ) {
@@ -2192,23 +2193,24 @@ getUserAvatar(userId: string): string {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-getHighlightedText(text: string, query: string): SafeHtml {
-  if (!query || !text) {
-    return this.formatMessageContent(text);
-  }
-  
-  const safeQuery = this.escapeRegExp(query.trim());
-  try {
-    const re = new RegExp(`(${safeQuery})`, 'gi');
-    const textWithBreaks = text.replace(/\n/g, '<br>');
-    const finalHighlighted = textWithBreaks.replace(re, '<span class="highlighted-search-term">$1</span>');
+  getHighlightedText(text: string, query: string): SafeHtml {
+    if (!query || !text) {
+      return this.formatMessageContent(text);
+    }
     
-    return this.sanitizer.bypassSecurityTrustHtml(finalHighlighted);
-  } catch (error) {
-    console.error('Error highlighting text:', error);
-    return this.formatMessageContent(text);
+    const safeQuery = this.escapeRegExp(query.trim());
+    try {
+      const re = new RegExp(`(${safeQuery})`, 'gi');
+      const sanitizedInitialText = this.formatMessageContent(text);
+      
+      const finalHighlighted = sanitizedInitialText.replace(re, `<span class="highlighted-search-term">$1</span>`);
+      
+      return DOMPurify.sanitize(finalHighlighted, { ADD_TAGS: ['span'], ADD_ATTR: ['class'] });
+    } catch (error) {
+      console.error('Error highlighting text:', error);
+      return this.formatMessageContent(text);
+    }
   }
-}
 
   private applyHighlightsToMessages(): void {
     const query = this.searchQuery.trim();
@@ -2351,12 +2353,14 @@ getHighlightedText(text: string, query: string): SafeHtml {
   }
 
 
-  formatMessageContent(content: string): SafeHtml {
-    if (!content) return this.sanitizer.bypassSecurityTrustHtml('');
+  formatMessageContent(content: string): string {
+    if (!content) return '';
     
     const formattedContent = content.replace(/\n/g, '<br>');
     
-    return this.sanitizer.bypassSecurityTrustHtml(formattedContent);
+    const sanitizedContent = DOMPurify.sanitize(formattedContent);
+
+    return sanitizedContent;
   }
 
   startEditById(messageId: string): void {
