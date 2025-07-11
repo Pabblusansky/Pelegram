@@ -40,7 +40,7 @@ A live version of Pelegram is deployed and available for you to try! LINK: [pele
 
 - Frontend (Angular): [pelegram.netlify.app](https://pelegram.netlify.app/) (Deployed on Netlify)
 
-- Backend (Node.js): Deployed on [Render.com](Render.com)
+- Backend (Node.js): Deployed on [Render.com](https://render.com/)
 
 - Database (MongoDB): [Hosted on MongoDB Atlas](https://www.mongodb.com/)
 
