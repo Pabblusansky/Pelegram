@@ -761,124 +761,6 @@ cdk-virtual-scroll-viewport.messages {
   opacity: 0.7;
 }
 
-.context-menu {
-  position: fixed;
-  background-color: var(--card-background);
-  box-shadow: var(--box-shadow);
-  border-radius: 12px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  z-index: 1000;
-  min-width: 160px;
-  animation: scaleIn 0.15s ease-out;
-  overflow: hidden;
-  max-height: 85vh;
-  overflow-y: auto;
-
-  .menu-header {
-    display: flex;
-    justify-content: flex-end;
-    padding: 0;
-    border-bottom: 1px solid var(--border-color);
-  }
-}
-
-.menu-top-bar {
-  display: flex;
-  align-items: center;
-  padding: 2px 6px 2px 10px;
-}
-
-.reaction-bar-above-menu {
-  display: flex;
-  flex-grow: 1;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 1px; 
-}
-
-.reaction-emoji-option { 
-  font-size: 19px; 
-  padding: 4px;
-  border-radius: 50%; 
-  cursor: pointer; 
-  user-select: none; 
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.1s ease-out, transform 0.1s ease-out;
-  line-height: 1;
-  background-color: transparent;
-  color: inherit;
-
-  &:hover {
-    background-color: var(--context-menu-reaction-hover-bg, rgba(255, 255, 255, 0.1));
-    transform: scale(1.15); 
-  }
-
-  &:active {
-    transform: scale(1.05); 
-    background-color: var(--context-menu-reaction-active-bg, rgba(255, 255, 255, 0.15));
-  }
-}
-
-.menu-close {
-  font-size: 18px;
-  cursor: pointer;
-  color: var(--text-secondary, #888);
-  padding: 8px;
-  margin: 4px;
-  background: none;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    color: var(--text-color, #555);
-  }
-}
-
-.menu-items {
-  max-height: none;
-  display: flex;
-  padding: 6px 0;
-  flex-direction: column;
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  padding: 7px 12px;
-  text-align: left;
-  border: none;
-  background: none;
-  cursor: pointer;
-  transition: background 0.2s;
-  font-size: 14px;
-  color: var(--text-color);
-
-  &:hover {
-    background-color: var(--accent-color);
-  }
-
-  &.delete {
-    color: var(--danger-color, #ff5252);
-  }
-  
-  .menu-icon {
-    margin-right: 5px;
-    font-size: 16px;
-    width: 20px;
-    text-align: center;
-    color: var(--menu-icon-color, #889096); 
-    svg {
-      width: 16px;
-      height: 16px;
-      fill: currentColor;
-    }
-  }
-}
-
 .edit-container {
   width: 100%;
   flex-shrink: 0;
@@ -1048,7 +930,6 @@ cdk-virtual-scroll-viewport.messages {
   }
 }
 
-// === ОТВЕТЫ НА СООБЩЕНИЯ ===
 .reply-preview-container {
   display: flex;
   flex-direction: column;
@@ -1160,7 +1041,6 @@ cdk-virtual-scroll-viewport.messages {
   }
 }
 
-// === МНОЖЕСТВЕННЫЙ ВЫБОР ===
 .selection-bar-content {
   display: flex;
   align-items: center;
@@ -1212,7 +1092,6 @@ cdk-virtual-scroll-viewport.messages {
   }
 }
 
-// === МЕДИА КОНТЕНТ ===
 .text-content {
   white-space: pre-wrap;
   word-break: break-word;
@@ -1323,7 +1202,6 @@ cdk-virtual-scroll-viewport.messages {
   }
 }
 
-// === ИНДИКАТОРЫ И УВЕДОМЛЕНИЯ ===
 .no-messages {
   display: flex;
   align-items: center;
@@ -1461,7 +1339,6 @@ cdk-virtual-scroll-viewport.messages {
   animation: spin 0.8s linear infinite;
 }
 
-// === КНОПКА ПРОКРУТКИ ВНИЗ ===
 .scroll-to-bottom-button {
   position: absolute;
   bottom: 25px;
@@ -1514,12 +1391,10 @@ cdk-virtual-scroll-viewport.messages {
   }
 }
 
-// === КОНТЕЙНЕР ВВОДА ===
 .message-input-container {
   flex-shrink: 0;
 }
 
-// === МОДАЛЬНЫЕ ОКНА ===
 .chat-deleted-message {
   display: flex;
   flex-direction: column;
@@ -1674,7 +1549,6 @@ kbd {
   }
 }
 
-// === МЕДИА ГАЛЕРЕЯ ===
 .media-gallery-overlay {
   position: fixed;
   top: 0;
@@ -1742,7 +1616,6 @@ kbd {
   }
 }
 
-// === ТОСТ УВЕДОМЛЕНИЯ ===
 .toast-notification {
   position: fixed;
   bottom: 20px;
@@ -1763,7 +1636,6 @@ kbd {
   }
 }
 
-// === ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ ===
 .message-info {
   display: flex;
   align-items: center;
@@ -1779,7 +1651,6 @@ kbd {
   }
 }
 
-// === ТЕМНАЯ ТЕМА ===
 @media (prefers-color-scheme: dark) {
   .chat-deleted-message {
     background-color: #2d3748;

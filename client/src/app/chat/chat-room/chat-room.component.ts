@@ -24,7 +24,7 @@ import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { ObserveContentSizeDirective } from '../observe-content-size.directive';
 import { AudioPlayerComponent } from "../../shared/components/audio-player/audio-player.component";   
 import DOMPurify from 'dompurify';
-
+import { MessageContextMenuComponent } from '../message-context-menu/message-context-menu.component';
     
 @Component({
   selector: 'app-chat-room',
@@ -42,44 +42,10 @@ import DOMPurify from 'dompurify';
     GroupReactionsPipe,
     SharedMediaGalleryComponent,
     ScrollingModule,
-    AudioPlayerComponent
-],
-  animations: [
-    trigger('menuAnimation', [
-      transition(':enter', [
-        style({ opacity: 0, transform: 'scale(0.9)' }),
-        animate('150ms ease-out', style({ opacity: 1, transform: 'scale(1)' }))
-      ]),
-      transition(':leave', [
-        animate('100ms ease-in', style({ opacity: 0, transform: 'scale(0.9)' }))
-      ])
-    ]),
-    trigger('scrollToBottomButtonAnimation', [
-      transition(':enter', [
-        style({ opacity: 0, transform: 'translateY(20px) scale(0.8)' }),
-        animate('200ms ease-out', style({ opacity: 1, transform: 'translateY(0) scale(1)' }))
-      ]),
-      transition(':leave', [
-        animate('150ms ease-in', style({ opacity: 0, transform: 'translateY(20px) scale(0.8)' }))
-      ])
-    ]),
-    trigger('fadeInOut', [
-      transition(':enter', [
-        style({ opacity: 0 }),
-        animate('200ms ease-out', style({ opacity: 1 }))
-      ]),
-      transition(':leave', [
-        animate('200ms ease-in', style({ opacity: 0 }))
-      ])
-    ]),
-    trigger('scaleIn', [
-      transition(':enter', [
-        style({ opacity: 0, transform: 'scale(0.9)' }),
-        animate('300ms cubic-bezier(0.175, 0.885, 0.32, 1.275)', 
-                style({ opacity: 1, transform: 'scale(1)' }))
-      ])
-    ])
-  ]
+    AudioPlayerComponent,
+    MessageContextMenuComponent
+  ],
+
 })
 
 
@@ -2295,15 +2261,6 @@ getUserAvatar(userId: string): string {
     }
   }
 
-  isMessagePinned(messageId: string | undefined): boolean {
-    if (!messageId || !this.chatDetails || !this.chatDetails.pinnedMessage) {
-        return false;
-    }
-    const pinnedId = typeof this.chatDetails.pinnedMessage === 'string' 
-        ? this.chatDetails.pinnedMessage 
-        : (this.chatDetails.pinnedMessage as Message)._id;
-    return pinnedId === messageId;
-  }
 
   scrollToPinnedMessage(): void {
     if (this.pinnedMessageDetails && this.pinnedMessageDetails._id) {
@@ -2363,12 +2320,7 @@ getUserAvatar(userId: string): string {
     return sanitizedContent;
   }
 
-  startEditById(messageId: string): void {
-    const messageToEdit = this.messages.find(m => m._id === messageId);
-    if (messageToEdit) {
-      this.startEdit(messageToEdit);
-   }
-  }
+
 
   onEditLastMessageRequested(): void {
     if (!this.userId || this.messages.length === 0) {
@@ -2408,7 +2360,7 @@ getUserAvatar(userId: string): string {
     }
   }
 
-  private activateSelectionMode(message: Message): void {
+  public activateSelectionMode(message: Message): void {
     if (!message || !message._id) return;
     
     this.isSelectionModeActive = true;
@@ -2594,17 +2546,7 @@ getUserAvatar(userId: string): string {
     }
   }
 
-  selectMessageFromMenu(message: Message | null): void {
-    if (message && message._id) {
-      this.activateSelectionMode(message);
-    }
-    const hasShownSelectionHint = localStorage.getItem('hasShownSelectionHint') === 'true';
-    if (!hasShownSelectionHint) {
-      this.showToast('Tip: Use Ctrl+Click (or ⌘+Click on Mac) to select multiple messages', 5000);
-      localStorage.setItem('hasShownSelectionHint', 'true');
-    }
-    this.activeContextMenuId = null;
-  }
+
 
   handleBackButton(): void {
     if (this.isSelectionModeActive) {

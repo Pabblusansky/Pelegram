@@ -491,68 +491,6 @@
     <span>{{ typingIndicatorText }}</span>
   </div>
 
-  <!-- Context Menu -->
-  <div 
-    *ngIf="activeContextMenuId && menuPosition"
-    #ContextMenuElement
-    class="context-menu"
-    [style.left.px]="menuPosition.x"
-    [style.top.px]="menuPosition.y"
-    @menuAnimation
-  >
-    <div class="menu-top-bar">
-      <div class="reaction-bar-above-menu">
-        <span 
-          *ngFor="let emoji of availableReactions" 
-          class="reaction-emoji-option"
-          (click)="onReactionClick(activeContextMenuId, emoji); $event.stopPropagation();"
-          title="React: {{ emoji }}">
-          {{ emoji }}
-        </span>
-      </div>
-    </div>
-    <div class="menu-header">
-      <div class="menu-close" (click)="activeContextMenuId = null">×</div>
-    </div>
-    <div class="menu-items" *ngIf="getSelectedMessage() as selectedMessage">
-      <button class="menu-item" (click)="startReply(getSelectedMessage())">
-        <span class="menu-icon">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 1C4.14 1 1 4.14 1 8c0 3.86 3.14 7 7 7 1.34 0 2.6-0.38 3.66-1.03l3.45 1.24c0.38 0.14 0.78-0.17 0.75-0.58L15.44 11.31C15.8 10.3 16 9.19 16 8 16 4.14 12.86 1 9 1H8zM5 7h6c0.55 0 1 0.45 1 1s-0.45 1-1 1H5C4.45 9 4 8.55 4 8s0.45-1 1-1z"/>
-          </svg>
-        </span> Reply
-      </button>
-      <ng-container *ngIf="selectedMessage.ismyMessage">
-        <button class="menu-item" (click)="startEditById(getSelectedMessage()._id)">
-          <span class="menu-icon">✏️</span> Edit
-        </button>
-      </ng-container>
-      <button class="menu-item" (click)="copyMessageText(getSelectedMessage())">
-        <span class="menu-icon">📋</span> Copy
-      </button>
-      <button class="menu-item" (click)="forwardMessage(getSelectedMessage())">
-        <span class="menu-icon">↪️</span> Forward
-      </button>
-      <button 
-        *ngIf="getSelectedMessage()"
-        class="menu-item" 
-        (click)="isMessagePinned(getSelectedMessage()._id) ? unpinCurrentMessage() : pinSelectedMessage()">
-        <span class="menu-icon">
-          <span *ngIf="!isMessagePinned(getSelectedMessage()._id)">📌</span>
-          <span *ngIf="isMessagePinned(getSelectedMessage()._id)">🔽</span>
-        </span> 
-        {{ isMessagePinned(getSelectedMessage()._id) ? 'Unpin' : 'Pin' }} Message
-      </button>
-      <ng-container *ngIf="selectedMessage.ismyMessage">
-        <button class="menu-item delete" (click)="deleteMessage(activeContextMenuId)">
-          <span class="menu-icon">🗑️</span> Delete
-        </button>
-      </ng-container>
-      <button class="menu-item" (click)="selectMessageFromMenu(getSelectedMessage())">
-        <span class="menu-icon">✔️</span> Select
-      </button>
-    </div>
-  </div>
 
   <!-- Reply Box -->
   <div *ngIf="replyingToMessage" class="reply-preview-container">
@@ -705,3 +643,21 @@
     (goToMessage)="onGoToMessage()"
   ></app-lightbox>
 </div>
+
+<app-message-context-menu
+  [isVisible]="!!activeContextMenuId"
+  [menuPosition]="menuPosition"
+  [selectedMessage]="getSelectedMessage()"
+  [isMyMessage]="getSelectedMessage()?.senderId === userId"
+  [isPinned]="pinnedMessageDetails?._id === getSelectedMessage()?._id"
+  [userId]="userId"
+  (close)="activeContextMenuId = null"
+  (reactionClick)="onReactionClick(activeContextMenuId, $event)"
+  (reply)="startReply($event)"
+  (edit)="startEdit($event)"
+  (copy)="copyMessageText($event)"
+  (forward)="forwardMessage($event)"
+  (pin)="pinnedMessageDetails?._id === $event._id ? unpinCurrentMessage() : pinSelectedMessage()"
+  (select)="activateSelectionMode($event); toggleMessageSelection($event)"
+  (delete)="deleteMessage($event._id)"
+></app-message-context-menu>
