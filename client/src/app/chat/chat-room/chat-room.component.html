@@ -9,115 +9,30 @@
 <ng-container *ngIf="!isChatEffectivelyDeleted">
 <div class="chat-room">
   <!-- Header -->
-  <div class="chat-header">
-    <button class="back-button" (click)="handleBackButton()">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M19 12H5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
-
-    <ng-container *ngIf="!isSelectionModeActive; else selectionModeHeader">
-    <div class="chat-avatar">
-      <img 
-        [src]="getAvatarUrl" 
-        [alt]="getChatName()"
-        (error)="handleAvatarError($event)"
-      />
-      <div *ngIf="!isGroupChat && (isOtherParticipantOnline$ | async)" class="online-indicator"></div>
-    </div>
-    <div class="chat-header-info">
-      <div 
-      class="chat-name"
-      [class.clickable]="isGroupChat || (!isGroupChat && otherParticipant && chatDetails?.participants?.length === 2)"
-      (click)="onChatNameClick($event)"
-      [title]="isGroupChat ? 'View group info' : (otherParticipant ? 'View ' + otherParticipant.username + '\'s profile' : '')"
-    >
-      {{ getChatName() }}
-    </div>
-    <div class="chat-status" *ngIf="isGroupChat || (!isGroupChat && (otherParticipantStatus$ | async))">
-      <ng-container *ngIf="isGroupChat">
-        {{ chatDetails?.participants?.length || 0 }} {{ chatDetails?.participants?.length === 1 ? 'participant' : 'participants' }}
-      </ng-container>
-      <ng-container *ngIf="!isGroupChat && (otherParticipantStatus$ | async) as status">
-        {{ status }}
-      </ng-container>
-    </div>
-    </div>
-    <div class="chat-header-actions">
-      <button 
-        class="action-button"
-        (click)="toggleKeyboardHelp()"
-        title="Keyboard shortcuts (?)"
-        [class.active]="showKeyboardHelp"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
-        </svg>
-      </button>
-
-      <button 
-        class="action-button media-gallery-button" 
-        (click)="showMediaGallery = !showMediaGallery" 
-        title="Shared Media"
-        [class.active]="showMediaGallery"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-          <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-        </svg>
-    </button>
-      <button class="action-button search-button" (click)="toggleSearch()" title="Search messages">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
-          <path fill-rule="evenodd" d="M10.5 3.75a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5ZM2.25 10.5a8.25 8.25 0 1 1 14.59 5.28l4.69 4.69a.75.75 0 1 1-1.06 1.06l-4.69-4.69A8.25 8.25 0 0 1 2.25 10.5Z" clip-rule="evenodd" />
-        </svg>
-      </button>
-    </div>
-    </ng-container>
-      <ng-template #selectionModeHeader>
-    <!-- Selection bar -->
-    <div class="selection-bar-content">
-      <span class="selected-count">{{ selectedMessagesMap.size }} selected</span>
-      <div class="selection-actions">
-        <button class="action-button cancel-selection-button" (click)="cancelSelectionMode()" title="Cancel selection">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-            <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-          </svg>
-        </button>
-        <button 
-          class="action-button" 
-          (click)="copySelectedMessages()" 
-          [disabled]="selectedMessagesMap.size === 0" 
-          title="Copy selected(Ctrl+C)"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-            <path d="M7.5 3.375c0-1.036.84-1.875 1.875-1.875h.375a3.75 3.75 0 013.75 3.75v1.875C13.5 8.161 14.34 9 15.375 9h1.875A3.75 3.75 0 0121 12.75v3.375C21 17.16 20.16 18 19.125 18h-9.75A1.875 1.875 0 017.5 16.125V3.375z" />
-            <path d="M15 5.25a5.23 5.23 0 00-1.279-3.434 9.768 9.768 0 016.963 6.963A5.23 5.23 0 0017.25 7.5h-1.875A.375.375 0 0115 7.125V5.25zM4.875 6H6v10.125A3.375 3.375 0 009.375 19.5H16.5v1.125c0 1.035-.84 1.875-1.875 1.875h-9.75A1.875 1.875 0 013 20.625V7.875C3 6.839 3.84 6 4.875 6z" />
-          </svg>
-        </button>
-        <button 
-          class="action-button" 
-          (click)="forwardSelectedMessages()" 
-          [disabled]="selectedMessagesMap.size === 0" 
-          title="Forward selected"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-            <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-          </svg>
-        </button>
-        <button 
-          class="action-button delete-selected-button" 
-          (click)="deleteSelectedMessages()" 
-          [disabled]="selectedMessagesMap.size === 0 || !canDeleteSelectedMessages()" 
-          title="Delete selected(Del or Backspace)"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-            <path fill-rule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.364-1.452zm-.355 5.945a.75.75 0 10-1.5.058l.347 9a.75.75 0 101.499-.058l-.346-9zm5.48.058a.75.75 0 10-1.498-.058l-.347 9a.75.75 0 001.5.058l.345-9z" clip-rule="evenodd" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  </ng-template>
-  </div>
+  <app-chat-header
+    [isSelectionModeActive]="isSelectionModeActive"
+    [isGroupChat]="isGroupChat"
+    [getAvatarUrl]="getAvatarUrl"
+    [getChatName]="getChatName()"
+    [chatDetails]="chatDetails"
+    [otherParticipant]="otherParticipant"
+    [showKeyboardHelp]="showKeyboardHelp"
+    [showMediaGallery]="showMediaGallery"
+    [selectedMessagesCount]="selectedMessagesMap.size"
+    [canDeleteSelected]="canDeleteSelectedMessages()"
+    [isOtherParticipantOnline$]="isOtherParticipantOnline$"
+    [otherParticipantStatus$]="otherParticipantStatus$"
+    (backClick)="onBackClick()"
+    (chatNameClick)="onChatNameClick($event)"
+    (keyboardHelpClick)="toggleKeyboardHelp()"
+    (mediaGalleryClick)="showMediaGallery = !showMediaGallery"
+    (searchClick)="toggleSearch()"
+    (cancelSelectionClick)="cancelSelectionMode()"
+    (copySelectedClick)="copySelectedMessages()"
+    (forwardSelectedClick)="forwardSelectedMessages()"
+    (deleteSelectedClick)="deleteSelectedMessages()"
+    (avatarError)="handleAvatarError($event)"
+  ></app-chat-header>
   <!-- Message Search Bar -->
   <div class="message-search-bar" *ngIf="isSearchActive">
     <input 

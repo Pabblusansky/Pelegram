@@ -25,7 +25,8 @@ import { ObserveContentSizeDirective } from '../observe-content-size.directive';
 import { AudioPlayerComponent } from "../../shared/components/audio-player/audio-player.component";   
 import DOMPurify from 'dompurify';
 import { MessageContextMenuComponent } from '../message-context-menu/message-context-menu.component';
-    
+import { ChatHeaderComponent } from '../chat-header/chat-header.component';
+
 @Component({
   selector: 'app-chat-room',
   templateUrl: './chat-room.component.html',
@@ -43,7 +44,8 @@ import { MessageContextMenuComponent } from '../message-context-menu/message-con
     SharedMediaGalleryComponent,
     ScrollingModule,
     AudioPlayerComponent,
-    MessageContextMenuComponent
+    MessageContextMenuComponent,
+    ChatHeaderComponent
   ],
 
 })
@@ -2546,9 +2548,7 @@ getUserAvatar(userId: string): string {
     }
   }
 
-
-
-  handleBackButton(): void {
+  onBackClick(): void {
     if (this.isSelectionModeActive) {
       this.cancelSelectionMode();
     } else if (this.isSearchActive) {
