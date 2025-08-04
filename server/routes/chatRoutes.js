@@ -4,69 +4,9 @@ import Message from '../models/Message.js';
 import authenticateToken from '../middleware/authenticateToken.js';
 import User from '../models/User.js';
 import mongoose from 'mongoose'; 
-import multer from 'multer';
+import { uploadGroupAvatar, getFileUrl, deleteFileFromCloudinary } from '../config/multer-config.js';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-      
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const ensureGroupAvatarDirExists = () => {
-  const groupAvatarDir = path.resolve(__dirname, '../uploads/group-avatars');
-  console.log(`GROUP_AVATAR_ENSURE_DIR: Checking/Creating directory at: ${groupAvatarDir}`);
-  if (!fs.existsSync(groupAvatarDir)) {
-    try {
-      fs.mkdirSync(groupAvatarDir, { recursive: true });
-      console.log(`GROUP_AVATAR_ENSURE_DIR: Successfully created group avatar directory: ${groupAvatarDir}`);
-    } catch (err) {
-      console.error(`GROUP_AVATAR_ENSURE_DIR: FAILED to create group avatar directory: ${groupAvatarDir}`, err);
-    }
-  } else {
-    console.log(`GROUP_AVATAR_ENSURE_DIR: Group avatar directory already exists: ${groupAvatarDir}`);
-  }
-};
-ensureGroupAvatarDirExists();
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.resolve(__dirname, '../uploads/group-avatars');
-    console.log(`MULTER DESTINATION: Attempting to use directory: ${dir}`);
-    
-    if (!fs.existsSync(dir)) {
-      try {
-        fs.mkdirSync(dir, { recursive: true });
-        console.log(`MULTER DESTINATION: Created directory: ${dir}`);
-      } catch (err) {
-        console.error(`MULTER DESTINATION: Failed to create directory: ${dir}`, err);
-        return cb(err, null);
-      }
-    }
-    
-    console.log(`MULTER DESTINATION: Using directory: ${dir}`);
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    const generatedFilename = 'group-' + uniqueSuffix + ext;
-    console.log('MULTER FILENAME: Generated filename:', generatedFilename);
-    cb(null, generatedFilename);
-  }
-});
-
-const uploadGroupAvatar = multer({ 
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Not an image! Please upload only images.'), false);
-    }
-  }
-});
 
 export default (io) => {
   const router = express.Router();
@@ -140,7 +80,7 @@ export default (io) => {
         return res.status(400).json({ message: 'No file uploaded' });
       }
 
-      console.log('PATCH /group/avatar - File processed:', req.file.filename);
+      console.log('PATCH /group/avatar - File processed:', req.file.filename || req.file.public_id);
 
       const chat = await Chat.findById(chatId);
       if (!chat) {
@@ -160,16 +100,16 @@ export default (io) => {
         return res.status(403).json({ message: 'Only the group admin can change the group avatar.' });
       }
 
-      if (chat.groupAvatar && !chat.groupAvatar.includes('default-group-avatar')) {
-        const oldAvatarPath = path.join(__dirname, '..', chat.groupAvatar.replace('/uploads/', 'uploads/'));
+      if (process.env.NODE_ENV !== 'production' && chat.groupAvatar && !chat.groupAvatar.includes('default-group-avatar')) {
+        const oldAvatarPath = path.join(process.cwd(), chat.groupAvatar.replace('/uploads/', 'uploads/'));
         if (fs.existsSync(oldAvatarPath)) {
           fs.unlinkSync(oldAvatarPath);
         }
       }
 
       // Set new avatar path
-      const avatarPath = '/uploads/group-avatars/' + req.file.filename;
-      chat.groupAvatar = avatarPath;
+      const avatarUrl = getFileUrl(req.file);
+      chat.groupAvatar = avatarUrl;
       await chat.save();
 
       const updatedChat = await Chat.findById(chatId)
@@ -1091,20 +1031,20 @@ export default (io) => {
         return res.status(400).json({ message: 'No custom avatar to delete.' });
       }
 
-      const avatarPath = path.join(__dirname, '..', chat.groupAvatar.replace('/uploads/', 'uploads/'));
-      if (fs.existsSync(avatarPath)) {
-        try {
-          fs.unlinkSync(avatarPath);
-          console.log(`Deleted group avatar: ${avatarPath}`);
-        } catch (err) {
-          console.error(`Failed to delete group avatar: ${avatarPath}`, err);
-          return res.status(500).json({ message: 'Failed to delete avatar file.' });
-        }
-      }
-
-      // Reset to default avatar
+      const avatarToDelete = chat.groupAvatar;
+      
       chat.groupAvatar = 'assets/images/default-group-avatar.png';
       await chat.save();
+
+      if (process.env.NODE_ENV !== 'production') {
+        const avatarPath = path.join(__dirname, '..', avatarToDelete.replace('/uploads/', 'uploads/'));
+        if (fs.existsSync(avatarPath)) {
+          fs.unlinkSync(avatarPath);
+          console.log(`🗑️ Deleted local group avatar: ${avatarPath}`);
+        }
+      } else {
+        await deleteFileFromCloudinary(avatarToDelete);
+      }
 
       const updatedChat = await Chat.findById(chatId)
         .populate('participants', '_id username avatar name')
