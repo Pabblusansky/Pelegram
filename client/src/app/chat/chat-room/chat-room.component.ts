@@ -2661,105 +2661,34 @@ getUserAvatar(userId: string): string {
       cursor: 'zoom-out'
     });
     
-    // Create image element
     const img = document.createElement('img');
-    img.src = this.chatService.getApiUrl() + message.filePath;
+    img.src = this.getMediaUrl(message.filePath);
     img.className = 'media-modal-image';
-    img.alt = message.originalFileName || 'Image';
     
     Object.assign(img.style, {
       maxWidth: '90%',
       maxHeight: '90%',
       objectFit: 'contain',
-      borderRadius: '8px',
-      boxShadow: '0 5px 25px rgba(0, 0, 0, 0.5)',
-      transition: 'transform 0.2s ease'
+      cursor: 'zoom-out'
     });
     
-    const closeBtn = document.createElement('button');
-    closeBtn.textContent = '×';
-    closeBtn.className = 'media-modal-close';
+    modal.appendChild(img);
+    document.body.appendChild(modal);
     
-    Object.assign(closeBtn.style, {
-      position: 'absolute',
-      top: '20px',
-      right: '20px',
-      fontSize: '30px',
-      color: 'white',
-      background: 'none',
-      border: 'none',
-      cursor: 'pointer',
-      width: '50px',
-      height: '50px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: '50%',
-      backgroundColor: 'rgba(0, 0, 0, 0.5)'
-    });
-    
-    // Download button
-    const downloadBtn = document.createElement('a');
-    downloadBtn.href = this.chatService.getApiUrl() + message.filePath;
-    downloadBtn.download = message.originalFileName || 'download';
-    downloadBtn.className = 'media-modal-download';
-    downloadBtn.textContent = 'Download';
-    downloadBtn.target = '_blank';
-    
-    // Set download button styles
-    Object.assign(downloadBtn.style, {
-      position: 'absolute',
-      bottom: '20px',
-      padding: '10px 20px',
-      backgroundColor: 'rgba(74, 118, 168, 0.85)',
-      color: 'white',
-      borderRadius: '8px',
-      textDecoration: 'none',
-      fontWeight: 'bold',
-      transition: 'background-color 0.2s ease'
-    });
-    
-    closeBtn.addEventListener('click', () => {
+    modal.addEventListener('click', () => {
       document.body.removeChild(modal);
     });
     
-    downloadBtn.addEventListener('mouseover', () => {
-      downloadBtn.style.backgroundColor = 'rgba(74, 118, 168, 1)';
-    });
-    
-    downloadBtn.addEventListener('mouseout', () => {
-      downloadBtn.style.backgroundColor = 'rgba(74, 118, 168, 0.85)';
-    });
-    
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        document.body.removeChild(modal);
-      }
-    });
-    
-    const keyHandler = (e: KeyboardEvent) => {
+    const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        document.body.removeChild(modal);
-        document.removeEventListener('keydown', keyHandler);
+        if (document.body.contains(modal)) {
+          document.body.removeChild(modal);
+        }
+        document.removeEventListener('keydown', handleEscape);
       }
     };
-    document.addEventListener('keydown', keyHandler);
     
-    modal.appendChild(img);
-    modal.appendChild(closeBtn);
-    modal.appendChild(downloadBtn);
-    document.body.appendChild(modal);
-    
-    requestAnimationFrame(() => {
-      img.animate([
-        { transform: 'scale(0.9)', opacity: 0 },
-        { transform: 'scale(1)', opacity: 1 }
-      ], {
-        duration: 300,
-        easing: 'ease-out',
-        fill: 'forwards'
-      });
-    });
+    document.addEventListener('keydown', handleEscape);
   }
 
   isRepliedMessageAvailable(messageId: string): boolean {
@@ -2895,4 +2824,34 @@ getUserAvatar(userId: string): string {
     }
   }
 
+  getMediaUrl(filePath: string | null | undefined): string {
+    if (!filePath) {
+      return '';
+    }
+
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
+
+    if (filePath.startsWith('/')) {
+      return `${this.chatService.getApiUrl()}${filePath}`;
+    }
+
+    return `${this.chatService.getApiUrl()}/${filePath}`;
+  }
+
+  retryLoadMedia(message: Message): void {
+    message.mediaLoadError = false;
+    message.mediaLoaded = false;
+    this.cdr.detectChanges();
+    
+    setTimeout(() => {
+      const mediaElement = document.querySelector(`#message-${message._id} img, #message-${message._id} video`) as HTMLElement;
+      if (mediaElement && 'src' in mediaElement) {
+        const originalSrc = (mediaElement as any).src;
+        (mediaElement as any).src = '';
+        (mediaElement as any).src = originalSrc;
+      }
+    }, 100);
+  }
 }

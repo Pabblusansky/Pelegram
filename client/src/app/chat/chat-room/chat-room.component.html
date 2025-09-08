@@ -227,7 +227,7 @@
               <div *ngSwitchCase="'image'" class="media-content image-attachment">
                 <img 
                   *ngIf="item.filePath"
-                  [src]="chatService.getApiUrl() + item.filePath" 
+                  [src]="getMediaUrl(item.filePath)" 
                   [alt]="item.originalFileName || 'Image attachment'"
                   (load)="onMediaLoad(item, $event)" 
                   (error)="onMediaError(item, $event)"
@@ -236,6 +236,7 @@
                 >
                 <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
                   <span>Failed to load image</span>
+                  <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>
                 </div>
               </div>
 
@@ -244,7 +245,7 @@
                 <video 
                   *ngIf="item.filePath"
                   controls 
-                  [src]="chatService.getApiUrl() + item.filePath"
+                  [src]="getMediaUrl(item.filePath)"
                   (loadedmetadata)="onMediaLoad(item, $event)" 
                   (error)="onMediaError(item, $event)"
                   preload="metadata"
@@ -252,6 +253,7 @@
                 > Your browser does not support the video tag. </video>
                 <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
                   <span>Failed to load video</span>
+                  <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>
                 </div>
               </div>
 
@@ -259,7 +261,7 @@
               <div *ngSwitchCase="'audio'" class="media-content audio-attachment">
                 <app-audio-player 
                   *ngIf="item.filePath"
-                  [src]="chatService.getApiUrl() + item.filePath"
+                  [src]="getMediaUrl(item.filePath)" 
                   (error)="onMediaError(item, $event)"
                   [preloadedDuration]="item.duration"
                   (loadSuccess)="onMediaLoad(item, $event)" 
@@ -267,11 +269,12 @@
                 ></app-audio-player>
                 <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
                   <span>Failed to load audio</span>
+                  <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>
                 </div>
               </div>
 
               <div *ngSwitchCase="'file'" class="media-content file-attachment">
-                <a *ngIf="item.filePath" [href]="chatService.getApiUrl() + item.filePath" target="_blank" download="{{ item.originalFileName }}">
+                <a *ngIf="item.filePath" [href]="getMediaUrl(item.filePath)" target="_blank" download="{{ item.originalFileName }}">
                   <div class="file-icon-wrapper">
                     <!-- TODO: Change to SVG icon based on item.fileMimeType -->
                     <span class="file-icon-placeholder">📄</span> 
@@ -285,6 +288,7 @@
                 </a>
                 <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
                   <span>Failed to load file link</span>
+                  <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>
                 </div>
               </div>
 
@@ -550,7 +554,7 @@
   </div>
   <app-lightbox 
     *ngIf="showLightbox && lightboxItems.length > 0"
-    [src]="chatService.getApiUrl() + lightboxItems[lightboxStartIndex].filePath"
+    [src]="getMediaUrl(lightboxItems[lightboxStartIndex].filePath)"
     [alt]="lightboxItems[lightboxStartIndex].originalFileName || 'Shared media'"
     (close)="closeLightbox()"
     (prev)="lightboxStartIndex = (lightboxStartIndex - 1 + lightboxItems.length) % lightboxItems.length"
