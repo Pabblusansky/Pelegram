@@ -175,28 +175,71 @@ export const getFileUrl = (file) => {
 
 // Function to delete file from Cloudinary
 export const deleteFileFromCloudinary = async (fileUrl) => {
-  if (process.env.NODE_ENV === 'production' && fileUrl && cloudinary) {
-    try {
-      if (!fileUrl.includes('cloudinary.com')) {
-        console.log('🔄 Not a Cloudinary URL, skipping deletion:', fileUrl);
-        return;
+  if (process.env.NODE_ENV !== 'production' || !fileUrl || !cloudinary) {
+    console.log('🔄 Skipping Cloudinary deletion (not production or missing parameters):', fileUrl);
+    return;
+  }
+
+  try {
+    if (!fileUrl.includes('cloudinary.com')) {
+      console.log('🔄 Not a Cloudinary URL, skipping deletion:', fileUrl);
+      return;
+    }
+    const matches = fileUrl.match(/\/v\d+\/(.+?)(\.[^.]*)?$/);
+    if (matches && matches[1]) {
+      const publicId = matches[1];
+      console.log(`🗑️ Attempting to delete from Cloudinary with public_id: ${publicId}`);
+      
+      let resourceType = 'image';
+      if (fileUrl.includes('/video/')) {
+        resourceType = 'video';
+      } else if (fileUrl.includes('/raw/')) {
+        resourceType = 'raw';
       }
       
-      const matches = fileUrl.match(/\/v\d+\/(.+?)(\.[^.]*)?$/);
-      if (matches && matches[1]) {
-        const publicId = matches[1];
-        const result = await cloudinary.uploader.destroy(publicId);
-        
-        if (result.result === 'ok') {
-          console.log(`🗑️ Successfully deleted from Cloudinary: ${publicId}`);
-        } else {
-          console.warn(`⚠️ Cloudinary deletion result: ${result.result} for ${publicId}`);
-        }
+      const result = await cloudinary.uploader.destroy(publicId, { 
+        resource_type: resourceType 
+      });
+      
+      if (result.result === 'ok') {
+        console.log(`✅ Successfully deleted from Cloudinary: ${publicId}`);
+      } else if (result.result === 'not found') {
+        console.log(`ℹ️ File not found in Cloudinary (already deleted?): ${publicId}`);
       } else {
-        console.warn('⚠️ Could not extract public_id from URL:', fileUrl);
+        console.warn(`⚠️ Cloudinary deletion result: ${result.result} for ${publicId}`);
       }
-    } catch (error) {
-      console.error('❌ Failed to delete from Cloudinary:', error);
+    } else {
+      console.warn('⚠️ Could not extract public_id from URL:', fileUrl);
+    }
+  } catch (error) {
+    console.error('❌ Failed to delete from Cloudinary:', error);
+    
+    if (error.message && error.message.includes('resource_type')) {
+      console.log('🔄 Retrying with different resource types...');
+      
+      try {
+        const matches = fileUrl.match(/\/v\d+\/(.+?)(\.[^.]*)?$/);
+        if (matches && matches[1]) {
+          const publicId = matches[1];
+          
+          const resourceTypes = ['image', 'video', 'raw'];
+          for (const resType of resourceTypes) {
+            try {
+              const result = await cloudinary.uploader.destroy(publicId, { 
+                resource_type: resType 
+              });
+              if (result.result === 'ok') {
+                console.log(`✅ Successfully deleted from Cloudinary with type ${resType}: ${publicId}`);
+                return;
+              }
+            } catch (typeError) {
+              console.log(`⚠️ Failed to delete with type ${resType}:`, typeError.message);
+            }
+          }
+        }
+      } catch (retryError) {
+        console.error('❌ All retry attempts failed:', retryError);
+      }
     }
   }
 };

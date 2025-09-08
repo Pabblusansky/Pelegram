@@ -841,28 +841,33 @@ export default (io) => {
 
       console.log(`Found ${messagesWithFiles.length} messages with files to delete for chat ${chatId}`);
 
-      const UPLOAD_BASE_DIR = path.resolve(__dirname, '../uploads');
+      // Удаляем файлы
       for (const message of messagesWithFiles) {
         if (message.filePath) {
-          let diskPath = '';
-          if (message.filePath.startsWith('/media/')) {
-            diskPath = path.join(UPLOAD_BASE_DIR, message.filePath.substring(1));
-          } else if (message.filePath.startsWith('/uploads/')) {
-            diskPath = path.join(__dirname, '..', message.filePath.replace('/uploads/', 'uploads/'));
+          if (process.env.NODE_ENV === 'production') {
+            await deleteFileFromCloudinary(message.filePath);
+            console.log(`🗑️ Deleted file from Cloudinary: ${message.filePath}`);
           } else {
-            console.warn(`Unexpected filePath format: ${message.filePath}`);
-            continue;
-          }
-
-          try {
-            if (fs.existsSync(diskPath)) {
-              fs.unlinkSync(diskPath);
-              console.log(`Deleted file: ${diskPath}`);
+            let diskPath = '';
+            if (message.filePath.startsWith('/media/')) {
+              diskPath = path.join(UPLOAD_BASE_DIR, message.filePath.substring(1));
+            } else if (message.filePath.startsWith('/uploads/')) {
+              diskPath = path.join(__dirname, '..', message.filePath.replace('/uploads/', 'uploads/'));
             } else {
-              console.warn(`File not found on disk: ${diskPath}`);
+              console.warn(`Unexpected filePath format: ${message.filePath}`);
+              continue;
             }
-          } catch (err) {
-            console.error(`Failed to delete file ${diskPath}:`, err);
+
+            try {
+              if (fs.existsSync(diskPath)) {
+                fs.unlinkSync(diskPath);
+                console.log(`Deleted file: ${diskPath}`);
+              } else {
+                console.warn(`File not found on disk: ${diskPath}`);
+              }
+            } catch (err) {
+              console.error(`Failed to delete file ${diskPath}:`, err);
+            }
           }
         }
       }

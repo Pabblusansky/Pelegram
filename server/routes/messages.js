@@ -11,6 +11,8 @@ import { fileURLToPath } from 'url';
 const __filename_messages = fileURLToPath(import.meta.url);
 const __dirname_messages = path.dirname(__filename_messages);
 const UPLOAD_BASE_DIR = path.resolve(__dirname_messages, '../uploads'); 
+import { deleteFileFromCloudinary } from '../config/multer-config.js';
+
 export default (io) => {
   const router = express.Router();
 
@@ -210,33 +212,35 @@ export default (io) => {
   });
   
   router.delete('/delete-multiple', authenticateToken, async (req, res) => {
-    try {
-      console.log('DELETE MULTIPLE request received:', req.body);
-      const { messageIds } = req.body; 
-      const userId = req.user.id;
+  try {
+    console.log('DELETE MULTIPLE request received:', req.body);
+    const { messageIds } = req.body; 
+    const userId = req.user.id;
 
-      if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
-        return res.status(400).json({ message: 'Message IDs are required as an array' });
-      }
+    if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
+      return res.status(400).json({ message: 'Message IDs are required as an array' });
+    }
 
-      // Debug logging
-      console.log(`Attempting to delete ${messageIds.length} messages for user ${userId}`);
+    console.log(`Attempting to delete ${messageIds.length} messages for user ${userId}`);
 
-      const messagesToDelete = await Message.find({
-        _id: { $in: messageIds },
-        senderId: userId
-      }).select('_id chatId filePath').lean();
+    const messagesToDelete = await Message.find({
+      _id: { $in: messageIds },
+      senderId: userId
+    }).select('_id chatId filePath').lean();
 
-      const deletableMessageIds = messagesToDelete.map(m => m._id);
-      const chatIdsAffected = [...new Set(messagesToDelete.map(m => m.chatId.toString()))];
+    const deletableMessageIds = messagesToDelete.map(m => m._id);
+    const chatIdsAffected = [...new Set(messagesToDelete.map(m => m.chatId.toString()))];
 
+    if (deletableMessageIds.length === 0) {
+      return res.status(403).json({ message: 'No messages found that you can delete or messages do not exist.' });
+    }
 
-      if (deletableMessageIds.length === 0) {
-        return res.status(403).json({ message: 'No messages found that you can delete or messages do not exist.' });
-      }
-
-      for (const message of messagesToDelete) {
-        if (message.filePath) {
+    for (const message of messagesToDelete) {
+      if (message.filePath) {
+        if (process.env.NODE_ENV === 'production') {
+          await deleteFileFromCloudinary(message.filePath);
+          console.log(`🗑️ Deleted file from Cloudinary: ${message.filePath}`);
+        } else {
           let diskPath = '';
           if (message.filePath.startsWith('/media/')) {
             diskPath = path.join(UPLOAD_BASE_DIR, message.filePath.substring(1));
@@ -248,6 +252,7 @@ export default (io) => {
             try {
               if (fs.existsSync(diskPath)) {
                 fs.unlinkSync(diskPath);
+                console.log(`Successfully deleted file ${diskPath} from disk.`);
               } else {
                 console.warn(`File not found on disk (already deleted or wrong path?): ${diskPath}`);
               }
@@ -257,52 +262,54 @@ export default (io) => {
           }
         }
       }
-      const result = await Message.deleteMany({ _id: { $in: deletableMessageIds } });
-      console.log(`Deleted ${result.deletedCount} messages`);
-      
-      // Update affected chats
-      for (const chatId of chatIdsAffected) {
-        const lastMsg = await Message.findOne({ chatId }).sort({ timestamp: -1 });
-        
-        const updateData = {
-          updatedAt: new Date()
-        };
-        
-        if (lastMsg) {
-          updateData.lastMessage = lastMsg._id;
-        } else {
-          updateData.lastMessage = null;
-        }
-        
-        const updatedChat = await Chat.findByIdAndUpdate(
-          chatId, 
-          updateData,
-          { new: true }
-        )
-        .populate('participants', '_id username avatar')
-        .populate({
-          path: 'lastMessage',
-          populate: { path: 'senderId', select: '_id username avatar name' }
-        });
-
-        if (updatedChat) {
-          io.to(chatId.toString()).emit('chat_updated', updatedChat);
-        }
-        
-        deletableMessageIds.forEach(deletedId => {
-          const originalMessage = messagesToDelete.find(m => m._id.toString() === deletedId.toString());
-          if (originalMessage && originalMessage.chatId.toString() === chatId) {
-            io.to(chatId.toString()).emit('message_deleted', { messageId: deletedId, chatId: chatId });
-          }
-        });
-      }
-
-      res.json({ message: `${result.deletedCount} messages deleted.`, deletedCount: result.deletedCount });
-    } catch (error) {
-      console.error('Error deleting multiple messages:', error);
-      res.status(500).json({ message: 'Internal server error', error: error.message });
     }
-  });
+
+    const result = await Message.deleteMany({ _id: { $in: deletableMessageIds } });
+    console.log(`Deleted ${result.deletedCount} messages`);
+    
+    // Update affected chats
+    for (const chatId of chatIdsAffected) {
+      const lastMsg = await Message.findOne({ chatId }).sort({ timestamp: -1 });
+      
+      const updateData = {
+        updatedAt: new Date()
+      };
+      
+      if (lastMsg) {
+        updateData.lastMessage = lastMsg._id;
+      } else {
+        updateData.lastMessage = null;
+      }
+      
+      const updatedChat = await Chat.findByIdAndUpdate(
+        chatId, 
+        updateData,
+        { new: true }
+      )
+      .populate('participants', '_id username avatar')
+      .populate({
+        path: 'lastMessage',
+        populate: { path: 'senderId', select: '_id username avatar name' }
+      });
+
+      if (updatedChat) {
+        io.to(chatId.toString()).emit('chat_updated', updatedChat);
+      }
+      
+      deletableMessageIds.forEach(deletedId => {
+        const originalMessage = messagesToDelete.find(m => m._id.toString() === deletedId.toString());
+        if (originalMessage && originalMessage.chatId.toString() === chatId) {
+          io.to(chatId.toString()).emit('message_deleted', { messageId: deletedId, chatId: chatId });
+        }
+      });
+    }
+
+    res.json({ message: `${result.deletedCount} messages deleted.`, deletedCount: result.deletedCount });
+  } catch (error) {
+    console.error('Error deleting multiple messages:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+});
   // Forward message
   router.post('/:messageId/forward', authenticateToken, async (req, res) => {
     try {
@@ -533,14 +540,18 @@ export default (io) => {
       const filePathToDelete = message.filePath;
 
       if (filePathToDelete) {
-                let diskPath = '';
-        if (filePathToDelete.startsWith('/media/')) {
-            diskPath = path.join(UPLOAD_BASE_DIR, filePathToDelete.substring(1));
+        if (process.env.NODE_ENV === 'production') {
+          await deleteFileFromCloudinary(filePathToDelete);
+          console.log(`🗑️ Deleted file from Cloudinary: ${filePathToDelete}`);
         } else {
+          let diskPath = '';
+          if (filePathToDelete.startsWith('/media/')) {
+            diskPath = path.join(UPLOAD_BASE_DIR, filePathToDelete.substring(1));
+          } else {
             console.warn(`Message ${messageId} had filePath, but it does not start with /media/: ${filePathToDelete}`);
-        }
+          }
 
-        if (diskPath) {
+          if (diskPath) {
             fs.unlink(diskPath, (err) => {
               if (err) {
                 console.error(`Failed to delete file ${diskPath} from disk:`, err);
@@ -548,6 +559,7 @@ export default (io) => {
                 console.log(`Successfully deleted file ${diskPath} from disk.`);
               }
             });
+          }
         }
       }
   

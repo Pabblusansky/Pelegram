@@ -4,6 +4,7 @@ import Chat from '../models/Chat.js';
 import User from '../models/User.js';
 import authenticateToken from '../middleware/authenticateToken.js';
 import { uploadMedia, getFileUrl } from '../config/multer-config.js';
+import { deleteFileFromCloudinary } from '../config/multer-config.js';
 
 export default (io) => {
   const router = express.Router();
@@ -169,13 +170,20 @@ export default (io) => {
     } catch (error) {
       console.error('Error processing uploaded file in chat', req.params.chatId, 'by user', req.user.id, ':', error);
       
-      if (process.env.NODE_ENV !== 'production' && req.file && req.file.path) {
-        try {
-          const fs = await import('fs');
-          fs.default.unlinkSync(req.file.path);
-          console.log(`Deleted file ${req.file.path} due to processing error.`);
-        } catch (e) {
-          console.error("Error deleting file after DB error:", e);
+      if (req.file) {
+        if (process.env.NODE_ENV === 'production') {
+          await deleteFileFromCloudinary(req.file.path);
+          console.log(`🗑️ Deleted file from Cloudinary due to error: ${req.file.path}`);
+        } else {
+          try {
+            const fs = await import('fs');
+            if (req.file.path && fs.default.existsSync(req.file.path)) {
+              fs.default.unlinkSync(req.file.path);
+              console.log(`Deleted file ${req.file.path} due to processing error.`);
+            }
+          } catch (e) {
+            console.error("Error deleting file after DB error:", e);
+          }
         }
       }
       
