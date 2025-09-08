@@ -762,7 +762,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   
   getSelectedMessage(): any {
     if (!this.activeContextMenuId) {
-      console.log('getSelectedMessage: No activeContextMenuId.');
       return null;
     }
     
@@ -771,9 +770,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     );
 
     if (messageFromMainArray) {
-      console.log('getSelectedMessage: Found in this.messages. ismyMessage:', messageFromMainArray.ismyMessage, 'senderId:', messageFromMainArray.senderId);
     } else {
-      console.warn('getSelectedMessage: Message not found in this.messages for ID:', this.activeContextMenuId, '. Checking dividers as fallback (less reliable for fresh ismyMessage).');
       const messageFromDividers = this.messagesWithDividers.find(
           (item: any) => item.type === 'message' && item._id === this.activeContextMenuId
       );
@@ -1229,17 +1226,22 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-getUserAvatar(userId: string): string {
-  const user = this.users.find(u => u._id === userId);
-  if (!user || !user.avatar) {
-    return 'assets/images/default-avatar.png';
-  }
+  getUserAvatar(userId: string): string {
+    const user = this.users.find(u => u._id === userId);
+    if (!user || !user.avatar) {
+      return 'assets/images/default-avatar.png';
+    }
 
-  if (user.avatar.startsWith('/')) {
-    return `${this.chatService.getApiUrl()}${user.avatar}`;
+    if (user.avatar.startsWith('http://') || user.avatar.startsWith('https://')) {
+      return user.avatar;
+    }
+    
+    if (user.avatar.startsWith('/')) {
+      return `${this.chatService.getApiUrl()}${user.avatar}`;
+    }
+    
+    return `${this.chatService.getApiUrl()}/${user.avatar}`;
   }
-  return user.avatar;
-}
   
   forwardMessage(message: any): void {
     if (!message) return;
