@@ -150,7 +150,6 @@ export class ChatService implements OnDestroy {
         ?.pipe(
           takeUntil(this.destroySocket$),
           tap((chats: Chat[]) => {
-            console.log('DEBUG: Chats received in initializeSocket for recalculateTotalUnread:', chats);
             if (Array.isArray(chats)) {
               this.recalculateTotalUnread(chats);
             } else {
@@ -184,7 +183,6 @@ export class ChatService implements OnDestroy {
         this.messageDeletedSubject.next(data);
       });
       this.socket.on('user_status_update', (statuses: Record<string, any>) => {
-        console.log('Received user statuses update:', Object.keys(statuses).length);
         
         const formattedStatuses: Record<string, { lastActive: string, online: boolean }> = {};
         
@@ -241,7 +239,6 @@ export class ChatService implements OnDestroy {
 
   public setActiveChatId(chatId: string | null): void {
     this.currentActiveChatId = chatId;
-    console.log('ChatService: Active chat ID set to:', chatId);
   }
 
   private handleIncomingMessageNotification(message: Message): void {
@@ -315,7 +312,6 @@ export class ChatService implements OnDestroy {
         
         let lastActive: Date;
         try {
-          console.log('Trying to parse date from userStatus.lastActive:', userStatus.lastActive, typeof userStatus.lastActive);
           lastActive = new Date(userStatus.lastActive);
           
           if (isNaN(lastActive.getTime())) {
@@ -372,7 +368,6 @@ export class ChatService implements OnDestroy {
     this.http.get<Record<string, { lastActive: string, online: boolean }>>(`${this.apiUrl}/api/users/status`, { headers })
       .subscribe({
         next: (httpUserStatuses) => {
-          console.log('ChatService: HTTP response for initial user statuses:', httpUserStatuses);
           
           const currentStatusesInSubject = { ...this.userStatusesSubject.value };
           let changed = false;
@@ -394,10 +389,7 @@ export class ChatService implements OnDestroy {
           }
           
           if (changed) {
-            console.log('ChatService: Emitting updated statuses after merging HTTP statuses:', currentStatusesInSubject);
             this.userStatusesSubject.next(currentStatusesInSubject);
-          } else {
-            console.log('ChatService: No changes to user statuses after merging HTTP statuses.');
           }
         },
         error: (err) => {
@@ -484,7 +476,7 @@ export class ChatService implements OnDestroy {
     }
     return this.http.get<Chat[]>(`${this.apiUrl}/chats`, { headers })
       .pipe(
-        tap(chats => console.log('DEBUG: getChats() fetched in ChatService:', chats)),
+        tap(() => { }),
         catchError(this.handleError)
       );
   }
@@ -502,7 +494,6 @@ export class ChatService implements OnDestroy {
   }
   return this.http.get<Chat>(`${this.apiUrl}/chats/me/saved-messages`, { headers })
     .pipe(
-      tap(chat => console.log('ChatService: Fetched Saved Messages chat:', chat)),
       catchError(this.handleError)
     );
   }
@@ -823,7 +814,6 @@ export class ChatService implements OnDestroy {
         }
       }
     });
-    console.log('CHAT_SERVICE: Recalculated total unread count:', total);
     this.totalUnreadCountSubject.next(total);
   }
 
@@ -944,7 +934,6 @@ export class ChatService implements OnDestroy {
     const formData = new FormData();
     formData.append('avatar', file, file.name); 
 
-    console.log('ChatService: FormData prepared for avatar upload:');
     formData.forEach((value, key) => {
       console.log(key, value);
     });
@@ -956,18 +945,17 @@ export class ChatService implements OnDestroy {
     return this.http.patch<Chat>(`${this.apiUrl}/chats/${chatId}/group/avatar`, formData, {
       headers: headers
     }).pipe(
-      tap(event => { 
-        console.log('ChatService: Group avatar update HTTP event:', event);
+      tap(() => { 
       }),
       catchError((error: HttpErrorResponse) => { 
-        console.error('ChatService: Error updating group avatar:', error);
-        let errorMessage = 'Failed to update group avatar.';
-        if (error.error && typeof error.error.message === 'string') {
-          errorMessage = error.error.message;
-        } else if (typeof error.message === 'string') {
-          errorMessage = error.message;
-        }
-        return throwError(() => new Error(errorMessage)); 
+      console.error('ChatService: Error updating group avatar:', error);
+      let errorMessage = 'Failed to update group avatar.';
+      if (error.error && typeof error.error.message === 'string') {
+        errorMessage = error.error.message;
+      } else if (typeof error.message === 'string') {
+        errorMessage = error.message;
+      }
+      return throwError(() => new Error(errorMessage)); 
       })
     );
   }
@@ -1068,10 +1056,8 @@ export class ChatService implements OnDestroy {
 
     const url = `${this.apiUrl}/chats/${chatId}/media`;
 
-    console.log(`ChatService: Fetching media from ${url} with params:`, { type, page, limit });
-
     return this.http.get<MediaGalleryResponse>(url, { headers, params }).pipe(
-      tap(response => console.log(`ChatService: Received ${response.media.length} media items.`, response)),
+      tap(() => { }),
       catchError(this.handleError)
     );
   }

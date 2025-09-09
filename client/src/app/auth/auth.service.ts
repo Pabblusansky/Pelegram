@@ -44,7 +44,6 @@ export class AuthService {
       tap(response => {
         if (response && response.token && response.userId) {
           console.log('Login successful:', response);
-          console.log('Received response:', response);
           localStorage.setItem('token', response.token);
           localStorage.setItem('userId', response.userId);
           localStorage.setItem('username', response.username);

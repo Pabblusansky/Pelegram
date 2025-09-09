@@ -45,7 +45,6 @@ export class ProfileCardComponent implements OnInit, OnChanges, OnDestroy {
           })
         )
         .subscribe(profileFromService => {
-          console.log('ProfileCard: Received profile from service:', profileFromService);
           if (profileFromService) {
             this.displayableProfile = { ...profileFromService };
           } else {

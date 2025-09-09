@@ -57,7 +57,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   @HostListener('window:focus', ['$event'])
   onWindowFocus(event: FocusEvent): void {
     if (!this.componentIsCurrentlyFocused) {
-      console.log('ChatRoom: Window gained focus.');
       if (this.chatId && this.isChatCurrentlyOpenAndVisible()) {
         this.triggerMarkAsRead();
       }
@@ -68,7 +67,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
   @HostListener('window:blur', ['$event'])
   onWindowBlur(event: FocusEvent): void {
-    console.log('ChatRoom: Window lost focus.');
     this.componentIsCurrentlyFocused = false;
     this.isWindowFocused = false;
   }
@@ -487,12 +485,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     return message.senderName;
   }
   updateMessagesWithDividers(): void {
-    console.log('ChatRoom (updateMessagesWithDividers) START. this.messages count:', this.messages.length);
-    const systemMessagesInSource = this.messages.filter(m => m.category === 'system_event');
-    console.log(`ChatRoom (updateMessagesWithDividers): Found ${systemMessagesInSource.length} system messages in this.messages:`, 
-                JSON.stringify(systemMessagesInSource.map(m => ({id: m._id, content: m.content.slice(0,10)})), null, 2)
-              );
-
     const newMessagesWithDividers = [];
     let lastDate = null;
     let systemMessagesProcessedInLoop = 0;
@@ -500,7 +492,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     for (const message of this.messages) {
       if (message.category === 'system_event') {
         systemMessagesProcessedInLoop++;
-        console.log(`ChatRoom (updateMessagesWithDividers LOOP): Processing system_event msg ID ${message._id}, content: "${message.content.slice(0,10)}"`);
       }
 
       const messageDate = this.formatDate(new Date(message.timestamp));
@@ -524,10 +515,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.messagesWithDividers = newMessagesWithDividers;
 
-    const systemMessagesInResult = this.messagesWithDividers.filter((m: { type: string; category: string; }) => m.type === 'message' && m.category === 'system_event');
-    console.log(`ChatRoom (updateMessagesWithDividers) END. messagesWithDividers count: ${this.messagesWithDividers.length}. Found ${systemMessagesInResult.length} system messages in result:`,
-                JSON.stringify(systemMessagesInResult.map((m: { _id: any; content: string | any[]; }) => ({id: m._id, content: m.content.slice(0,10)})), null, 2)
-              );
+
     this.cdr.detectChanges();
 
     setTimeout(() => {
@@ -1768,7 +1756,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     const textOrCaption: string = (typeof eventData.content === 'string') ? eventData.content.trim() : '';
     const fileToSend: File | undefined = (eventData.file instanceof File) ? eventData.file : undefined;
 
-    console.log('ChatRoom: onMessageSend - Parsed data: textOrCaption:', `"${textOrCaption}"`, 'fileToSend:', fileToSend?.name || 'No File');
 
     let replyToPayload: any = undefined; 
     if (this.replyingToMessage && this.replyingToMessage._id) {
@@ -1782,7 +1769,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         messageType: this.replyingToMessage.messageType || 'text', 
         filePath: this.replyingToMessage.filePath 
       };
-      console.log('ChatRoom: onMessageSend - replyToPayload prepared:', replyToPayload);
     } else {
       console.log('ChatRoom: onMessageSend - No active reply (this.replyingToMessage is null or has no _id).');
     }

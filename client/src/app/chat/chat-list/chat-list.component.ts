@@ -144,10 +144,8 @@ loadInitialChats(): void {
   console.log("CHAT-LIST: Attempting to load Saved Messages chat...");
   this.chatService.getSavedMessagesChat().subscribe({
     next: (smChat) => {
-      console.log("CHAT-LIST: Received Saved Messages chat data:", smChat);
       if (smChat && smChat._id) {
         this.savedMessagesChat = this.formatChatForDisplay(smChat, true);
-        console.log("LOAD_INIT: SavedMessagesChat object AFTER format:", JSON.parse(JSON.stringify(this.savedMessagesChat)));
       } else {
         console.warn("CHAT-LIST: Saved Messages chat data is invalid or missing _id.");
         this.savedMessagesChat = null;
@@ -167,21 +165,15 @@ loadRegularChats(): void {
   this.chatService.getChats()?.subscribe({
     next: (regularChatsData: any) => {
       let regularChats: Chat[] = Array.isArray(regularChatsData) ? regularChatsData : [];
-      console.log("LOAD_REGULAR: Fetched regular chats. Count:", regularChats.length, "SavedMessagesChat ID to filter:", this.savedMessagesChat);
 
       this.chats = regularChats
         .filter(chat => {
           const shouldKeep = !(this.savedMessagesChat && chat._id === this.savedMessagesChat._id);
-          if (!shouldKeep) {
-            console.log(`LOAD_REGULAR: Filtering out Saved Messages chat (ID: ${chat._id}) from regular list.`);
-          }
           return shouldKeep;
         })
         .map(chat => {
           return this.formatChatForDisplay(chat, false); 
         });
-
-      console.log("LOAD_REGULAR: Chats array AFTER filtering and formatting regular chats. Count:", this.chats.length);
 
       if (this.savedMessagesChat) {
         const alreadyExistsIndex = this.chats.findIndex(c => c._id === this.savedMessagesChat!._id);
@@ -189,7 +181,6 @@ loadRegularChats(): void {
             console.warn("LOAD_REGULAR: SavedMessagesChat was already in the list. Replacing.", this.savedMessagesChat);
             this.chats.splice(alreadyExistsIndex, 1);
         }
-        console.log("LOAD_REGULAR: Unshifting pre-formatted SavedMessagesChat:", JSON.parse(JSON.stringify(this.savedMessagesChat)));
         this.chats.unshift(this.savedMessagesChat);
       }
 
@@ -198,9 +189,7 @@ loadRegularChats(): void {
       this.loadParticipantProfiles();
       this.loadingChats = false;
       this.cdr.detectChanges();
-      console.log("LOAD_REGULAR: Final this.chats count:", this.chats.length, "Final this.filteredChats count:", this.filteredChats.length);
-      console.log("LOAD_REGULAR: First chat in filteredChats:", this.filteredChats.length > 0 ? JSON.parse(JSON.stringify(this.filteredChats[0])) : "None");
-    },
+      },
       error: (error) => {
         console.error('Failed to load regular chats:', error);
         this.loadingChats = false;
@@ -230,11 +219,9 @@ loadRegularChats(): void {
         formatted.displayAvatarUrl = 'assets/images/default-group-avatar.png';
       }
       
-      console.log(`FORMAT_CHAT (${id}): Formatted as GROUP. Name: ${formatted.participantsString}, Avatar: ${formatted.displayAvatarUrl}`);
     } else if (isSelf) {
       formatted.participantsString = 'Saved Messages'; 
       formatted.displayAvatarUrl = 'assets/images/saved-messages-icon.png'; 
-      console.log(`FORMAT_CHAT (${id}): Formatted as SELF. displayAvatarUrl: ${formatted.displayAvatarUrl}`);
     } else {
       const otherParticipants = chat.participants?.filter(p => p._id !== this.currentUserId);
 
@@ -481,7 +468,6 @@ loadRegularChats(): void {
       participantIds.add(this.currentUserId);
     }
     
-    console.log('Loading profiles for participants:', Array.from(participantIds));
     
     participantIds.forEach(userId => {
       this.loadUserProfile(userId);
@@ -497,7 +483,6 @@ loadRegularChats(): void {
     
     this.profileService.getUserProfile(userId).subscribe({
       next: (profile: UserProfile) => {
-        console.log(`Loaded profile for user ${userId}:`, profile);
         
         this.userProfilesCache.set(userId, profile);
         
