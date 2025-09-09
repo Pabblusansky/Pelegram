@@ -577,6 +577,6 @@
   (copy)="copyMessageText($event)"
   (forward)="forwardMessage($event)"
   (pin)="pinnedMessageDetails?._id === $event._id ? unpinCurrentMessage() : pinSelectedMessage()"
-  (select)="activateSelectionMode($event); toggleMessageSelection($event)"
+  (select)="activateSelectionMode($event)"
   (delete)="deleteMessage($event._id)"
 ></app-message-context-menu>

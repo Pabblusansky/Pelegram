@@ -295,9 +295,17 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.chatService.newMessage$
     .pipe(takeUntil(this.destroy$))
     .subscribe(message => {
-      console.log(`ChatRoom (newMessage$ SUB): Msg ID ${message._id}, Cat: ${message.category}, Content: "${message.content.slice(0,30)}"`);
       const isCurrentChat = this.chatId === message.chatId;
-      const isMyMessage = message.senderId === this.userId;
+      
+      let isMyMessage: boolean;
+      if (typeof message.senderId === 'string') {
+        isMyMessage = message.senderId === this.userId;
+      } else if (typeof message.senderId === 'object' && message.senderId?._id) {
+        isMyMessage = message.senderId._id === this.userId;
+      } else {
+        isMyMessage = false;
+      }
+    
       if (isCurrentChat) {
         const isMyOwnMessageJustSent = isMyMessage && !this.messages.find(m => m._id === message._id);
         this.addOrUpdateMessage(message, isMyOwnMessageJustSent);
@@ -628,105 +636,106 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   loadMessages(): void {
-      if (!this.chatId) return;
+    if (!this.chatId) return;
 
-      this.isLoadingMore = true;
-      this.noMoreMessages = false;
-      
-      if (this.resizeObserver) {
-          this.resizeObserver.disconnect();
-      }
+    this.isLoadingMore = true;
+    this.noMoreMessages = false;
+    
+    if (this.resizeObserver) {
+        this.resizeObserver.disconnect();
+    }
 
-      this.chatService.joinChat(this.chatId);
+    this.chatService.joinChat(this.chatId);
 
-      this.chatService.getMessages(this.chatId)?.subscribe({
-          next: (messagesFromServer: Message[]) => {
-              this.messages = messagesFromServer.map((msg) => ({
-                  ...msg,
-                  ismyMessage: (msg.senderId && (msg.senderId as any)._id || msg.senderId) === this.userId,
-                  status: msg.status || 'sent'
-              }));
-              this.updateMessagesWithDividers();
+    this.chatService.getMessages(this.chatId)?.subscribe({
+        next: (messagesFromServer: Message[]) => {
+            this.messages = messagesFromServer.map((msg) => ({
+                ...msg,
+                ismyMessage: (msg.senderId && (msg.senderId as any)._id || msg.senderId) === this.userId,
+                status: msg.status || 'sent'
+            }));
+            this.updateMessagesWithDividers();
 
-              this.isAtTop = false;
-              this.isAtBottom = true;
-              this.unreadMessagesCount = 0;
-              this.newMessagesWhileScrolledUp = [];
-              this.isLoadingMore = false;
-              
-              this.cdr.detectChanges();
-
-              requestAnimationFrame(() => {
-                  this.scrollToBottom(true, 'auto');
-                  this.setupResizeObserver(); 
-              });
+            this.isAtTop = false;
+            this.isAtBottom = true;
+            this.unreadMessagesCount = 0;
+            this.newMessagesWhileScrolledUp = [];
+            this.isLoadingMore = false;
             
-              this.triggerMarkAsRead();
-          },
-          error: (error) => {
-              console.error('Error loading messages:', error);
-              this.isLoadingMore = false;
-          }
-      });
-  }
-  scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): void {
-      if (!this.scrollViewport) return;
-      if (this.isScrollingProgrammatically && !force) {
-        console.log('ScrollToBottom: Aborted, programmatic scroll is in progress.');
-        return;
-      }
-      if (this.isScrollingToBottom && !force) return;
+            this.cdr.detectChanges();
 
-      if (this.returnToMessageIdAfterQuoteJump) {
-          this.scrollToMessage(this.returnToMessageIdAfterQuoteJump, 'center', true);
-          this.returnToMessageIdAfterQuoteJump = null;
-          return;
-      }
-
-      if (!force && !this.isAtBottom && this.unreadMessagesCount === 0) {
-          return;
-      }
-
-      this.isScrollingToBottom = true;
-      this.clearUnreadMessagesIndicator();
-
-      const attemptScroll = (attempt = 1) => {
-          if (!this.scrollViewport) {
-              this.isScrollingToBottom = false;
-              return;
-          }
+            requestAnimationFrame(() => {
+                this.scrollToBottom(true, 'auto');
+                this.setupResizeObserver(); 
+            });
           
-          const dataLength = this.scrollViewport.getDataLength();
-          if (dataLength === 0) {
-              this.isAtBottom = true;
-              this.isScrollingToBottom = false;
-              return;
-          }
+            this.triggerMarkAsRead();
+        },
+        error: (error) => {
+            console.error('Error loading messages:', error);
+            this.isLoadingMore = false;
+        }
+    });
+  }
 
-          this.scrollViewport.scrollToIndex(dataLength - 1, (attempt === 1) ? behavior : 'auto');
+  scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): void {
+    if (!this.scrollViewport) return;
+    if (this.isScrollingProgrammatically && !force) {
+      console.log('ScrollToBottom: Aborted, programmatic scroll is in progress.');
+      return;
+    }
+    if (this.isScrollingToBottom && !force) return;
 
-          setTimeout(() => {
-              if (!this.scrollViewport) {
-                  this.isScrollingToBottom = false;
-                  return;
-              }
+    if (this.returnToMessageIdAfterQuoteJump) {
+        this.scrollToMessage(this.returnToMessageIdAfterQuoteJump, 'center', true);
+        this.returnToMessageIdAfterQuoteJump = null;
+        return;
+    }
 
-              const offset = this.scrollViewport.measureScrollOffset('bottom');
-              
-              if (offset > 1 && attempt < 5) { 
-                  console.warn(`ScrollToBottom: Attempt ${attempt} finished with offset ${offset}. Retrying...`);
-                  attemptScroll(attempt + 1);
-              } else {
-                  this.isAtBottom = true;
-                  this.isScrollingToBottom = false;
-                  this.cdr.detectChanges();
-                  this.triggerMarkAsRead();
-                  console.log(`ScrollToBottom: Finished after ${attempt} attempts. Final offset: ${offset}`);
-              }
-          }, 100 * attempt); 
-      };
+    if (!force && !this.isAtBottom && this.unreadMessagesCount === 0) {
+        return;
+    }
 
-      attemptScroll();
+    this.isScrollingToBottom = true;
+    this.clearUnreadMessagesIndicator();
+
+    const attemptScroll = (attempt = 1) => {
+        if (!this.scrollViewport) {
+            this.isScrollingToBottom = false;
+            return;
+        }
+        
+        const dataLength = this.scrollViewport.getDataLength();
+        if (dataLength === 0) {
+            this.isAtBottom = true;
+            this.isScrollingToBottom = false;
+            return;
+        }
+
+        this.scrollViewport.scrollToIndex(dataLength - 1, (attempt === 1) ? behavior : 'auto');
+
+        setTimeout(() => {
+            if (!this.scrollViewport) {
+                this.isScrollingToBottom = false;
+                return;
+            }
+
+            const offset = this.scrollViewport.measureScrollOffset('bottom');
+            
+            if (offset > 1 && attempt < 5) { 
+                console.warn(`ScrollToBottom: Attempt ${attempt} finished with offset ${offset}. Retrying...`);
+                attemptScroll(attempt + 1);
+            } else {
+                this.isAtBottom = true;
+                this.isScrollingToBottom = false;
+                this.cdr.detectChanges();
+                this.triggerMarkAsRead();
+                console.log(`ScrollToBottom: Finished after ${attempt} attempts. Final offset: ${offset}`);
+            }
+        }, 100 * attempt); 
+    };
+
+    attemptScroll();
   }
 
   formatTimestamp(timestamp: string): string {
@@ -1674,8 +1683,22 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     if (message.category === 'system_event') {
       message.ismyMessage = false;
     } else {
-      message.ismyMessage = message.senderId === this.userId || 
-        (typeof message.senderId === 'object' && message.senderId?._id === this.userId);
+      let actualSenderId: string;
+      
+      if (typeof message.senderId === 'string') {
+        actualSenderId = message.senderId;
+      } else if (typeof message.senderId === 'object' && message.senderId?._id) {
+        actualSenderId = message.senderId._id;
+      } else {
+        console.warn('Unknown senderId format:', message.senderId);
+        actualSenderId = '';
+      }
+      
+      if (isMyOwnMessageJustSent) {
+        message.ismyMessage = true;
+      } else {
+        message.ismyMessage = actualSenderId === this.userId;
+      }
     }
 
     const existingMessageIndex = this.messages.findIndex(m => m._id === message._id);
@@ -1688,21 +1711,19 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         ...existingMessage,
         ...message,
         status: this.getNewerStatus(existingMessage.status, message.status), 
-        ismyMessage: existingMessage.ismyMessage,
+        ismyMessage: isMyOwnMessageJustSent ? true : message.ismyMessage, // Приоритет для только что отправленных
         isSelected: existingMessage.isSelected, 
       };
-      console.log(`Updated existing message ${message._id}. Final status: ${this.messages[existingMessageIndex].status}`);
+      
+      console.log(`Updated existing message ${message._id}. ismyMessage: ${this.messages[existingMessageIndex].ismyMessage}`);
     } else {
       this.messages.push(message);
+      console.log(`Added new message ${message._id}. ismyMessage: ${message.ismyMessage}`);
       
-      if (!message.ismyMessage) { 
-        if (!wasAtBottom) { 
-          if (!this.newMessagesWhileScrolledUp.find(m => m._id === message._id)) {
-            this.newMessagesWhileScrolledUp.push(message);
-            this.unreadMessagesCount = this.newMessagesWhileScrolledUp.length;
-          }
-        } else if (this.isWindowFocused) {
-          this.triggerMarkAsRead();
+      if (!message.ismyMessage) {
+        if (!this.isAtBottom) {
+          this.unreadMessagesCount++;
+          this.newMessagesWhileScrolledUp.push(message);
         }
       }
     }
@@ -1714,7 +1735,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       requestAnimationFrame(() => this.scrollToBottom(true, 'smooth'));
     }
   }
-
 
   private getNewerStatus(oldStatus: string | undefined, newStatus: string | undefined): string | undefined {
     const statusOrder: { [key: string]: number } = { 'sent': 1, 'delivered': 2, 'read': 3 };
@@ -1774,6 +1794,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
           next: (response) => {
             console.log('ChatRoom: onMessageSend - Media file upload successful. Server response:', response);
             this.scrollToBottom(true);
+            if (response.savedMessage) {
+              const messageFromServer = response.savedMessage;
+              messageFromServer.ismyMessage = true
+              messageFromServer.senderId = this.userId; 
+            
+              this.addOrUpdateMessage(messageFromServer, true);
+          }
           },
           error: (err) => {
             console.error('ChatRoom: onMessageSend - Error uploading file:', err);
