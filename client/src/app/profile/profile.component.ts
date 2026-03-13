@@ -8,6 +8,7 @@ import { ThemeService } from '../services/theme.service';
 import { NotificationService } from '../services/notifications.service';
 import { SoundService } from '../services/sound.service';
 import { AuthService } from '../auth/auth.service';
+import { LoggerService } from '../services/logger.service';
 import { environment } from '../../environments/environment';
 
 @Component({
@@ -73,7 +74,8 @@ export class ProfileComponent implements OnInit {
     public themeService: ThemeService,
     private notificationService: NotificationService,
     private soundService: SoundService,
-    private authService: AuthService
+    private authService: AuthService,
+    private logger: LoggerService
   ) {}
 
   ngOnInit(): void {
@@ -91,7 +93,7 @@ export class ProfileComponent implements OnInit {
 
   handleImageError(event: Event): void {
     const img = event.target as HTMLImageElement;
-    console.error(`Failed to load image: ${img.src}`);
+    this.logger.error('Failed to load image: ' + img.src);
     
     // Set default avatar image if the current one failed to load
     if (!img.src.includes('default-avatar.png')) {
@@ -110,9 +112,8 @@ export class ProfileComponent implements OnInit {
         
         this.applyProfileSettings(profile);
         
-        console.log('Profile loaded with settings:', profile.settings);
       },
-      error: (err: any) => {
+      error: (err: unknown) => {
         this.error = this.handleError(err, 'Failed to load profile');
         this.isLoading = false;
       }
@@ -121,23 +122,17 @@ export class ProfileComponent implements OnInit {
 
   private applyProfileSettings(profile: UserProfile): void {
     if (!profile.settings) {
-      console.log('No settings in profile, using defaults');
       return;
     }
-    
-    console.log('Applying profile settings:', profile.settings);
-    
+
     if (profile.settings.theme) {
-      console.log('Setting theme from profile:', profile.settings.theme);
       this.themeService.setTheme(profile.settings.theme);
     }
-    
+
     const notificationsEnabled = profile.settings.notifications !== false;
-    console.log('Setting notifications to:', notificationsEnabled);
     this.notificationService.setNotificationsEnabled(notificationsEnabled);
-    
+
     const soundEnabled = profile.settings.soundEnabled !== false;
-    console.log('Setting sound to:', soundEnabled);
     this.soundService.setSoundEnabled(soundEnabled);
   }
 
@@ -153,8 +148,6 @@ export class ProfileComponent implements OnInit {
   saveProfile(updateData: ProfileUpdateDto): void {
     if (!this.profile) return;
     
-    console.log('Saving profile with settings:', updateData.settings);
-    
     this.isLoading = true;
     
     this.profileService.updateProfile(updateData).subscribe({
@@ -165,9 +158,8 @@ export class ProfileComponent implements OnInit {
         
         this.applyProfileSettings(profile);
         
-        console.log('Profile updated successfully with settings:', profile.settings);
       },
-      error: (err: any) => {
+      error: (err: unknown) => {
         this.error = this.handleError(err, 'Failed to update profile');
         this.isLoading = false;
       }
@@ -184,34 +176,32 @@ export class ProfileComponent implements OnInit {
       const target = fileOrEvent.target as HTMLInputElement;
       if (target && target.files && target.files.length > 0) {
         file = target.files[0];
-        console.log('File selected from event:', file.name, file.type, file.size);
       } else {
-        console.error('No file selected or file input is invalid');
+        this.logger.error('No file selected or file input is invalid');
         return;
       }
     } else if (fileOrEvent instanceof File) {
       file = fileOrEvent;
-      console.log('File provided directly:', file.name, file.type, file.size);
     } else {
-      console.error('Invalid input type for uploadAvatar:', fileOrEvent);
+      this.logger.error('Invalid input type for uploadAvatar:', fileOrEvent);
       return;
     }
     
     if (!file) {
-      console.error('No valid file to upload');
+      this.logger.error('No valid file to upload');
       return;
     }
     
     if (!file.type.startsWith('image/')) {
       this.error = 'Only image files are allowed';
-      console.error(this.error);
+      this.logger.error(this.error);
       return;
     }
     
     const maxSize = 5 * 1024 * 1024; // 5MB in bytes
     if (file.size > maxSize) {
       this.error = `File is too large. Maximum size is ${maxSize / (1024 * 1024)}MB`;
-      console.error(this.error);
+      this.logger.error(this.error);
       return;
     }
     
@@ -220,12 +210,8 @@ export class ProfileComponent implements OnInit {
     
     this.profileService.uploadAvatar(file).subscribe({
       next: (response: { avatar: string; user: UserProfile }) => {
-        console.log('Avatar upload successful:', response);
-        
         if (this.profile) {
           this.profile.avatar = response.avatar;
-          
-          console.log('Full avatar URL:', this.avatarUrl);
 
           if (response.user) {
             this.profile = response.user;
@@ -234,33 +220,35 @@ export class ProfileComponent implements OnInit {
         
         this.isLoading = false;
       },
-      error: (err: any) => {
+      error: (err: unknown) => {
         this.error = this.handleError(err, 'Failed to upload avatar');
-        console.error('Avatar upload error:', this.error);
+        this.logger.error('Avatar upload error:', this.error);
         this.isLoading = false;
       }
     });
   }
 
-  private handleError(error: any, defaultMessage: string): string {
-    console.error('Error:', error);
-    
+  private handleError(error: unknown, defaultMessage: string): string {
+    this.logger.error('Error:', error);
+
     if (typeof error === 'string') {
       return error;
     }
-    
+
     if (error instanceof Error) {
       return error.message;
     }
-    
-    if (error.error && error.error.message) {
-      return error.error.message;
+
+    if (error && typeof error === 'object') {
+      const err = error as Record<string, unknown>;
+      if (err['error'] && typeof err['error'] === 'object' && (err['error'] as Record<string, unknown>)['message']) {
+        return String((err['error'] as Record<string, unknown>)['message']);
+      }
+      if (err['message'] && typeof err['message'] === 'string') {
+        return err['message'];
+      }
     }
-    
-    if (error.message) {
-      return error.message;
-    }
-    
+
     return defaultMessage;
   }
 

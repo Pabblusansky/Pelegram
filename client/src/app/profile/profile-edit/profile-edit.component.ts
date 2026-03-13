@@ -8,6 +8,7 @@ import { SoundService } from '../../services/sound.service';
 import { getFullAvatarUrl } from '../../utils/url-utils';
 import { ProfileService } from '../profile.service';
 import { ConfirmationService } from '../../shared/services/confirmation.service';
+import { LoggerService } from '../../services/logger.service';
 
 @Component({
   selector: 'app-profile-edit',
@@ -17,7 +18,6 @@ import { ConfirmationService } from '../../shared/services/confirmation.service'
   imports: [CommonModule, FormsModule]
 })
 export class ProfileEditComponent implements OnInit {
-  [x: string]: any;
   @Input() profile: UserProfile | null = null;
   @Output() save = new EventEmitter<ProfileUpdateDto>();
   @Output() cancel = new EventEmitter<void>();
@@ -40,7 +40,8 @@ export class ProfileEditComponent implements OnInit {
     private notificationService: NotificationService,
     private soundService: SoundService,
     private profileService: ProfileService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private logger: LoggerService
   ) {}
   
   ngOnInit(): void {
@@ -69,18 +70,16 @@ export class ProfileEditComponent implements OnInit {
       this.previewAvatarUrl = this.profile.avatar || null;
     }
     
-    console.log('Initialized editableProfile:', this.editableProfile);
   }
-  
+
   onSubmit(): void {
-    console.log('Submitting profile update with settings:', this.editableProfile.settings);
     // this.save.emit(this.editableProfile);
       this.profileService.updateProfile(this.editableProfile).subscribe({
       next: (updatedUser) => {
         this.profileUpdated.emit(updatedUser);
         this.save.emit(this.editableProfile);
       }, error: (err) => {
-        console.error('Error updating profile:', err);
+        this.logger.error('Error updating profile:', err);
         this.notificationService.showNotification('Profile update failed', {
           body: 'There was an error updating your profile. Please try again later.',
           icon: 'assets/logo.png'
@@ -90,21 +89,20 @@ export class ProfileEditComponent implements OnInit {
   }
   
   onCancel(): void {
-    console.log('Cancelling profile edit');
     this.cancel.emit();
   }
   
   onFileSelected(event: Event): void {
     const element = event.target as HTMLInputElement;
     if (!element || !element.files || element.files.length === 0) {
-      console.error('No file selected or file input is invalid');
+      this.logger.error('No file selected or file input is invalid');
       return;
     }
     
     const file = element.files[0];
     
     if (!file.type.startsWith('image/')) {
-      console.error('Selected file is not an image');
+      this.logger.error('Selected file is not an image');
       return;
     }
     
@@ -112,7 +110,6 @@ export class ProfileEditComponent implements OnInit {
     
     this.avatarUpload.emit(file);
     
-    console.log('Avatar file selected for upload:', file.name, file.type, file.size);
   }
   
   previewAvatar(file: File): void {
@@ -136,7 +133,6 @@ export class ProfileEditComponent implements OnInit {
     
     this.themeService.setTheme(theme);
     
-    console.log('Theme changed to:', theme);
   }
 
   handleImageError(event: Event): void {
@@ -164,7 +160,6 @@ export class ProfileEditComponent implements OnInit {
       }
     }
     
-    console.log('Notifications ' + (enabled ? 'enabled' : 'disabled'));
   }
   
   onSoundChange(enabled: boolean): void {
@@ -184,12 +179,10 @@ export class ProfileEditComponent implements OnInit {
       this.soundService.playSound('notification');
     }
     
-    console.log('Sound ' + (enabled ? 'enabled' : 'disabled'));
   }
 
   async onDeleteAvatar(): Promise<void> {
         if (!this.profile || !this.profile.avatar) {
-      console.warn('No avatar to delete or profile not loaded.');
       return;
     }
 
@@ -214,14 +207,13 @@ export class ProfileEditComponent implements OnInit {
             if (this.profile) this.initializeEditableProfile();
             this.profileUpdated.emit(response.user);
 
-            console.log('Avatar deleted successfully. New profile state:', this.profile);
           } else {
-            console.error('Failed to delete avatar:', response.message);
+            this.logger.error('Failed to delete avatar:', response.message);
           }
         },
         error: (err) => {
           this.isDeletingAvatar = false;
-          console.error('Error deleting avatar:', err);
+          this.logger.error('Error deleting avatar:', err);
         }
       });
     }

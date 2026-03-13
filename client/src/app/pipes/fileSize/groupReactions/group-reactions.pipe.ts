@@ -22,7 +22,6 @@ export class GroupReactionsPipe implements PipeTransform {
     const groups: { [key: string]: { count: number; userIds: string[] } } = {};
     reactions.forEach(r => {
       if (!r.reaction || !r.userId) {
-        console.warn('GroupReactionsPipe: Skipping reaction with missing type or userId:', r);
         return;
       }
       if (!groups[r.reaction]) {

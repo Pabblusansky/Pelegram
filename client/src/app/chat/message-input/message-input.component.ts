@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
 import { ToastService } from '../../utils/toast-service';
+import { LoggerService } from '../../services/logger.service';
+import { Message } from '../chat.model';
 
 @Component({
   selector: 'app-message-input',
@@ -69,25 +71,17 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
   onGlobalMouseUp(event: MouseEvent): void {
     if (this.isRecording) {
       if (!this.micButtonRect) {
-        console.warn('Mic button rect not saved');
         this.stopRecording(false);
         return;
       }
-      
+
       const isPointerOverButton = (
         event.clientX >= this.micButtonRect.left &&
         event.clientX <= this.micButtonRect.right &&
         event.clientY >= this.micButtonRect.top &&
         event.clientY <= this.micButtonRect.bottom
       );
-      
-      console.log('Mouse release:', { 
-        x: event.clientX, 
-        y: event.clientY, 
-        rect: this.micButtonRect,
-        isOver: isPointerOverButton 
-      });
-      
+
       this.stopRecording(isPointerOverButton);
     }
   }
@@ -102,25 +96,17 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
       }
 
       if (!this.micButtonRect) {
-        console.warn('Mic button rect not saved');
         this.stopRecording(false);
         return;
       }
-      
+
       const isPointerOverButton = (
         touch.clientX >= this.micButtonRect.left &&
         touch.clientX <= this.micButtonRect.right &&
         touch.clientY >= this.micButtonRect.top &&
         touch.clientY <= this.micButtonRect.bottom
       );
-      
-      console.log('Touch release:', { 
-        x: touch.clientX, 
-        y: touch.clientY, 
-        rect: this.micButtonRect,
-        isOver: isPointerOverButton 
-      });
-      
+
       this.stopRecording(isPointerOverButton);
     }
   }
@@ -128,7 +114,8 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef,
     private ToastService: ToastService,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private logger: LoggerService
   ) {
     this.boundOnPaste = this.onPaste.bind(this);
   }
@@ -280,13 +267,13 @@ adjustTextareaHeight(): void {
         this.cdr.detectChanges();
 
         const reader = new FileReader();
-        reader.onload = (e: any) => {
-          this.filePreviewUrl = this.sanitizer.bypassSecurityTrustUrl(e.target.result);
+        reader.onload = (e: ProgressEvent<FileReader>) => {
+          this.filePreviewUrl = this.sanitizer.bypassSecurityTrustUrl(e.target?.result as string);
           this.isPreviewLoading = false;
           this.cdr.detectChanges();
         };
         reader.onerror = () => {
-          console.error('Error reading file for preview');
+          this.logger.error('Error reading file for preview');
           this.isPreviewLoading = false;
           this.removeSelectedFile();
           this.cdr.detectChanges();
@@ -416,8 +403,8 @@ adjustTextareaHeight(): void {
         this.cdr.detectChanges();
 
         const reader = new FileReader();
-        reader.onload = (e: any) => {
-          this.filePreviewUrl = this.sanitizer.bypassSecurityTrustUrl(e.target.result);
+        reader.onload = (e: ProgressEvent<FileReader>) => {
+          this.filePreviewUrl = this.sanitizer.bypassSecurityTrustUrl(e.target?.result as string);
           this.isPreviewLoading = false;
           this.cdr.detectChanges();
           this.focusInput();
@@ -459,7 +446,6 @@ adjustTextareaHeight(): void {
       const micButton = document.querySelector('.mic-button') as HTMLElement;
       if (micButton) {
         this.micButtonRect = micButton.getBoundingClientRect();
-        console.log('Saved mic button rect:', this.micButtonRect);
       }
 
       try {
@@ -469,11 +455,9 @@ adjustTextareaHeight(): void {
           const mimeType = 'audio/ogg; codecs=opus';
           let options: MediaRecorderOptions;
           if (MediaRecorder.isTypeSupported(mimeType)) {
-            console.log(`Using preferred mimeType: ${mimeType}`);
             options = { mimeType: mimeType };
           } else {
-            console.warn(`Mime type ${mimeType} is not supported. Falling back to default.`);
-            options = {}; 
+            options = {};
           }
     
           this.mediaRecorder = new MediaRecorder(stream, options);
@@ -490,7 +474,7 @@ adjustTextareaHeight(): void {
           this.cdr.detectChanges();
           this.initializeWaveform(stream);
       } catch (err) {
-          console.error('Error accessing microphone:', err);
+          this.logger.error('Error accessing microphone:', err);
           this.ToastService.showToast('Microphone access denied.', 5000, 'error');
           this.isRecording = false;
           this.micButtonRect = null;
@@ -501,12 +485,10 @@ adjustTextareaHeight(): void {
     if (!this.isRecording || !this.mediaRecorder) return;
 
     const recordedDuration = this.recordingTime;
-    console.log(`Stopping recording. Should send: ${shouldSend}`);
     
     this.mediaRecorder.onstop = () => {
         if (shouldSend) {
-            const usedMimeType = this.mediaRecorder?.mimeType || 'audio/ogg'; // 'audio/ogg' is a common fallback
-            console.log(`Creating blob with used mimeType: ${usedMimeType}`);
+            const usedMimeType = this.mediaRecorder?.mimeType || 'audio/ogg';
             const audioBlob = new Blob(this.audioChunks, { type: usedMimeType });
             const fileExtension = usedMimeType.includes('ogg') ? 'ogg' : 'webm';
             const audioFile = new File([audioBlob], `voice-message-${new Date().toISOString()}.${fileExtension}`, {
@@ -517,7 +499,6 @@ adjustTextareaHeight(): void {
             if (audioFile.size > 1000) { 
               this.sendMessageEvent.emit({ content: '', file: audioFile, duration: recordedDuration });
             } else {
-                console.warn("Recorded audio is too short, not sending.");
             }
         }
         this.resetRecordingState();
@@ -574,7 +555,7 @@ adjustTextareaHeight(): void {
       }, 100);
 
     } catch (error) {
-      console.error('Error initializing equalizer:', error);
+      this.logger.error('Error initializing equalizer:', error);
     }
   }
 

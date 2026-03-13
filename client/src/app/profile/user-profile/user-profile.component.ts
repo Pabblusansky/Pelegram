@@ -6,6 +6,7 @@ import { UserProfile } from '../profile.model';
 import { ChatService } from '../../chat/chat.service';
 import { Observable } from 'rxjs';
 import { Location } from '@angular/common';
+import { LoggerService } from '../../services/logger.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -28,7 +29,8 @@ export class UserProfileComponent implements OnInit {
     private router: Router,
     private profileService: ProfileService,
     private chatService: ChatService,
-    private location: Location
+    private location: Location,
+    private logger: LoggerService
   ) {}
   
   ngOnInit(): void {
@@ -56,7 +58,7 @@ export class UserProfileComponent implements OnInit {
   
   handleImageError(event: Event): void {
     const img = event.target as HTMLImageElement;
-    console.error(`Failed to load image: ${img.src}`);
+    this.logger.error('Failed to load image: ' + img.src);
     
     // Set default avatar image if the current one failed to load
     if (!img.src.includes('default-avatar.png')) {
@@ -78,8 +80,6 @@ export class UserProfileComponent implements OnInit {
       next: (profile) => {
         this.profile = profile;
         this.isLoading = false;
-        console.log('User profile loaded:', profile);
-        console.log('Avatar URL:', this.avatarUrl);
       },
       error: (err) => {
         this.error = this.getErrorMessage(err);
@@ -88,23 +88,25 @@ export class UserProfileComponent implements OnInit {
     });
   }
   
-  private getErrorMessage(error: any): string {
+  private getErrorMessage(error: unknown): string {
     if (typeof error === 'string') {
       return error;
     }
-    
+
     if (error instanceof Error) {
       return error.message;
     }
-    
-    if (error.error && error.error.message) {
-      return error.error.message;
+
+    if (error && typeof error === 'object') {
+      const err = error as Record<string, unknown>;
+      if (err['error'] && typeof err['error'] === 'object' && (err['error'] as Record<string, unknown>)['message']) {
+        return String((err['error'] as Record<string, unknown>)['message']);
+      }
+      if (err['message'] && typeof err['message'] === 'string') {
+        return err['message'];
+      }
     }
-    
-    if (error.message) {
-      return error.message;
-    }
-    
+
     return 'Failed to load user profile';
   }
   

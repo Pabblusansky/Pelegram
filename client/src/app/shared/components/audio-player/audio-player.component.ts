@@ -1,6 +1,7 @@
 import { Component, Input, ViewChild, ElementRef, ChangeDetectorRef, NgZone, OnChanges, SimpleChanges, OnDestroy, AfterViewInit, Output, EventEmitter } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
+import { LoggerService } from '../../../services/logger.service';
 
 @Component({
   selector: 'app-audio-player',
@@ -35,6 +36,7 @@ export class AudioPlayerComponent implements OnChanges, AfterViewInit, OnDestroy
     private http: HttpClient,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
+    private logger: LoggerService,
   ) {
     if (!this.audioContext) {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -152,7 +154,7 @@ export class AudioPlayerComponent implements OnChanges, AfterViewInit, OnDestroy
       this.drawFullWaveform();
 
     } catch (error) {
-        console.error('Error loading or drawing waveform:', error);
+        this.logger.error('Error loading or drawing waveform:', error);
         this.onError(error instanceof Event ? error : new ErrorEvent('load_error', { error }));
     }
   }
@@ -225,7 +227,7 @@ export class AudioPlayerComponent implements OnChanges, AfterViewInit, OnDestroy
     return `${minutes}:${formattedSeconds}`;
   }
   onError(event: Event): void {
-    console.error('Audio error:', event);
+    this.logger.error('Audio error:', event);
     this.error.emit(event);
   }
 

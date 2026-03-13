@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, OnDestroy, Output, inject } from '@angular/core';
+import { Component, EventEmitter, OnInit, OnDestroy, Output } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ChatService } from '../chat.service';
 import { Router, RouterModule } from '@angular/router';
@@ -13,6 +13,7 @@ import { getFullAvatarUrl } from '../../utils/url-utils';
 import { ProfileService } from '../../profile/profile.service';
 import { CreateGroupChatComponent } from "../group/create-group-chat/create-group-chat.component";
 import { ToastService } from '../../utils/toast-service';
+import { LoggerService } from '../../services/logger.service';
 import { ConfirmationService } from '../../shared/services/confirmation.service';
 
 @Component({
@@ -29,7 +30,6 @@ export class ChatListComponent implements OnInit, OnDestroy {
   filteredChats: any[] = [];
   searchQuery: string = '';
   searchResults: User[] = [];
-  // selectedUserId: string | null = null;
   loading: boolean = false;
   loadingChats: boolean = false;
   loadingUserSearch: boolean = false;
@@ -54,7 +54,8 @@ export class ChatListComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private profileService: ProfileService,
     private ToastService: ToastService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private logger: LoggerService
   ) {}
 
   ngOnInit(): void {
@@ -72,7 +73,6 @@ export class ChatListComponent implements OnInit, OnDestroy {
     this.chatService.userRemovedFromChat$
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
-        console.log(`CHAT-LIST: User removed/left chat ${data.chatId}, reason: ${data.reason}`);
         this.chats = this.chats.filter(chat => chat._id !== data.chatId);
         if (this.router.url.includes(`/chats/${data.chatId}`)) {
           this.ToastService.showToast(data.reason === 'left_group' ? 'You have left the group.' : 'You were removed from the group.');
@@ -112,21 +112,19 @@ export class ChatListComponent implements OnInit, OnDestroy {
     this.chatService.userStatuses$
       .pipe(takeUntil(this.destroy$))
       .subscribe(statuses => {
-        // console.log('CHAT-LIST: Received userStatuses in component:', JSON.parse(JSON.stringify(statuses)));
         let changed = false;
         this.chats.forEach(chat => {
           if (chat.isSelfChat || !chat.participants || chat.participants.length < 2) {
             return;
           }
           const otherParticipant = chat.participants.find(
-            (p: any) => p._id !== this.currentUserId
+            (p: User) => p._id !== this.currentUserId
           );
           
           if (otherParticipant && otherParticipant._id) {
             const userId = otherParticipant._id;
             const userStatus = statuses[userId];
             const newOnlineStatus = userStatus ? userStatus.online : false;
-            // console.log(`CHAT-LIST: Chat ${chat._id}, otherP: ${userId}, newStatus: ${newOnlineStatus}, currentMapStatus: ${this.participantStatuses.get(userId)}`);
             if (this.participantStatuses.get(userId) !== newOnlineStatus) {
               this.participantStatuses.set(userId, newOnlineStatus);
               changed = true;
@@ -141,19 +139,17 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
 loadInitialChats(): void {
   this.loadingChats = true;
-  console.log("CHAT-LIST: Attempting to load Saved Messages chat...");
   this.chatService.getSavedMessagesChat().subscribe({
     next: (smChat) => {
       if (smChat && smChat._id) {
         this.savedMessagesChat = this.formatChatForDisplay(smChat, true);
       } else {
-        console.warn("CHAT-LIST: Saved Messages chat data is invalid or missing _id.");
         this.savedMessagesChat = null;
       } 
       this.loadRegularChats(); 
     },
     error: (err) => {
-      console.error('CHAT-LIST: Error loading Saved Messages chat, proceeding with regular chats:', err);
+      this.logger.error('CHAT-LIST: Error loading Saved Messages chat, proceeding with regular chats:', err);
       this.savedMessagesChat = null; 
       this.savedMessagesChat = null;
       this.loadRegularChats();
@@ -163,7 +159,7 @@ loadInitialChats(): void {
 
 loadRegularChats(): void {
   this.chatService.getChats()?.subscribe({
-    next: (regularChatsData: any) => {
+    next: (regularChatsData: Chat[]) => {
       let regularChats: Chat[] = Array.isArray(regularChatsData) ? regularChatsData : [];
 
       this.chats = regularChats
@@ -178,7 +174,6 @@ loadRegularChats(): void {
       if (this.savedMessagesChat) {
         const alreadyExistsIndex = this.chats.findIndex(c => c._id === this.savedMessagesChat!._id);
         if (alreadyExistsIndex !== -1) {
-            console.warn("LOAD_REGULAR: SavedMessagesChat was already in the list. Replacing.", this.savedMessagesChat);
             this.chats.splice(alreadyExistsIndex, 1);
         }
         this.chats.unshift(this.savedMessagesChat);
@@ -191,7 +186,7 @@ loadRegularChats(): void {
       this.cdr.detectChanges();
       },
       error: (error) => {
-        console.error('Failed to load regular chats:', error);
+        this.logger.error('Failed to load regular chats:', error);
         this.loadingChats = false;
         if (error.status === 401 || error.status === 403) {
           this.router.navigate(['/login']);
@@ -202,7 +197,7 @@ loadRegularChats(): void {
 
   // General method to format a chat (both regular and Saved Messages)
 
-  formatChatForDisplay(chat: Chat, isSelf: boolean): any {
+  formatChatForDisplay(chat: Chat, isSelf: boolean): Chat {
     const formatted = { ...chat };
     const id = chat._id;
 
@@ -254,7 +249,7 @@ loadRegularChats(): void {
     return formatted;
   }
 
-  getUserAvatar(chat: any): string {
+  getUserAvatar(chat: Chat): string {
     return chat.displayAvatarUrl || (chat.isGroupChat ? 'assets/images/default-group-avatar.png' : 'assets/images/default-avatar.png');
   }
 
@@ -275,7 +270,7 @@ loadRegularChats(): void {
 
   handleAvatarError(event: Event): void {
     const img = event.target as HTMLImageElement;
-    console.error(`Failed to load avatar image: ${img.src}`);
+    this.logger.error('Failed to load avatar image: ' + img.src);
     
     // Set default avatar image if the current one failed to load
     if (!img.src.includes('default-avatar.png')) {
@@ -318,7 +313,7 @@ loadRegularChats(): void {
     this.viewUserProfile(userId);
   }
 
-  getOtherParticipantId(chat: any): string | null {
+  getOtherParticipantId(chat: Chat): string | null {
     if (!chat.participants || chat.participants.length === 0) {
       return null;
     }
@@ -328,7 +323,7 @@ loadRegularChats(): void {
     }
     
     const otherParticipant = chat.participants.find(
-      (p: any) => p._id !== this.currentUserId
+      (p: User) => p._id !== this.currentUserId
     );
     
     return otherParticipant ? otherParticipant._id : null;
@@ -359,8 +354,6 @@ loadRegularChats(): void {
     const existingChatIndex = this.chats.findIndex(c => c._id === newChat._id);
 
     if (existingChatIndex !== -1) {
-      console.log(`CHAT-LIST (handleNewChatCreated): Chat ${newChat._id} already exists. Updating it.`);
-      
       const targetChat = this.chats[existingChatIndex];
       targetChat.lastMessage = newChat.lastMessage;
       targetChat.updatedAt = newChat.updatedAt;
@@ -371,8 +364,6 @@ loadRegularChats(): void {
       }
       
     } else {
-      console.log(`CHAT-LIST (handleNewChatCreated): Adding completely new chat ${newChat._id}.`);
-      
       const formattedChat = this.formatChatForDisplay(newChat, isSelfChat);
       this.chats.unshift(formattedChat);
 
@@ -394,7 +385,6 @@ loadRegularChats(): void {
     const chatIndex = this.chats.findIndex(chat => chat._id === updatedChatFromServer._id);
     if (chatIndex !== -1) {
       const isSelf = this.chats[chatIndex].isSelfChat; 
-      console.log(`HANDLE_CHAT_UPDATE (${id}): Existing chat isSelfChat: ${isSelf}. Re-formatting.`);
       this.chats[chatIndex] = {
         ...this.formatChatForDisplay(updatedChatFromServer, isSelf),
         isSelfChat: isSelf,
@@ -411,7 +401,6 @@ loadRegularChats(): void {
       this.applyChatFilter();
       this.cdr.detectChanges();
     } else {
-      console.warn(`Received 'chat_updated' for a chat not in the list: ${updatedChatFromServer._id}. Adding it.`);
       this.handleNewChatCreated(updatedChatFromServer);
     }
   }
@@ -445,7 +434,6 @@ loadRegularChats(): void {
       this.cdr.detectChanges();
 
     } else {
-      console.warn(`Chat for new message (ID: ${message.chatId}) not found. Reloading all chats.`);
       this.loadInitialChats(); 
     }
   }
@@ -455,7 +443,7 @@ loadRegularChats(): void {
     
     this.chats.forEach(chat => {
       if (!chat.isSelfChat) {
-        chat.participants.forEach((participant: any) => {
+        chat.participants.forEach((participant: User) => {
           if (participant._id !== this.currentUserId && !this.userProfilesCache.has(participant._id)) {
             participantIds.add(participant._id);
           }
@@ -492,13 +480,13 @@ loadRegularChats(): void {
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error(`Failed to load profile for user ${userId}:`, err);
+        this.logger.error('Failed to load profile for user ' + userId + ':', err);
         this.loadingAvatars.delete(userId);
       }
     });
   }
 
-  private loadParticipantProfilesForSingleChat(chat: any): void {
+  private loadParticipantProfilesForSingleChat(chat: Chat): void {
     if (!chat || !chat.participants) return;
     
     if (chat.isSelfChat) {
@@ -507,7 +495,7 @@ loadRegularChats(): void {
         this.loadUserProfile(this.currentUserId);
       }
     } else {
-      chat.participants.forEach((participant: any) => {
+      chat.participants.forEach((participant: User) => {
         if (participant._id !== this.currentUserId && !this.userProfilesCache.has(participant._id)) {
           this.loadUserProfile(participant._id);
         }
@@ -567,7 +555,7 @@ loadRegularChats(): void {
           this.cdr.detectChanges();
         },
         error: (err) => {
-          console.error('Search error:', err);
+          this.logger.error('Search error:', err);
           this.searchResults = [];
           this.loadingUserSearch = false;
           this.cdr.detectChanges();
@@ -583,7 +571,6 @@ loadRegularChats(): void {
   startChatWithUser(user: User) {
     if (!user || !user._id) return;
 
-    console.log('Attempting to start chat with user:', user.username);
     this.loading = true;
     this.chatService.createOrGetDirectChat(user._id)
       .pipe(takeUntil(this.destroy$))
@@ -599,7 +586,7 @@ loadRegularChats(): void {
         },
         error: (error) => {
           this.loading = false;
-          console.error('Failed to create or get chat with user:', user.username, error);
+          this.logger.error('Failed to create or get chat with user:', user.username, error);
         }
       });
   }
@@ -609,7 +596,7 @@ loadRegularChats(): void {
     this.router.navigate([`/chats/${chatId}`]);
   }
 
-  getChatDisplayName(chat: any): string {
+  getChatDisplayName(chat: Chat): string {
     if (!chat) return 'Chat';
     return chat.participantsString || 'Chat';
   }
@@ -619,7 +606,7 @@ loadRegularChats(): void {
     event.preventDefault();
 
     if (!chatToDelete._id) {
-      console.error('Cannot delete chat: chat ID is missing.');
+      this.logger.error('Cannot delete chat: chat ID is missing.');
       return;
     }
 
@@ -642,14 +629,13 @@ loadRegularChats(): void {
       this.loading = true;
       this.chatService.deleteChat(chatToDelete._id).subscribe({
         next: (response) => {
-          console.log(`Chat ${chatToDelete._id} deletion request sent successfully. Response:`, response);
           this.loading = false;
           
           // Manually remove the chat from the lists to prevent waiting for the server event
           this.removeChatFromList(chatToDelete._id);
         },
         error: (err) => {
-          console.error(`Failed to delete chat ${chatToDelete._id}:`, err);
+          this.logger.error('Failed to delete chat ' + chatToDelete._id + ':', err);
           this.ToastService.showToast(`Error deleting chat: ${err.error?.message || err.message || 'Unknown error'}`, 3000, 'error');
           this.loading = false;
         }
@@ -661,8 +647,7 @@ loadRegularChats(): void {
     const index = this.chats.findIndex(chat => chat._id === chatIdToRemove);
     if (index > -1) {
       const removedChat = this.chats.splice(index, 1)[0];
-      console.log(`Chat '${this.getChatDisplayName(removedChat)}' (ID: ${chatIdToRemove}) removed from list.`);
-      
+
       // If this was the Saved Messages chat, clear the reference
       if (removedChat.isSelfChat) {
         this.savedMessagesChat = null;
@@ -676,7 +661,6 @@ loadRegularChats(): void {
   private addNewChatToList(newChat: Chat): void {
     const existingChatIndex = this.chats.findIndex(c => c._id === newChat._id);
     if (existingChatIndex === -1) {
-      console.log(`CHAT-LIST: Adding new chat to list:`, newChat);
       
       const isSelfChat = newChat.participants.length === 1 && 
                          newChat.participants[0]._id === this.currentUserId;
@@ -693,7 +677,6 @@ loadRegularChats(): void {
       this.loadParticipantProfilesForSingleChat(formattedChat);
       this.cdr.detectChanges();
     } else {
-      console.log(`CHAT-LIST: New chat event for existing chat ${newChat._id}, possibly updating.`, newChat);
       const isSelf = this.chats[existingChatIndex].isSelfChat;
       this.chats[existingChatIndex] = { 
         ...this.formatChatForDisplay(newChat, isSelf),
@@ -726,12 +709,11 @@ loadRegularChats(): void {
   }
 
   onGroupCreated(newGroup: Chat): void {
-    console.log('Group successfully created from dialog, new chat object:', newGroup);
     this.closeCreateGroupDialog();
   }
 
 
-  getIsUserGroupAdmin(chat: any): boolean {
+  getIsUserGroupAdmin(chat: Chat): boolean {
     if (!chat.isGroupChat || !chat.admin || !this.currentUserId) {
       return false;
     }
@@ -756,14 +738,9 @@ loadRegularChats(): void {
   }
 
   private handleMessageDeletedEvent(event: { messageId: string; chatId: string; updatedChat: Chat }): void {
-    console.log('CHAT-LIST: Handling message_deleted event:', event);
-    
     const chatIndex = this.chats.findIndex(c => c._id === event.chatId);
     if (chatIndex !== -1) {
       if (event.updatedChat) {
-        console.log(`CHAT-LIST: Updating chat ${event.chatId} with updatedChat from deletion event. New lastMessage:`, event.updatedChat.lastMessage);
-
-
         const isSelf = this.chats[chatIndex].isSelfChat; 
         
         const newlyUpdatedChatFromServer = this.formatChatForDisplay(event.updatedChat, isSelf);
@@ -780,17 +757,12 @@ loadRegularChats(): void {
         }
 
 
-        console.log('CHAT-LIST: Chat after update in local list:', JSON.parse(JSON.stringify(this.chats[chatIndex])));
-
         this.sortChatsInPlace();
         this.applyChatFilter();
         this.cdr.detectChanges();
       } else {
-        console.warn(`CHAT-LIST: message_deleted event for chat ${event.chatId} did not contain updatedChat. Reloading all chats as a fallback.`);
-        this.loadInitialChats(); 
+        this.loadInitialChats();
       }
-    } else {
-      console.warn(`CHAT-LIST: Received message_deleted event for a chat not in the list: ${event.chatId}`);
     }
   }
 

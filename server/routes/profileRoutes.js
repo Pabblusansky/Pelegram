@@ -4,6 +4,7 @@ import authenticateToken from '../middleware/authenticateToken.js';
 import { uploadAvatar, getFileUrl, deleteFileFromCloudinary } from '../config/multer-config.js';
 import path from 'path';
 import fs from 'fs';
+import logger from '../config/logger.js';
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ router.get('/me', authenticateToken, async (req, res) => {
     
     res.json(user);
   } catch (err) {
-    console.error('Error fetching profile:', err);
+    logger.error('Error fetching profile:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -33,7 +34,7 @@ router.get('/:userId', authenticateToken, async (req, res) => {
     
     res.json(user);
   } catch (err) {
-    console.error('Error fetching user profile:', err);
+    logger.error('Error fetching user profile:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -157,7 +158,7 @@ router.patch('/me', authenticateToken, async (req, res) => {
     res.json(updatedUser);
 
   } catch (err) {
-    console.error('Error updating profile:', err);
+    logger.error('Error updating profile:', err);
     if (err.name === 'ValidationError')  {
       const errors = {};
       for (const field in err.errors) {
@@ -197,9 +198,7 @@ router.post('/avatar', authenticateToken, uploadAvatar.single('avatar'), async (
           if (!err) {
             fs.unlink(oldAvatarPath, (unlinkErr) => {
               if (unlinkErr) {
-                console.error(`Failed to delete old avatar: ${unlinkErr.message}`);
-              } else {
-                console.log(`Successfully deleted old avatar: ${oldAvatarPath}`);
+                logger.error(`Failed to delete old avatar: ${unlinkErr.message}`);
               }
             });
           }
@@ -215,7 +214,7 @@ router.post('/avatar', authenticateToken, uploadAvatar.single('avatar'), async (
       user: user.toObject({ virtuals: true, versionKey: false, transform: (doc, ret) => { delete ret.password; return ret; }})
     });
   } catch (err) {
-    console.error('Error uploading avatar:', err);
+    logger.error('Error uploading avatar:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -237,7 +236,6 @@ router.delete('/avatar', authenticateToken, async (req, res) => {
       const fullPathToDelete = path.join(process.cwd(), avatarToDelete);
       if (fs.existsSync(fullPathToDelete)) {
         fs.unlinkSync(fullPathToDelete);
-        console.log(`🗑️ Deleted local avatar: ${fullPathToDelete}`);
       }
     } else {
       await deleteFileFromCloudinary(avatarToDelete);
@@ -251,7 +249,7 @@ router.delete('/avatar', authenticateToken, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Error deleting avatar:', err);
+    logger.error('Error deleting avatar:', err);
     res.status(500).json({ error: 'Server error while deleting avatar' });
   }
 });

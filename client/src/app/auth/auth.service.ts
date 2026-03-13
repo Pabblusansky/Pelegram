@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { ChatService } from '../chat/chat.service';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { LoggerService } from '../services/logger.service';
 @Injectable({
   providedIn: 'root',
 })
@@ -16,7 +17,8 @@ export class AuthService {
   constructor(
     private http: HttpClient, 
     private router: Router, 
-    private chatService: ChatService) 
+    private chatService: ChatService,
+    private logger: LoggerService)
     {
       this.checkAuthStatusOnLoad();
     }
@@ -43,7 +45,6 @@ export class AuthService {
     return this.http.post<{ token: string, userId: string, username: string }>(`${this.apiUrl}/login`, credentials).pipe(
       tap(response => {
         if (response && response.token && response.userId) {
-          console.log('Login successful:', response);
           localStorage.setItem('token', response.token);
           localStorage.setItem('userId', response.userId);
           localStorage.setItem('username', response.username);
@@ -53,7 +54,7 @@ export class AuthService {
           this.chatService.logoutAndReconnectSocket();
           this.router.navigate(['/']);
         } else {
-          console.error('Token is missing in the response');
+          this.logger.error('Token is missing in the response');
           throw new Error('Authentication failed. Invalid server response.');
         }
       })
@@ -63,9 +64,9 @@ export class AuthService {
 
   logout(): void {
     const userId = localStorage.getItem('userId');
-    if (this.chatService.getSocket() && this.chatService.getSocket().connected && userId) {
-       this.chatService.getSocket().emit('user_logout_attempt', { userId });
-       console.log('Emitted user_logout_attempt to server');
+    const socket = this.chatService.getSocket();
+    if (socket && socket.connected && userId) {
+       socket.emit('user_logout_attempt', { userId });
     }
     localStorage.removeItem('token');
     localStorage.removeItem('userId');

@@ -1,4 +1,3 @@
-// src/app/services/theme.service.ts
 import { Injectable, OnDestroy, Renderer2, RendererFactory2 } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 
@@ -45,8 +44,6 @@ export class ThemeService implements OnDestroy{
     this.themeSubject.next(theme);
     
     this.applyTheme(theme);
-    
-    console.log(`Theme set to: ${theme}`);
   }
 
   private applyTheme(themeType: ThemeType): void {
@@ -65,8 +62,6 @@ export class ThemeService implements OnDestroy{
       const color = actualTheme === 'dark' ? '#1a1a1a' : '#ffffff';
       this.renderer.setAttribute(metaThemeColor, 'content', color);
     }
-    
-    console.log(`Applied theme: ${actualTheme} (from ${themeType})`);
   }
   
   getAppliedTheme(): 'light' | 'dark' {

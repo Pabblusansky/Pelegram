@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
 import { Router } from '@angular/router';
+import { LoggerService } from '../../services/logger.service';
 @Component({
   selector: 'app-register',
   templateUrl: './register.component.html',
@@ -20,7 +21,7 @@ export class RegisterComponent {
   isSubmitting: boolean = false
   errors: Record<string, string> = {};
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(private authService: AuthService, private router: Router, private logger: LoggerService) {}
 
   hasErrors(): boolean {
     return Object.values(this.errors).some((error) => !!error);
@@ -56,7 +57,7 @@ export class RegisterComponent {
         this.router.navigate(['/auth/register-success']); 
       },
       error: (err) => {
-        console.error('Error:', err);
+        this.logger.error('Error:', err);
         this.isSubmitting = false;
       },
     });

@@ -4,6 +4,7 @@ import { ChatService, MediaGalleryResponse } from '../chat.service';
 import { Message } from '../chat.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { LoggerService } from '../../services/logger.service';
 
 @Component({
   selector: 'app-shared-media-gallery',
@@ -27,12 +28,12 @@ export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
-  constructor(private chatService: ChatService) {}
+  constructor(private chatService: ChatService, private logger: LoggerService) {}
 
   ngOnInit(): void {
     if (!this.chatId) {
       this.error = 'Chat ID is required to load media gallery.';
-      console.error(this.error);
+      this.logger.error(this.error);
       return;
     }
     this.loadMedia(true);
@@ -66,7 +67,7 @@ export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
           this.error = null;
         },
         error: (err) => {
-          console.error('Error loading media gallery:', err);
+          this.logger.error('Error loading media gallery:', err);
           this.error = 'Failed to load media. Please try again later.';
           this.isLoading = false;
         }
@@ -107,7 +108,6 @@ export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
   }
 
   onMediaClick(item: Message, index: number): void {
-    console.log('Clicked on media item:', item);
     if (item.fileMimeType?.startsWith('image/')) {
       const imageItems = this.mediaItems.filter(m => m.fileMimeType?.startsWith('image/'));
       const startIndex = imageItems.findIndex(m => m._id === item._id);
@@ -124,7 +124,7 @@ export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
   }
 
   handleImageError(event: Event, item: Message): void {
-      console.error(`Failed to load image: ${item.filePath}`);
+      this.logger.error(`Failed to load image: ${item.filePath}`);
       const imgElement = event.target as HTMLImageElement;
       imgElement.style.display = 'none'; 
   }

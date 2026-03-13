@@ -3,6 +3,7 @@ import Message from '../models/Message.js';
 import authenticateToken from '../middleware/authenticateToken.js';
 import Chat from '../models/Chat.js';
 import User from '../models/User.js';
+import logger from '../config/logger.js';
 
 import fs from 'fs';
 import path from 'path';
@@ -28,7 +29,7 @@ export default (io) => {
       
       res.json(chats);
     } catch (error) {
-      console.error('Error fetching available chats:', error);
+      logger.error('Error fetching available chats:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -70,7 +71,7 @@ export default (io) => {
       res.json(messages);
 
     } catch (error) {
-      console.error('Error searching messages:', error);
+      logger.error('Error searching messages:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -127,7 +128,7 @@ export default (io) => {
       res.json(uniqueMessages);
 
     } catch (error) {
-      console.error('Error fetching message context:', error);
+      logger.error('Error fetching message context:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -152,7 +153,7 @@ export default (io) => {
       const originalMessages = await Message.find({ _id: { $in: messageIds } }).sort({ timestamp: 1 });
 
       if (originalMessages.length !== messageIds.length) {
-        console.warn('Not all messages for multiple forward were found or accessible.');
+        logger.warn('Not all messages for multiple forward were found or accessible.');
       }
       
       const forwardedMessagesData = [];
@@ -206,22 +207,19 @@ export default (io) => {
       res.status(201).json({ message: `${savedNewMessages.length} messages forwarded.` });
 
     } catch (error) {
-      console.error('Error forwarding multiple messages:', error);
+      logger.error('Error forwarding multiple messages:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
   
   router.delete('/delete-multiple', authenticateToken, async (req, res) => {
   try {
-    console.log('DELETE MULTIPLE request received:', req.body);
-    const { messageIds } = req.body; 
+    const { messageIds } = req.body;
     const userId = req.user.id;
 
     if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
       return res.status(400).json({ message: 'Message IDs are required as an array' });
     }
-
-    console.log(`Attempting to delete ${messageIds.length} messages for user ${userId}`);
 
     const messagesToDelete = await Message.find({
       _id: { $in: messageIds },
@@ -239,25 +237,25 @@ export default (io) => {
       if (message.filePath) {
         if (process.env.NODE_ENV === 'production') {
           await deleteFileFromCloudinary(message.filePath);
-          console.log(`🗑️ Deleted file from Cloudinary: ${message.filePath}`);
+          logger.info(`Deleted file from Cloudinary: ${message.filePath}`);
         } else {
           let diskPath = '';
           if (message.filePath.startsWith('/media/')) {
             diskPath = path.join(UPLOAD_BASE_DIR, message.filePath.substring(1));
           } else {
-            console.warn(`Message ${message._id} had filePath, but it does not start with /media/: ${message.filePath}`);
+            logger.warn(`Message ${message._id} had filePath, but it does not start with /media/: ${message.filePath}`);
           }
 
           if (diskPath) {
             try {
               if (fs.existsSync(diskPath)) {
                 fs.unlinkSync(diskPath);
-                console.log(`Successfully deleted file ${diskPath} from disk.`);
+                logger.info(`Successfully deleted file ${diskPath} from disk.`);
               } else {
-                console.warn(`File not found on disk (already deleted or wrong path?): ${diskPath}`);
+                logger.warn(`File not found on disk (already deleted or wrong path?): ${diskPath}`);
               }
             } catch (err) {
-              console.error(`Failed to delete file ${diskPath} from disk for message ${message._id}:`, err);
+              logger.error(`Failed to delete file ${diskPath} from disk for message ${message._id}:`, err);
             }
           }
         }
@@ -265,7 +263,7 @@ export default (io) => {
     }
 
     const result = await Message.deleteMany({ _id: { $in: deletableMessageIds } });
-    console.log(`Deleted ${result.deletedCount} messages`);
+    logger.info(`Deleted ${result.deletedCount} messages`);
     
     // Update affected chats
     for (const chatId of chatIdsAffected) {
@@ -306,7 +304,7 @@ export default (io) => {
 
     res.json({ message: `${result.deletedCount} messages deleted.`, deletedCount: result.deletedCount });
   } catch (error) {
-    console.error('Error deleting multiple messages:', error);
+    logger.error('Error deleting multiple messages:', error);
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 });
@@ -392,18 +390,16 @@ export default (io) => {
                   status: 'delivered' 
               });
             }
-          } else {
-            console.log(`ℹ️ Forwarded message ${savedMessage._id} has no other recipients, status remains 'sent'.`);
           }
         } catch (err) {
-          console.error(`❌ Error in background status update for forwarded message ${savedMessage._id}:`, err);
+          logger.error(`Error in background status update for forwarded message ${savedMessage._id}:`, err);
         }
       })();
 
       res.status(201).json(savedMessage);
 
     } catch (error) {
-      console.error('Error forwarding message:', error);
+      logger.error('Error forwarding message:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -423,8 +419,6 @@ export default (io) => {
               status: 'sent',
           });
 
-          console.log('User from token:', req.user);
-
           await newMessage.save();
 
           await Chat.findByIdAndUpdate(chatId, {
@@ -433,7 +427,6 @@ export default (io) => {
           });
 
           res.status(201).json(newMessage); } catch (error) {
-              console.error(error);
               res.status(500).json({ error: 'Failed sending message' });
           }
   });
@@ -442,8 +435,6 @@ export default (io) => {
     const { chatId } = req.params;
     const { before, limit = 30 } = req.query;
 
-    console.log(`Fetching messages for chat ${chatId}, before: ${before}, limit: ${limit}`);
-
     try {
         let query = { chatId };
 
@@ -451,9 +442,7 @@ export default (io) => {
         const beforeMessage = await Message.findById(before);
         if (beforeMessage) {
           query.createdAt = { $lt: new Date(beforeMessage.createdAt) };
-          console.log(`Finding messages before ${new Date(beforeMessage.createdAt)}`);
         } else {
-          console.log(`Message with ID ${before} not found`);
         }
       }
         const messages = await Message.find(query)
@@ -461,11 +450,9 @@ export default (io) => {
         .limit(parseInt(limit))
         .exec();
 
-        console.log(`Found ${messages.length} messages`);
-
         res.status(200).json(messages.reverse());
       } catch (error) {
-        console.error('Error fetching messages:', error);
+        logger.error('Error fetching messages:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -512,18 +499,17 @@ export default (io) => {
             if (updatedChatForEmit) {
               io.to(updatedMessage.chatId.toString()).emit('chat_updated', updatedChatForEmit.toObject());
             } else {
-              console.error(`Chat with ID ${chat._id} not found after update for emitting chat_updated event.`);
+              logger.error(`Chat with ID ${chat._id} not found after update for emitting chat_updated event.`);
             }
           }
         res.json(updatedMessage.toObject());
       } catch (err) {
-        console.error('Error editing message:', err);
+        logger.error('Error editing message:', err);
         res.status(500).json({ error: err.message });
       }
     });
   router.delete('/:id', authenticateToken, async (req, res) => {
     try {
-      console.log('DELETE request received for message:', req.params.id);
       const messageId = req.params.id;
       
       const message = await Message.findById(messageId);
@@ -542,21 +528,21 @@ export default (io) => {
       if (filePathToDelete) {
         if (process.env.NODE_ENV === 'production') {
           await deleteFileFromCloudinary(filePathToDelete);
-          console.log(`🗑️ Deleted file from Cloudinary: ${filePathToDelete}`);
+          logger.info(`Deleted file from Cloudinary: ${filePathToDelete}`);
         } else {
           let diskPath = '';
           if (filePathToDelete.startsWith('/media/')) {
             diskPath = path.join(UPLOAD_BASE_DIR, filePathToDelete.substring(1));
           } else {
-            console.warn(`Message ${messageId} had filePath, but it does not start with /media/: ${filePathToDelete}`);
+            logger.warn(`Message ${messageId} had filePath, but it does not start with /media/: ${filePathToDelete}`);
           }
 
           if (diskPath) {
             fs.unlink(diskPath, (err) => {
               if (err) {
-                console.error(`Failed to delete file ${diskPath} from disk:`, err);
+                logger.error(`Failed to delete file ${diskPath} from disk:`, err);
               } else {
-                console.log(`Successfully deleted file ${diskPath} from disk.`);
+                logger.info(`Successfully deleted file ${diskPath} from disk.`);
               }
             });
           }
@@ -593,7 +579,7 @@ export default (io) => {
       
       res.status(200).json({ success: true, messageId });
     } catch (err) {
-      console.error('Error deleting message:', err);
+      logger.error('Error deleting message:', err);
       res.status(500).json({ error: 'Server error' });
     }
   });

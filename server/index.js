@@ -33,6 +33,7 @@ import authenticateToken from './middleware/authenticateToken.js';
 import { differenceInMinutes } from 'date-fns';
 import { profileRoutes } from './routes/profileRoutes.js';
 import  fileRoutes from './routes/files.js';
+import logger from './config/logger.js';
 
 const app = express();
 
@@ -70,12 +71,12 @@ app.use(cors({
 }));
 
 mongoose.connection.on('error', err => {
-  console.error('MongoDB connection error:', err);
+  logger.error('MongoDB connection error:', err);
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 const onlineUserStatuses = new Map();
@@ -91,11 +92,11 @@ function broadcastUserStatuses() {
       const testDate = new Date(lastActive);
       if (isNaN(testDate.getTime())) {
         validLastActive = new Date().toISOString();
-        console.warn(`Fixed invalid date for user ${userId}: ${lastActive} -> ${validLastActive}`);
+        logger.warn(`Fixed invalid date for user ${userId}: ${lastActive} -> ${validLastActive}`);
       }
     } catch (e) {
       validLastActive = new Date().toISOString();
-      console.error(`Error with date for user ${userId}:`, e);
+      logger.error(`Error with date for user ${userId}:`, e);
     }
     
     statusesObject[userId] = {
@@ -155,9 +156,9 @@ async function loadInitialUserStatuses() {
       userLastActive.set(user._id.toString(), user.lastActive.toISOString());
     });
     
-    console.log(`Loaded initial statuses for ${users.length} users`);
+    logger.info(`Loaded initial statuses for ${users.length} users`);
   } catch (err) {
-    console.error('Error loading initial user statuses:', err);
+    logger.error('Error loading initial user statuses:', err);
   }
 }
 
@@ -166,24 +167,20 @@ loadInitialUserStatuses();
 
 mongoose.connect(MONGO_URI, {
 
-}).then(() => console.log('MongoDB connected successfully.'))
-  .catch(err => console.error('FATAL: MongoDB connection error:', err));
+}).then(() => logger.info('MongoDB connected successfully.'))
+  .catch(err => logger.error('FATAL: MongoDB connection error:', err));
 
 io.on('connection', (socket) => {
-  console.log('Connection attempt registered');
   const token = socket.handshake.auth.token;
   if (!token) {
-    console.log('No token provided during socket connection');
     return socket.disconnect(true);
   }
   try {
     const decoded = jwt.verify(token, SECRET_KEY);
     socket.user = decoded;
-    console.log(`User connected: ${socket.id}`);
     if (socket.user && socket.user.id) {
       const userRoom = socket.user.id.toString();
       socket.join(userRoom);
-      console.log(`Socket ${socket.id} for user ${socket.user.id} joined personal room: ${userRoom}`);
       updateUserStatus(socket.user.id, true);
       
       socket.emit('user_status_update', Object.fromEntries(
@@ -195,7 +192,7 @@ io.on('connection', (socket) => {
     }
     
   } catch (err) {
-    console.error('Error verifying token:', err.message);
+    logger.error('Error verifying token:', err.message);
     return socket.disconnect(true);
   }
 
@@ -208,17 +205,15 @@ io.on('connection', (socket) => {
   socket.on('user_logout_attempt', async (data) => { 
     const userId = data && data.userId ? data.userId : (socket.user ? socket.user.id : null);
     if (userId) {
-      console.log(`User ${userId} (socket ${socket.id}) is attempting to logout.`);
-      updateUserStatus(userId, false); 
+      updateUserStatus(userId, false);
       try {
         await User.findByIdAndUpdate(userId, { online: false, lastActive: new Date() });
         const now = new Date().toISOString();
         userLastActive.set(userId.toString(), now);
         onlineUsers.delete(userId.toString());
         broadcastUserStatuses();
-        console.log(`User ${userId} status updated to offline due to logout.`);
       } catch (error) {
-        console.error(`Error updating user status on logout for ${userId}:`, error);
+        logger.error(`Error updating user status on logout for ${userId}:`, error);
       }
     }
   });
@@ -228,14 +223,13 @@ io.on('connection', (socket) => {
     try {
       const sender = await User.findById(senderId).select('username avatar').lean(); 
       if (!sender) {
-        console.log('Sender not found');
         if (typeof callback === 'function') callback({ success: false, error: 'Sender not found' });
         return;
       }
 
       const chatBeforeMessage = await Chat.findById(chatId);
       if (!chatBeforeMessage) {
-        console.error(`Error sending message: Chat with ID ${chatId} not found.`);
+        logger.error(`Error sending message: Chat with ID ${chatId} not found.`);
         if (typeof callback === 'function') callback({ success: false, error: 'Chat not found' });
         return;
       }
@@ -306,7 +300,6 @@ io.on('connection', (socket) => {
       }
 
       io.to(chatId).emit('receive_message', messageForClient);
-      console.log('Emitted receive_message with senderAvatar:', messageForClient.senderAvatar, 'and replyTo:', messageForClient.replyTo);
 
       const updatedChat = await Chat.findById(
         chatId, 
@@ -328,12 +321,9 @@ io.on('connection', (socket) => {
       }
 
       if (isFirstMessageInChat && updatedChat) {
-        console.log(`Chat ${chatId} is being "activated" for participants due to the first message.`);
-
         updatedChat.participants.forEach(participant => {
           if (participant && participant._id) {
-            io.to(participant._id.toString()).emit('new_chat_created', updatedChat); 
-            console.log(`Emitted 'new_chat_created' to participant ${participant._id.toString()} for chat ${chatId} after first message.`);
+            io.to(participant._id.toString()).emit('new_chat_created', updatedChat);
           }
         });
       }
@@ -361,17 +351,15 @@ io.on('connection', (socket) => {
                 messageId: message._id,
                 status: 'delivered'
               });
-            } else {
-              console.log(`ℹ️ Message ${message._id} status was NOT 'sent', skipping 'delivered' update.`);
             }
           }
         } catch (err) {
-          console.error(`❌ Error in background status update for message ${message._id}:`, err);
+          logger.error(`Error in background status update for message ${message._id}:`, err);
         }
       })();
 
     } catch (err) {
-        console.error('Error sending message:', err);
+        logger.error('Error sending message:', err);
         if (typeof callback === 'function') {
           callback({ success: false, error: err.message || 'Server error while sending message' });
         }
@@ -411,7 +399,7 @@ io.on('connection', (socket) => {
       
       socket.emit('edit_success', message);
     } catch (err) {
-      console.error('Edit message error:', err);
+      logger.error('Edit message error:', err);
       socket.emit('edit_error', { error: err.message });
     }
   });
@@ -458,7 +446,7 @@ io.on('connection', (socket) => {
         });
       }
     } catch (error) {
-      console.error('Error toggling reaction:', error);
+      logger.error('Error toggling reaction:', error);
       socket.emit('reaction_error', { messageId, error: 'Server error processing reaction.' });
     }
   });
@@ -542,11 +530,11 @@ app.get('/api/users/status', authenticateToken, async (req, res) => {
           lastActiveStr = user.lastActive.toISOString();
         } else {
           lastActiveStr = new Date().toISOString();
-          console.warn(`Replaced invalid lastActive for user ${userId}`);
+          logger.warn(`Replaced invalid lastActive for user ${userId}`);
         }
       } catch (e) {
         lastActiveStr = new Date().toISOString();
-        console.error(`Error with lastActive for user ${userId}:`, e);
+        logger.error(`Error with lastActive for user ${userId}:`, e);
       }
       
       statusesObject[userId] = {
@@ -582,9 +570,9 @@ app.get('/api/users/status', authenticateToken, async (req, res) => {
     
     res.json(statusesObject);
   } catch (err) {
-    console.error('Error getting user statuses:', err);
+    logger.error('Error getting user statuses:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+httpServer.listen(PORT, () => logger.info(`Server running on http://localhost:${PORT}`));

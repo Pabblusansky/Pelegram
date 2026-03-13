@@ -9,6 +9,7 @@ import { UserProfile } from "../profile/profile.model";
 import { Subscription, filter } from 'rxjs';
 import { ChatService } from '../chat/chat.service';
 import { FaviconService } from '../services/favicon/favicon.service';
+import { LoggerService } from '../services/logger.service';
 
 @Component({
   selector: 'app-home',
@@ -37,7 +38,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private profileService: ProfileService,
     private chatService: ChatService,
-    private faviconService: FaviconService
+    private faviconService: FaviconService,
+    private logger: LoggerService
   ) {}
 
   ngOnInit(): void {
@@ -49,12 +51,10 @@ export class HomeComponent implements OnInit, OnDestroy {
     
     this.routerSubscription = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
-      .subscribe((event: any) => {
+      .subscribe((event: NavigationEnd) => {
         this.isProfileRoute = 
           event.url.includes('/profile') || 
           event.url.includes('/user/');
-        
-        // console.log('Current route:', event.url, 'isProfileRoute:', this.isProfileRoute);
       });
     
     this.isProfileRoute = 
@@ -62,7 +62,6 @@ export class HomeComponent implements OnInit, OnDestroy {
       this.router.url.includes('/user/');
       this.unreadFaviconSubscription = this.chatService.totalUnreadCount$
         .subscribe(unreadCount => {
-          // console.log('HOME_COMPONENT: Favicon update - TotalUnreadCount:', unreadCount);
           if (unreadCount > 0) {
             this.faviconService.setNotificationBadge(unreadCount);
           } else {
@@ -77,7 +76,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.unreadFaviconSubscription?.unsubscribe();
 
     this.faviconService.resetFavicon();
-    console.log('HOME_COMPONENT: ngOnDestroy, favicon reset.');
   }
 
   loadUserProfile(): void {
@@ -85,16 +83,14 @@ export class HomeComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (profile) => {
           this.userProfile = profile;
-          console.log('User profile loaded:', profile);
         },
         error: (error) => {
-          console.error('Error loading user profile:', error);
+          this.logger.error('Error loading user profile:', error);
         }
       });
   }
 
   onChatSelect(chatId: string): void {
-    console.log('Chat selected:', chatId);
     this.selectedChatId = chatId;
     this.router.navigate([`/chats/${chatId}`]);
   }

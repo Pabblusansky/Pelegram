@@ -2,6 +2,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import logger from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,27 +14,27 @@ let cloudinary, CloudinaryStorage;
 if (IS_PROD) {
   const cloudinaryModule = await import('cloudinary');
   cloudinary = cloudinaryModule.v2;
-  
+
   const cloudinaryStorageModule = await import('multer-storage-cloudinary');
   CloudinaryStorage = cloudinaryStorageModule.CloudinaryStorage;
-  
+
   cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
     secure: true,
   });
-  
-  console.log('📤 Multer config: Using Cloudinary for file storage (PRODUCTION)');
+
+  logger.info('Multer config: Using Cloudinary for file storage (PRODUCTION)');
 } else {
-  console.log('💾 Multer config: Using local disk storage (DEVELOPMENT)');
+  logger.info('Multer config: Using local disk storage (DEVELOPMENT)');
 }
 
 // Utility to ensure directory exists (local development)
 const ensureDirectoryExists = (dirPath) => {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
-    console.log(`📁 Created directory: ${dirPath}`);
+    logger.info('Created directory:', dirPath);
   }
 };
 
@@ -51,7 +52,7 @@ if (IS_PROD) {
 } else {
   const avatarDir = path.resolve(__dirname, '../uploads/avatars');
   ensureDirectoryExists(avatarDir);
-  
+
   avatarStorage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, avatarDir),
     filename: (req, file, cb) => {
@@ -62,7 +63,7 @@ if (IS_PROD) {
   });
 }
 
-// GROUP AVATAR STORAGE  
+// GROUP AVATAR STORAGE
 let groupAvatarStorage;
 if (IS_PROD) {
   groupAvatarStorage = new CloudinaryStorage({
@@ -76,7 +77,7 @@ if (IS_PROD) {
 } else {
   const groupAvatarDir = path.resolve(__dirname, '../uploads/group-avatars');
   ensureDirectoryExists(groupAvatarDir);
-  
+
   groupAvatarStorage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, groupAvatarDir),
     filename: (req, file, cb) => {
@@ -101,7 +102,7 @@ if (IS_PROD) {
 } else {
   const mediaDir = path.resolve(__dirname, '../uploads/media');
   ensureDirectoryExists(mediaDir);
-  
+
   mediaStorage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, mediaDir),
     filename: (req, file, cb) => {
@@ -146,7 +147,7 @@ export const uploadAvatar = multer({
 
 export const uploadGroupAvatar = multer({
   storage: groupAvatarStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB  
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: imageFilter
 });
 
@@ -176,69 +177,57 @@ export const getFileUrl = (file) => {
 // Function to delete file from Cloudinary
 export const deleteFileFromCloudinary = async (fileUrl) => {
   if (process.env.NODE_ENV !== 'production' || !fileUrl || !cloudinary) {
-    console.log('🔄 Skipping Cloudinary deletion (not production or missing parameters):', fileUrl);
     return;
   }
 
   try {
     if (!fileUrl.includes('cloudinary.com')) {
-      console.log('🔄 Not a Cloudinary URL, skipping deletion:', fileUrl);
       return;
     }
     const matches = fileUrl.match(/\/v\d+\/(.+?)(\.[^.]*)?$/);
     if (matches && matches[1]) {
       const publicId = matches[1];
-      console.log(`🗑️ Attempting to delete from Cloudinary with public_id: ${publicId}`);
-      
+
       let resourceType = 'image';
       if (fileUrl.includes('/video/')) {
         resourceType = 'video';
       } else if (fileUrl.includes('/raw/')) {
         resourceType = 'raw';
       }
-      
-      const result = await cloudinary.uploader.destroy(publicId, { 
-        resource_type: resourceType 
+
+      const result = await cloudinary.uploader.destroy(publicId, {
+        resource_type: resourceType
       });
-      
-      if (result.result === 'ok') {
-        console.log(`✅ Successfully deleted from Cloudinary: ${publicId}`);
-      } else if (result.result === 'not found') {
-        console.log(`ℹ️ File not found in Cloudinary (already deleted?): ${publicId}`);
-      } else {
-        console.warn(`⚠️ Cloudinary deletion result: ${result.result} for ${publicId}`);
+
+      if (result.result !== 'ok' && result.result !== 'not found') {
+        // Unexpected result - no action needed, deletion is best-effort
       }
-    } else {
-      console.warn('⚠️ Could not extract public_id from URL:', fileUrl);
     }
   } catch (error) {
-    console.error('❌ Failed to delete from Cloudinary:', error);
-    
+    logger.error('Failed to delete from Cloudinary:', error);
+
     if (error.message && error.message.includes('resource_type')) {
-      console.log('🔄 Retrying with different resource types...');
-      
       try {
         const matches = fileUrl.match(/\/v\d+\/(.+?)(\.[^.]*)?$/);
         if (matches && matches[1]) {
           const publicId = matches[1];
-          
+
           const resourceTypes = ['image', 'video', 'raw'];
           for (const resType of resourceTypes) {
             try {
-              const result = await cloudinary.uploader.destroy(publicId, { 
-                resource_type: resType 
+              const result = await cloudinary.uploader.destroy(publicId, {
+                resource_type: resType
               });
               if (result.result === 'ok') {
-                console.log(`✅ Successfully deleted from Cloudinary with type ${resType}: ${publicId}`);
                 return;
               }
             } catch (typeError) {
-              console.log(`⚠️ Failed to delete with type ${resType}:`, typeError.message);
+              // Continue trying other resource types
             }
           }
         }
       } catch (retryError) {
-        console.error('❌ All retry attempts failed:', retryError);
+        logger.error('All Cloudinary retry attempts failed:', retryError);
       }
     }
   }

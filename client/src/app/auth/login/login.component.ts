@@ -20,12 +20,7 @@ export class LoginComponent {
   errorMessage: string = '';
 
   constructor(private authService: AuthService, private router: Router, private chatService: ChatService) {}
-  ngOnViewInit() {
-    setTimeout(() => {
-      this.loginForm.form.updateValueAndValidity();
-    }, 100);
-  }
-  
+
   onSubmit() {
     if (!this.credentials.usernameOrEmail || !this.credentials.password) return;
 
@@ -35,7 +30,6 @@ export class LoginComponent {
     this.authService.login(this.credentials).subscribe({
       next: () => {
         this.isLoading = false;
-        console.log('User logged in');
         this.router.navigate(['/']);
         this.chatService.logoutAndReconnectSocket();
       },

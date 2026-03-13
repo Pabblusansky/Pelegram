@@ -12,8 +12,6 @@ export class ToastService {
    * @param type Optional type ('success', 'error', 'info', 'warning')
    */
   showToast(message: string, duration: number = 3000, type: 'success' | 'error' | 'info' | 'warning' = 'success'): void {
-    console.log('Showing toast:', message);
-    
     this.clearExistingToasts();
   
     const toast = document.createElement('div');

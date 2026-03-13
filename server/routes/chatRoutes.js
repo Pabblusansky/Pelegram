@@ -3,10 +3,11 @@ import Chat from '../models/Chat.js';
 import Message from '../models/Message.js';
 import authenticateToken from '../middleware/authenticateToken.js';
 import User from '../models/User.js';
-import mongoose from 'mongoose'; 
+import mongoose from 'mongoose';
 import { uploadGroupAvatar, getFileUrl, deleteFileFromCloudinary } from '../config/multer-config.js';
 import fs from 'fs';
 import path from 'path';
+import logger from '../config/logger.js';
 
 export default (io) => {
   const router = express.Router();
@@ -61,12 +62,11 @@ export default (io) => {
       // Emit for each participant
       finalParticipantIds.forEach(participantId => {
         io.to(participantId.toString()).emit('new_chat_created', chatObjectForEmit);
-        console.log(`Emitted 'new_chat_created' (group) to user ${participantId} for chat ${savedChat._id}`);
       });
       
       res.status(201).json(savedChat);
     } catch (error) {
-      console.error('Error creating group chat:', error);
+      logger.error('Error creating group chat:', error);
       return res.status(500).json({ message: 'Server error' });
     }
   }),
@@ -79,8 +79,6 @@ export default (io) => {
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
       }
-
-      console.log('PATCH /group/avatar - File processed:', req.file.filename || req.file.public_id);
 
       const chat = await Chat.findById(chatId);
       if (!chat) {
@@ -127,7 +125,7 @@ export default (io) => {
       res.json(updatedChat);
 
     } catch (error) {
-      console.error('Error updating group avatar:', error);
+      logger.error('Error updating group avatar:', error);
       res.status(500).json({ message: 'Server error while updating group avatar' });
     }
   });
@@ -231,7 +229,7 @@ export default (io) => {
       res.json(updatedChat);
 
     } catch (error) {
-      console.error('Error adding participants:', error);
+      logger.error('Error adding participants:', error);
       res.status(500).json({ message: 'Server error while adding participants' });
     }
   });
@@ -326,7 +324,7 @@ export default (io) => {
       res.json(updatedChat);
 
     } catch (error) {
-      console.error('Error removing participant:', error);
+      logger.error('Error removing participant:', error);
       res.status(500).json({ message: 'Server error while removing participant' });
     }
   });
@@ -380,33 +378,33 @@ export default (io) => {
                 try {
                   if (fs.existsSync(diskPath)) {
                     fs.unlinkSync(diskPath);
-                    console.log(`Deleted file on group dissolution: ${diskPath}`);
+                    logger.info(`Deleted file on group dissolution: ${diskPath}`);
                   }
                 } catch (err) {
-                  console.error(`Failed to delete file on group dissolution ${diskPath}:`, err);
+                  logger.error(`Failed to delete file on group dissolution ${diskPath}:`, err);
                 }
               }
             }
 
             await Message.deleteMany({ chatId: chat._id });
             await Chat.findByIdAndDelete(chatId);
-            console.log(`Last participant (admin ${userId}) left group ${chatId}. Group and messages deleted.`);
-            io.to(userId.toString()).emit('chat_deleted_globally', { 
-              chatId: chatId, 
-              deletedBy: userId 
+            logger.info(`Last participant (admin ${userId}) left group ${chatId}. Group and messages deleted.`);
+            io.to(userId.toString()).emit('chat_deleted_globally', {
+              chatId: chatId,
+              deletedBy: userId
             });
             return res.json({ message: 'You have left the group, and the group has been deleted as you were the last participant.' });
           } else {
             const newAdminId = chat.participants[0];
-            chat.admin = [newAdminId]; 
-            console.log(`Admin ${userId} left group ${chatId}. New admin is ${newAdminId}.`);
+            chat.admin = [newAdminId];
+            logger.info(`Admin ${userId} left group ${chatId}. New admin is ${newAdminId}.`);
           }
         }
       } else if (chat.admin && chat.admin.toString() === userId) {
         if (chat.participants.length === 0) {
-          const messagesWithFiles = await Message.find({ 
-            chatId: chat._id, 
-            filePath: { $exists: true, $ne: null, $ne: '' } 
+          const messagesWithFiles = await Message.find({
+            chatId: chat._id,
+            filePath: { $exists: true, $ne: null, $ne: '' }
           }).select('filePath').lean();
 
           const UPLOAD_BASE_DIR = path.resolve(__dirname, '../uploads');
@@ -422,26 +420,26 @@ export default (io) => {
               try {
                 if (fs.existsSync(diskPath)) {
                   fs.unlinkSync(diskPath);
-                  console.log(`Deleted file on group dissolution: ${diskPath}`);
+                  logger.info(`Deleted file on group dissolution: ${diskPath}`);
                 }
               } catch (err) {
-                console.error(`Failed to delete file on group dissolution ${diskPath}:`, err);
+                logger.error(`Failed to delete file on group dissolution ${diskPath}:`, err);
               }
             }
           }
 
           await Message.deleteMany({ chatId: chat._id });
           await Chat.findByIdAndDelete(chatId);
-          console.log(`Last participant (admin ${userId}) left group ${chatId}. Group and messages deleted.`);
-          io.to(userId.toString()).emit('chat_deleted_globally', { 
-            chatId: chatId, 
-            deletedBy: userId 
+          logger.info(`Last participant (admin ${userId}) left group ${chatId}. Group and messages deleted.`);
+          io.to(userId.toString()).emit('chat_deleted_globally', {
+            chatId: chatId,
+            deletedBy: userId
           });
           return res.json({ message: 'You have left the group, and the group has been deleted as you were the last participant.' });
         } else {
           const newAdminId = chat.participants[0];
           chat.admin = [newAdminId];
-          console.log(`Admin ${userId} left group ${chatId}. New admin is ${newAdminId}.`);
+          logger.info(`Admin ${userId} left group ${chatId}. New admin is ${newAdminId}.`);
         }
       }
 
@@ -489,7 +487,7 @@ export default (io) => {
       // res.json({ message: 'You have successfully left the group.' });
 
     } catch (error) {
-      console.error('Error leaving group:', error);
+      logger.error('Error leaving group:', error);
       res.status(500).json({ message: 'Server error while leaving group.' });
     }
   });
@@ -543,7 +541,7 @@ export default (io) => {
 
       res.json(updatedChat);
     } catch (error) {
-      console.error('Error updating group name:', error);
+      logger.error('Error updating group name:', error);
       res.status(500).json({ message: 'Server error while updating group name.' });
     }
   });
@@ -564,7 +562,6 @@ export default (io) => {
           if (chat.unreadCounts[userUnreadIndex].count > 0) {
             chat.unreadCounts[userUnreadIndex].count = 0;
             await chat.save();
-            console.log(`Unread count reset for user ${userId} in chat ${chatId}`);
           }
         } else {
           chat.unreadCounts.push({ userId, count: 0 });
@@ -611,7 +608,7 @@ export default (io) => {
       res.status(200).json({ message: 'Chat marked as read successfully' });
 
     } catch (error) {
-      console.error(`Error marking chat ${chatId} as read:`, error);
+      logger.error(`Error marking chat ${chatId} as read:`, error);
       res.status(500).json({ message: 'Server error' });
     }
   });
@@ -664,7 +661,7 @@ export default (io) => {
       });
 
     } catch (error) {
-      console.error(`Error fetching media for chat ${chatId}:`, error);
+      logger.error(`Error fetching media for chat ${chatId}:`, error);
       res.status(500).json({ message: 'Server error while fetching media.' });
     }
   });
@@ -683,7 +680,7 @@ export default (io) => {
     
         res.json(users);
       } catch (error) {
-        console.error(error);
+        logger.error('Error in search:', error);
         res.status(500).json({ error: 'Error searching for users' });
       }
   });
@@ -735,13 +732,12 @@ export default (io) => {
       if (isNewChat && chat) {
         const chatObjectForEmit = chat.toObject();
         io.to(initiatorId.toString()).emit('new_chat_created', chatObjectForEmit);
-        console.log(`Emitted 'new_chat_created' TO INITIATOR ${initiatorId} for chat ${chat._id}`);
       }
 
       res.status(isNewChat ? 201 : 200).json(chat);
 
     } catch (error) {
-      console.error('CRITICAL ERROR creating or getting direct chat:', error);
+      logger.error('CRITICAL ERROR creating or getting direct chat:', error);
       res.status(500).json({ message: 'Server error' });
     }
   });
@@ -760,7 +756,7 @@ export default (io) => {
 
           res.json(chats);
       } catch (error) {
-          console.error(error);
+          logger.error('Error getting chats:', error);
           res.status(500).json({ error: 'Error getting chats' });
       }
   });
@@ -786,7 +782,7 @@ export default (io) => {
       
       res.json(chat);
     } catch (err) {
-      console.error('Error getting chat details:', err);
+      logger.error('Error getting chat details:', err);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -819,9 +815,9 @@ export default (io) => {
           if (fs.existsSync(avatarPath)) {
             try {
               fs.unlinkSync(avatarPath);
-              console.log(`Deleted group avatar: ${avatarPath}`);
+              logger.info(`Deleted group avatar: ${avatarPath}`);
             } catch (err) {
-              console.error(`Failed to delete group avatar: ${avatarPath}`, err);
+              logger.error(`Failed to delete group avatar: ${avatarPath}`, err);
             }
           }
         }
@@ -839,14 +835,11 @@ export default (io) => {
         filePath: { $exists: true, $ne: null, $ne: '' } 
       }).select('filePath').lean();
 
-      console.log(`Found ${messagesWithFiles.length} messages with files to delete for chat ${chatId}`);
-
       // Удаляем файлы
       for (const message of messagesWithFiles) {
         if (message.filePath) {
           if (process.env.NODE_ENV === 'production') {
             await deleteFileFromCloudinary(message.filePath);
-            console.log(`🗑️ Deleted file from Cloudinary: ${message.filePath}`);
           } else {
             let diskPath = '';
             if (message.filePath.startsWith('/media/')) {
@@ -854,42 +847,38 @@ export default (io) => {
             } else if (message.filePath.startsWith('/uploads/')) {
               diskPath = path.join(__dirname, '..', message.filePath.replace('/uploads/', 'uploads/'));
             } else {
-              console.warn(`Unexpected filePath format: ${message.filePath}`);
+              logger.warn(`Unexpected filePath format: ${message.filePath}`);
               continue;
             }
 
             try {
               if (fs.existsSync(diskPath)) {
                 fs.unlinkSync(diskPath);
-                console.log(`Deleted file: ${diskPath}`);
               } else {
-                console.warn(`File not found on disk: ${diskPath}`);
+                logger.warn(`File not found on disk: ${diskPath}`);
               }
             } catch (err) {
-              console.error(`Failed to delete file ${diskPath}:`, err);
+              logger.error(`Failed to delete file ${diskPath}:`, err);
             }
           }
         }
       }
 
       const deleteMessagesResult = await Message.deleteMany({ chatId: chat._id });
-      console.log(`Deleted ${deleteMessagesResult.deletedCount} messages for chat ${chatId}`);
 
       await Chat.findByIdAndDelete(chatId);
-      console.log(`Deleted chat ${chatId}`);
 
       participantIds.forEach(participantId => {
         io.to(participantId).emit('chat_deleted_globally', {
           chatId: chatId,
           deletedBy: userId
         });
-        console.log(`Emitted 'chat_deleted_globally' to user room ${participantId} for chat ${chatId}`);
       });
 
       res.status(200).json({ message: 'Chat and all associated messages have been deleted successfully.' });
 
     } catch (error) {
-      console.error('Error deleting chat:', error);
+      logger.error('Error deleting chat:', error);
       res.status(500).json({ message: 'Server error while deleting chat.' });
     }
   });
@@ -933,7 +922,7 @@ export default (io) => {
       res.status(isNewChat ? 201 : 200).json(savedMessagesChat);
 
     } catch (error) {
-      console.error('Error getting/creating saved messages chat:', error);
+      logger.error('Error getting/creating saved messages chat:', error);
       res.status(500).json({ message: 'Server error' });
     }
   });
@@ -971,7 +960,7 @@ export default (io) => {
         res.json(updatedChat);
 
     } catch (error) {
-        console.error('Error pinning message:', error);
+        logger.error('Error pinning message:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -1004,7 +993,7 @@ export default (io) => {
           res.json(updatedChat);
 
       } catch (error) {
-          console.error('Error unpinning message:', error);
+          logger.error('Error unpinning message:', error);
           res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -1045,7 +1034,6 @@ export default (io) => {
         const avatarPath = path.join(__dirname, '..', avatarToDelete.replace('/uploads/', 'uploads/'));
         if (fs.existsSync(avatarPath)) {
           fs.unlinkSync(avatarPath);
-          console.log(`🗑️ Deleted local group avatar: ${avatarPath}`);
         }
       } else {
         await deleteFileFromCloudinary(avatarToDelete);
@@ -1066,7 +1054,7 @@ export default (io) => {
       res.json(updatedChat);
 
     } catch (error) {
-      console.error('Error deleting group avatar:', error);
+      logger.error('Error deleting group avatar:', error);
       res.status(500).json({ message: 'Server error while deleting group avatar' });
     }
   });

@@ -1,6 +1,7 @@
 import { Injectable, Renderer2, RendererFactory2, DOCUMENT } from '@angular/core';
 
 import { Inject } from '@angular/core';
+import { LoggerService } from '../logger.service';
 
 @Injectable({
   providedIn: 'root',
@@ -12,7 +13,8 @@ export class FaviconService {
 
   constructor(
     private rendererFactory: RendererFactory2,
-    @Inject(DOCUMENT) private document: Document
+    @Inject(DOCUMENT) private document: Document,
+    private logger: LoggerService
   ) {
     this.renderer = rendererFactory.createRenderer(null, null);
     this.initializeFavicon();
@@ -22,8 +24,6 @@ export class FaviconService {
     this.linkElement = this.document.querySelector<HTMLLinkElement>("link[rel*='icon']");
     if (this.linkElement) {
       this.originalFaviconHref = this.linkElement.href;
-    } else {
-      console.warn('Favicon link element not found.');
     }
   }
 
@@ -78,7 +78,7 @@ export class FaviconService {
     };
 
     img.onerror = () => {
-      console.error('Failed to load original favicon for badge drawing.');
+      this.logger.error('Failed to load original favicon for badge drawing.');
       const canvas = this.renderer.createElement('canvas') as HTMLCanvasElement;
       const size = 16;
       canvas.width = size;

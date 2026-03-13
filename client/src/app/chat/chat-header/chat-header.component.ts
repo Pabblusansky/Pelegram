@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Observable } from 'rxjs';
+import { Chat, User } from '../chat.model';
 
 
 @Component({
@@ -17,8 +18,8 @@ export class ChatHeaderComponent {
   @Input() isGroupChat: boolean = false;
   @Input() getAvatarUrl: string = '';
   @Input() getChatName: string = '';
-  @Input() chatDetails: any = null;
-  @Input() otherParticipant: any = null;
+  @Input() chatDetails: Chat | null = null;
+  @Input() otherParticipant: User | null = null;
   @Input() showKeyboardHelp: boolean = false;
   @Input() showMediaGallery: boolean = false;
   @Input() selectedMessagesCount: number = 0;

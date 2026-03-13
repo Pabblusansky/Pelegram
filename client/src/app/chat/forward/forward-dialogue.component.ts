@@ -3,6 +3,8 @@ import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChatService } from '../chat.service';
+import { Chat, User } from '../chat.model';
+import { LoggerService } from '../../services/logger.service';
 
 @Component({
   selector: 'app-forward-dialog',
@@ -422,7 +424,7 @@ export class ForwardDialogComponent implements OnInit {
   @Input() message: any;
   @Output() cancel = new EventEmitter<void>();
   @Output() forward = new EventEmitter<string>();
-  
+
   chats: any[] = [];
   filteredChats: any[] = [];
   searchQuery: string = '';
@@ -430,7 +432,7 @@ export class ForwardDialogComponent implements OnInit {
   loading: boolean = true;
   currentUserId: string | null = null;
   
-  constructor(private chatService: ChatService) {}
+  constructor(private chatService: ChatService, private logger: LoggerService) {}
   
   ngOnInit(): void {
     this.currentUserId = localStorage.getItem('userId');
@@ -446,7 +448,7 @@ export class ForwardDialogComponent implements OnInit {
         this.loading = false;
       },
       error: (error) => {
-        console.error('Error loading chats for forward:', error);
+        this.logger.error('Error loading chats for forward:', error);
         this.loading = false;
       }
     });
@@ -479,7 +481,7 @@ export class ForwardDialogComponent implements OnInit {
     }
   }
   
-  getChatName(chat: any): string {
+  getChatName(chat: Chat): string {
     if (!chat || !chat.participants) {
       return 'Chat';
     }
@@ -493,22 +495,21 @@ export class ForwardDialogComponent implements OnInit {
     }
 
     const otherParticipant = chat.participants.find(
-      (p: any) => p._id !== this.currentUserId
+      (p: User) => p._id !== this.currentUserId
     );
 
     return otherParticipant?.username || 'Chat';
-
   }
-  
-  getChatAvatar(chat: any): string {
+
+  getChatAvatar(chat: Chat): string {
     if (!chat || !chat.participants) {
       return 'assets/images/default-avatar.png';
     }
     
     const otherParticipant = chat.participants.find(
-      (p: any) => p._id !== this.currentUserId
+      (p: User) => p._id !== this.currentUserId
     );
-    
+
     if (!otherParticipant || !otherParticipant.avatar) {
       return 'assets/images/default-avatar.png';
     }

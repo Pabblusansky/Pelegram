@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { debounceTime, Observable, Subject, Subscription, takeUntil } from 'rxjs';
 import { ChatService } from '../chat.service';
-import { Message, Reaction, User} from '../chat.model';
+import { Chat, Message, Reaction, User} from '../chat.model';
 import { MessageInputComponent } from "../message-input/message-input.component";
 import { Router } from '@angular/router';
 import { ForwardDialogComponent } from '../forward/forward-dialogue.component';
@@ -26,6 +26,7 @@ import { AudioPlayerComponent } from "../../shared/components/audio-player/audio
 import DOMPurify from 'dompurify';
 import { MessageContextMenuComponent } from '../message-context-menu/message-context-menu.component';
 import { ChatHeaderComponent } from '../chat-header/chat-header.component';
+import { LoggerService } from '../../services/logger.service';
 
 @Component({
   selector: 'app-chat-room',
@@ -81,7 +82,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   activeContextMenuId: string | null = null;
   public isAtBottom = true;
   public isAtTop: boolean = false; 
-  users: any[] = [];
+  users: User[] = [];
   menuPosition: { x: number; y: number } = { x: 0, y: 0 };
   private markAsReadDebounce = new Subject<void>();
   typingSubscription: Subscription | null = null;
@@ -95,8 +96,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   scrollHeightBeforeLoad = 0;
   loadMoreDebounce: Subject<void> = new Subject<void>();
   lastLoadTimestamp = 0;
-  chatDetails: any = null;
-  otherParticipant: any = null;
+  chatDetails: Chat | null = null;
+  otherParticipant: User | null = null;
   otherParticipantStatus$: Observable<string> | null = null;
   isOtherParticipantOnline$: Observable<boolean> | null = null;
   showForwardDialogue = false;
@@ -144,7 +145,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     public chatService: ChatService,
     private cdr: ChangeDetectorRef,
     private soundService: SoundService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private logger: LoggerService
   ) {
     this.markAsReadDebounce.pipe(debounceTime(500)).subscribe(() => {
       this.markMessagesAsRead();
@@ -195,8 +197,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       this.handleReactionUpdate(update.messageId, update.reactions);
     });
 
-    this.chatService.onTyping().subscribe((data: any) => {
-      console.log('Typing event received:', data);
+    this.chatService.onTyping().subscribe((data: { chatId: string; senderId: string; isTyping: boolean }) => {
       if (data.chatId === this.chatId) {
         this.isTyping = data.isTyping;
         if (data.isTyping) {
@@ -214,16 +215,12 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.chatService.onMessageEdited()
       .pipe(takeUntil(this.destroy$))
       .subscribe((editedMessage: Message) => {
-        console.log('Received edited message event:', editedMessage);
-        
         if (this.chatId !== editedMessage.chatId) {
-          console.log('Message not for current chat, ignoring');
           return;
         }
-        
+
         const index = this.messages.findIndex(m => m._id === editedMessage._id);
         if (index === -1) {
-          console.log('Message not found in current chat messages');
           return;
         }
         
@@ -272,11 +269,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
     
     this.chatService.getUsers().subscribe({
-      next: (users: any[]) => {
+      next: (users: User[]) => {
         this.users = users;
       },
       error: (err) => {
-        console.error('Failed to load users:', err);
+        this.logger.error('Failed to load users:', err);
       },
     });
 
@@ -286,7 +283,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         message.status = data.status;
         this.updateMessagesWithDividers();
         this.cdr.detectChanges(); 
-        console.log(`Message status updated: ${data.messageId} -> ${data.status}`); 
       }
     });
 
@@ -323,8 +319,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.chatService.onMessageDeleted()
     .pipe(takeUntil(this.destroy$))
     .subscribe(event => {
-      console.log('Message deleted event received:', event);
-      
       const deletedMessageId = event.messageId;
       
       if (!event.chatId || event.chatId === this.chatId) {
@@ -371,7 +365,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private clearUnreadMessagesIndicator(): void {
     if (this.unreadMessagesCount > 0) {
-      console.log('Clearing unread messages indicator.');
       this.unreadMessagesCount = 0;
       this.newMessagesWhileScrolledUp = [];
       this.cdr.detectChanges();
@@ -439,36 +432,27 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   
   onChatNameClick(event: Event): void {
     if (this.isGroupChat) { 
-      console.log('Clicked on group chat name. Should open group info for chat ID:', this.chatId);
       this.showGroupInfoModal = true;
     } else {
       if (this.otherParticipant && this.chatDetails?.participants?.length === 2) {
         this.navigateToUserProfile(this.otherParticipant._id, event);
-      } else {
-        console.log('Cannot navigate to user profile: conditions not met for direct chat.');
       }
     }
   }
 
   navigateToUserProfile(userId: string, event?: Event): void {
-    console.log('navigateToUserProfile called with userId:', userId);
-    
     if (event) {
       event.stopPropagation();
       event.preventDefault();
-      console.log('Event propagation stopped');
     }
-    
+
     if (!userId) {
-      console.error('Cannot navigate: userId is null or undefined');
       return;
     }
-    
+
     if (userId === this.userId) {
-      console.log('Navigating to own profile');
       this.router.navigate(['/profile']);
     } else {
-      console.log('Navigating to user profile:', userId);
       this.router.navigate(['/user', userId]);
     }
   }
@@ -477,7 +461,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.showGroupInfoModal = false;
   }
 
-  getSenderDisplay(message: { messageType: string; senderName: any; }) {
+  getSenderDisplay(message: { messageType: string; senderName: string; }) {
     if (message.messageType === 'event') {
       return message.senderName;
     }
@@ -508,9 +492,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         ...message,
         type: 'message',
       });
-      if (message.category === 'system_event') {
-        console.log(`ChatRoom (updateMessagesWithDividers LOOP): PUSHED system_event msg ID ${message._id} to newMessagesWithDividers.`);
-      }
     }
 
     this.messagesWithDividers = newMessagesWithDividers;
@@ -538,14 +519,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
           if (chat.admin && typeof chat.admin === 'object') {
             this.groupAdmin = chat.admin as User;
           }
-          console.log('GROUP CHAT DETAILS LOADED:', this.chatDetails);
         } else {
         const isSavedMessages = chat.participants && chat.participants.length === 1 && chat.participants[0]._id === this.userId;
 
         if (!isSavedMessages && chat.participants && chat.participants.length > 0) { 
           this.otherParticipant = chat.participants.find(
-            (p: any) => p._id !== this.userId
-          );
+            (p: User) => p._id !== this.userId
+          ) || null;
 
           if (this.otherParticipant) {
             this.otherParticipantStatus$ = this.chatService.getUserStatusText(this.otherParticipant._id);
@@ -563,7 +543,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error('Error loading chat details:', err);
+        this.logger.error('Error loading chat details:', err);
       }
     });
   }
@@ -580,7 +560,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       return this.chatDetails.name || 'Group Chat';
     }
     const otherParticipants = this.chatDetails.participants.filter(
-      (p: any) => p._id !== this.userId
+      (p: User) => p._id !== this.userId
     );
     
     if (!otherParticipants || otherParticipants.length === 0) {
@@ -588,7 +568,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       return this.chatDetails?.participants?.[0]?.username || 'Chat';
     }
     
-    return otherParticipants.map((p: any) => p.username).join(', ');
+    return otherParticipants.map((p: User) => p.username).join(', ');
   }
 
   goBack(): void {
@@ -603,14 +583,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       
       if (!hasUnread) return;
     
-      console.log('Found unread messages. Sending markAsRead request for chat:', this.chatId);
-      
       this.chatService.markMessagesAsRead(this.chatId).subscribe({
-        next: (response) => {
-          console.log(`markAsRead request successful:`, response);
-        },
+        next: () => {},
         error: (err) => {
-          console.error('Failed to send markMessagesAsRead request:', err);
+          this.logger.error('Failed to send markMessagesAsRead request:', err);
         }
       });
     }
@@ -660,7 +636,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
             this.triggerMarkAsRead();
         },
         error: (error) => {
-            console.error('Error loading messages:', error);
+            this.logger.error('Error loading messages:', error);
             this.isLoadingMore = false;
         }
     });
@@ -669,7 +645,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): void {
     if (!this.scrollViewport) return;
     if (this.isScrollingProgrammatically && !force) {
-      console.log('ScrollToBottom: Aborted, programmatic scroll is in progress.');
       return;
     }
     if (this.isScrollingToBottom && !force) return;
@@ -710,15 +685,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
             const offset = this.scrollViewport.measureScrollOffset('bottom');
             
-            if (offset > 1 && attempt < 5) { 
-                console.warn(`ScrollToBottom: Attempt ${attempt} finished with offset ${offset}. Retrying...`);
+            if (offset > 1 && attempt < 5) {
                 attemptScroll(attempt + 1);
             } else {
                 this.isAtBottom = true;
                 this.isScrollingToBottom = false;
                 this.cdr.detectChanges();
                 this.triggerMarkAsRead();
-                console.log(`ScrollToBottom: Finished after ${attempt} attempts. Final offset: ${offset}`);
             }
         }, 100 * attempt); 
     };
@@ -757,7 +730,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
   
-  getSelectedMessage(): any {
+  getSelectedMessage(): Message | null {
     if (!this.activeContextMenuId) {
       return null;
     }
@@ -772,10 +745,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
           (item: any) => item.type === 'message' && item._id === this.activeContextMenuId
       );
       if (messageFromDividers) {
-          console.log('getSelectedMessage: Found in messagesWithDividers. ismyMessage:', messageFromDividers.ismyMessage);
           return messageFromDividers as Message;
       } else {
-          console.error('getSelectedMessage: Message NOT FOUND anywhere for ID:', this.activeContextMenuId);
+          this.logger.error('getSelectedMessage: Message NOT FOUND anywhere for ID:', this.activeContextMenuId);
       }
     }
     return messageFromMainArray || null;
@@ -799,7 +771,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
   
-  showContextMenu(event: MouseEvent, message: any): void {
+  showContextMenu(event: MouseEvent, message: Message): void {
     if (this.isSelectionModeActive) {
       event.preventDefault();
       return;
@@ -808,7 +780,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     event.stopPropagation();
 
     if (!message || !message._id) {
-      console.error('Cannot show context menu: Invalid message object', message);
+      this.logger.error('Cannot show context menu: Invalid message object', message);
       return;
     }
 
@@ -818,7 +790,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     const actualMessage = this.messages.find(m => m._id === this.activeContextMenuId);
 
     if (!actualMessage) {
-        console.error('CONTEXT_MENU_ERROR: Could not find actual message in this.messages for ID:', this.activeContextMenuId);
+        this.logger.error('CONTEXT_MENU_ERROR: Could not find actual message in this.messages for ID:', this.activeContextMenuId);
         this.activeContextMenuId = null;
         return;
     }
@@ -865,7 +837,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.cdr.detectChanges();
   }
   
-  startLongPress(event: TouchEvent, message: any): void {
+  startLongPress(event: TouchEvent, message: Message): void {
     if (this.isSelectionModeActive) {
       this.endLongPress();
       return;
@@ -893,24 +865,18 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   setMenuPosition(event: Event): void {
-    console.log('Setting menu position');
-    
     let clientX: number, clientY: number;
-    
-    if (event && 'touches' in event && 
-        Array.isArray((event as any).touches) && 
-        (event as any).touches.length > 0 && 
+
+    if (event && 'touches' in event &&
+        Array.isArray((event as any).touches) &&
+        (event as any).touches.length > 0 &&
         (event as any).touches[0]) {
-      // Touch event
       clientX = (event as any).touches[0].clientX;
       clientY = (event as any).touches[0].clientY;
-      console.log('Touch coordinates:', clientX, clientY);
     } else if (event && 'clientX' in event && 'clientY' in event) {
       clientX = (event as any).clientX;
       clientY = (event as any).clientY;
-      console.log('Mouse coordinates:', clientX, clientY);
     } else {
-      console.log('Using fallback positioning');
       const target = event.target as HTMLElement;
       if (target) {
         const rect = target.getBoundingClientRect();
@@ -941,7 +907,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     
     this.menuPosition = { x, y };
-    console.log('Menu position set to:', this.menuPosition);
   }
   
   startEdit(message: Message, isLastMessageEdit: boolean = false): void {
@@ -995,7 +960,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
               if (isLastMessageEdit && Math.abs(messagesContainer.scrollTop + messagesContainer.clientHeight - messagesContainer.scrollHeight) < 5) {
                   messagesContainer.scrollTop = messagesContainer.scrollHeight;
               }
-              // console.log(`Scrolled messages container by: ${scrollAdjustment}. New scrollTop: ${messagesContainer.scrollTop}`);
             }
           }
         }
@@ -1003,7 +967,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }, 50);
 }
   
-  cancelEdit(messageFromUI: any): void {
+  cancelEdit(messageFromUI: Message): void {
     const messageId = messageFromUI._id;
 
     messageFromUI.isEditing = false;
@@ -1013,21 +977,18 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     if (messageInArray) {
       messageInArray.isEditing = false;
       delete messageInArray.editedContent;
-      // console.log(`CancelEdit: Message ${messageId} in this.messages updated, isEditing: ${messageInArray.isEditing}`);
-    } else {
-      console.warn(`CancelEdit: Message ${messageId} not found in this.messages to reset isEditing state.`);
     }
 
     this.messageInputComponent?.focusInput();
     this.cdr.detectChanges();
   }
   
-  saveMessageEdit(messageFromUI: any): void { 
+  saveMessageEdit(messageFromUI: Message): void {
     const messageId = messageFromUI._id;
     const messageInArray = this.messages.find(m => m._id === messageId);
 
     if (!messageInArray) {
-      console.error('Message to save not found in main messages array:', messageId);
+      this.logger.error('Message to save not found in main messages array:', messageId);
       this.cancelEdit(messageFromUI);
       return;
     }
@@ -1069,7 +1030,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.chatService.editMessage(messageInArray._id!, newContent).subscribe({
       next: (updatedMessageFromServer) => {
-        console.log('Message successfully edited on server:', updatedMessageFromServer);
         const finalMessageIndex = this.messages.findIndex(m => m._id === updatedMessageFromServer._id);
         if (finalMessageIndex !== -1) {
           this.messages[finalMessageIndex] = {
@@ -1086,7 +1046,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error('Failed to edit message on server:', err);
+        this.logger.error('Failed to edit message on server:', err);
         const messageToRevert = this.messages.find(m => m._id === messageId);
         if (messageToRevert) {
           messageToRevert.content = originalContent;
@@ -1110,14 +1070,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
   
   async deleteMessage(messageId: string | undefined): Promise<void> {
-    console.log('Attempting to delete message with ID:', messageId);
-    
     if (!messageId) {
-      console.error('Cannot delete message: Message ID is undefined');
-      
       if (this.activeContextMenuId) {
         messageId = this.activeContextMenuId;
-        console.log('Using activeContextMenuId instead:', messageId);
       } else {
         return;
       }
@@ -1135,22 +1090,19 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     if (confirmed) {      
       this.chatService.deleteMessage(messageId).subscribe({
         next: () => {
-          console.log('Message deleted successfully');
           this.messages = this.messages.filter(msg => msg._id !== messageId);
           this.updateMessagesWithDividers();
           this.cdr.detectChanges();
         },
         error: (err) => {
-          console.error('Failed to delete message:', err);
+          this.logger.error('Failed to delete message:', err);
           this.cdr.detectChanges();
         }
       });
-    } else {
-      console.log('Message deletion cancelled by user');
     }
   }
   
-  copyMessageText(message: any): void {
+  copyMessageText(message: Message): void {
     if (!message) return;
     
     this.activeContextMenuId = null;
@@ -1215,7 +1167,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
   handleAvatarError(event: Event): void {
     const img = event.target as HTMLImageElement;
-    console.error(`Failed to load avatar image: ${img.src}`);
+    this.logger.error(`Failed to load avatar image: ${img.src}`);
     
     // Set default avatar image if the current one failed to load
     if (!img.src.includes('default-avatar.png')) {
@@ -1240,7 +1192,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     return `${this.chatService.getApiUrl()}/${user.avatar}`;
   }
   
-  forwardMessage(message: any): void {
+  forwardMessage(message: Message): void {
     if (!message) return;
   
     this.activeContextMenuId = null;
@@ -1275,7 +1227,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
             },
             error: (err) => {
               this.showToast('Failed to forward messages');
-              console.error("Error forwarding multiple messages", err);
+              this.logger.error("Error forwarding multiple messages", err);
               this.cancelForward();
             }
           });
@@ -1296,7 +1248,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   public showToast(message: string, duration: number = 3000): void {
-    console.log('Showing toast:', message);
     
     const existingToasts = document.querySelectorAll('.toast-notification');
     existingToasts.forEach(toast => {
@@ -1400,7 +1351,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       !target.closest('.context-menu') && 
       !target.closest('.message-menu-icon')
     ) {
-      console.log('Closing context menu due to outside click');
       this.activeContextMenuId = null;
       setTimeout(() => {
         this.selectedMessageId = null;
@@ -1530,14 +1480,14 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       const editingMessage = this.messagesWithDividers.find(
         (item: any) => item.type === 'message' && item.isEditing
       );
-      
+
       if (editingMessage) {
         this.saveMessageEdit(editingMessage);
         event.preventDefault();
       }
     }
   }
-  
+
   ngAfterViewChecked(): void {
     const editingMessage = this.messagesWithDividers.find(
       (item: any) => item.type === 'message' && item.isEditing
@@ -1656,7 +1606,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         },
         error: (error) => {
             this.isLoadingMore = false;
-            console.error('Failed to load older messages:', error);
+            this.logger.error('Failed to load older messages:', error);
         },
         complete: () => {
         // Ensure isLoadingMore is reset even if no messages were loaded (this would trigger in very rare cases I think)
@@ -1678,7 +1628,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       } else if (typeof message.senderId === 'object' && message.senderId?._id) {
         actualSenderId = message.senderId._id;
       } else {
-        console.warn('Unknown senderId format:', message.senderId);
         actualSenderId = '';
       }
       
@@ -1703,10 +1652,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         isSelected: existingMessage.isSelected, 
       };
       
-      console.log(`Updated existing message ${message._id}. ismyMessage: ${this.messages[existingMessageIndex].ismyMessage}`);
     } else {
       this.messages.push(message);
-      console.log(`Added new message ${message._id}. ismyMessage: ${message.ismyMessage}`);
       
       if (!message.ismyMessage) {
         if (!this.isAtBottom) {
@@ -1748,7 +1695,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
   onMessageSend(eventData: { content: string; file?: File; caption?: string; replyTo?: Message; duration?: number; }): void {
     if (!this.chatId) {
-      console.error('ChatRoom: onMessageSend - ERROR: chatId is missing. Cannot send message.');
+      this.logger.error('ChatRoom: onMessageSend - ERROR: chatId is missing. Cannot send message.');
       this.showToast('Error: Chat context is not available.'); 
       return;
     }
@@ -1757,7 +1704,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     const fileToSend: File | undefined = (eventData.file instanceof File) ? eventData.file : undefined;
 
 
-    let replyToPayload: any = undefined; 
+    let replyToPayload: { _id: string; senderName: string; content: string; senderId: string | undefined; messageType: string; filePath?: string } | undefined = undefined;
     if (this.replyingToMessage && this.replyingToMessage._id) {
       replyToPayload = {
         _id: this.replyingToMessage._id,
@@ -1769,8 +1716,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         messageType: this.replyingToMessage.messageType || 'text', 
         filePath: this.replyingToMessage.filePath 
       };
-    } else {
-      console.log('ChatRoom: onMessageSend - No active reply (this.replyingToMessage is null or has no _id).');
     }
 
     if (fileToSend) {
@@ -1778,18 +1723,17 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (response) => {
-            console.log('ChatRoom: onMessageSend - Media file upload successful. Server response:', response);
             this.scrollToBottom(true);
             if (response.savedMessage) {
               const messageFromServer = response.savedMessage;
               messageFromServer.ismyMessage = true
-              messageFromServer.senderId = this.userId; 
+              messageFromServer.senderId = this.userId!;
             
               this.addOrUpdateMessage(messageFromServer, true);
           }
           },
           error: (err) => {
-            console.error('ChatRoom: onMessageSend - Error uploading file:', err);
+            this.logger.error('ChatRoom: onMessageSend - Error uploading file:', err);
             const errorMessage = err?.error?.message || err?.message || 'Unknown error';
             this.showToast(`Failed to send file: ${errorMessage}`);
           }
@@ -1802,13 +1746,12 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
             this.scrollToBottom(true);
           },
           error: (err) => {
-            console.error('ChatRoom: onMessageSend - Error sending text message:', err);
+            this.logger.error('ChatRoom: onMessageSend - Error sending text message:', err);
             const errorMessage = err?.error?.message || err?.message || 'Unknown error';
             this.showToast(`Failed to send message: ${errorMessage}`);
           }
         });
     } else {
-      console.warn('ChatRoom: onMessageSend - Nothing to send (no file and no trimmed text content).');
     }
 
     if (this.replyingToMessage) {
@@ -1819,13 +1762,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         
   public async scrollToMessage(messageId: string, block: ScrollLogicalPosition = 'center', forceScroll: boolean = false): Promise<void> {
     if (!this.scrollViewport) {
-        console.warn('ScrollToMessage: CdkVirtualScrollViewport is not available.');
         return;
     }
 
     const isReturningToQuoteOrigin = this.returnToMessageIdAfterQuoteJump === messageId;
     if (!forceScroll && !this.isAtBottom && !this.isSearchActive && !isReturningToQuoteOrigin) {
-        console.log('ScrollToMessage: Not scrolling, conditions not met.');
         return;
     }
 
@@ -1865,7 +1806,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
             error: (err) => {
               this.showToast('Failed to load original message', 3000);
               this.isScrollingProgrammatically = false;
-              console.error('Error loading message context:', err);
+              this.logger.error('Error loading message context:', err);
             }
         });
   }
@@ -1873,7 +1814,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   private highlightMessageInDOM(messageId: string): void {
     const messageElement = document.getElementById('message-' + messageId);
     if (!messageElement) {
-      console.warn(`Highlight: Could not find element 'message-${messageId}' in DOM even after scroll.`);
       return;
     }
 
@@ -1924,14 +1864,12 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!targetMessageId || !sourceMessageId) return;
 
     this.returnToMessageIdAfterQuoteJump = sourceMessageId;
-    console.log(`Quote click: Will return to message ${sourceMessageId} after jumping to ${targetMessageId}`);
     this.scrollToMessage(targetMessageId, 'center', true);
     this.isAtBottom = false; 
     this.cdr.detectChanges();
   }
 
   private handleReactionUpdate(messageId: string, newReactions: Reaction[]): void {
-    console.log(`CLIENT: handleReactionUpdate for message ${messageId}. Received newReactions from server:`, JSON.parse(JSON.stringify(newReactions)));
     const messageIndex = this.messages.findIndex(m => m._id === messageId);
 
     if (messageIndex !== -1) {
@@ -1943,8 +1881,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       
       this.updateMessagesWithDividers();
       this.cdr.detectChanges();
-    } else {
-      console.warn(`Message ${messageId} not found locally to update reactions.`);
     }
   }
   getGroupedReactions(reactions: Reaction[] | undefined): { type: string; count: number; reactedByMe: boolean; userIds: string[] }[] {
@@ -1970,19 +1906,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
 
         
-  myCustomLogForReactionTag(messageId: any, reactionType: any) {
-    console.error('!!!! CLICK ON REACTION TAG VIA CUSTOM LOG !!!!', messageId, reactionType);
-  }
 
     
   onReactionClick(messageId: string | undefined | null, reactionType: string): void {
-    console.log(`ON_REACTION_CLICK_TAG: Clicked on reaction tag. Message ID: ${messageId}, Reaction Type: ${reactionType}`); 
-    
-    // if (event) {
-    //   event.preventDefault();
-    //   event.stopPropagation();
-    // }
-    
     if (!messageId) return;
     this.chatService.toggleReaction(messageId, reactionType);
     this.activeContextMenuId = null; 
@@ -1990,7 +1916,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private handleCurrentChatWasDeleted(deletedBy?: string): void {
-    console.log(`CHAT ROOM: Current chat ${this.chatId} was deleted.`);
     this.isChatEffectivelyDeleted = true;
     this.messages = [];
     this.messagesWithDividers = [];
@@ -2043,7 +1968,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       },
       error: (err) => {
         this.isSearching = false;
-        console.error('Search error:', err);
+        this.logger.error('Search error:', err);
         this.searchResults = [];
         this.currentSearchResultIndex = -1;
         this.showToast('Search failed, please try again', 3000);
@@ -2097,13 +2022,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.updateMessagesWithDividers();
 
     this.isScrollingProgrammatically = true;
-    console.log(`Programmatic scroll STARTING for search result ${targetMessage._id}`);
-
     await this.scrollToMessage(targetMessage._id, 'center', true);
 
     setTimeout(() => {
         this.isScrollingProgrammatically = false;
-        console.log(`Programmatic scroll ENDED for search result ${targetMessage._id}`);
     }, 1000);
   }
 
@@ -2126,7 +2048,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
           this.messages.push(...messagesToAdd);
           this.messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
           
-          console.log(`Merged ${messagesToAdd.length} new messages. Total messages now: ${this.messages.length}`);
           
           this.cdr.detectChanges();
           if (this.scrollViewport) {
@@ -2190,7 +2111,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       
       return DOMPurify.sanitize(finalHighlighted, { ADD_TAGS: ['span'], ADD_ATTR: ['class'] });
     } catch (error) {
-      console.error('Error highlighting text:', error);
+      this.logger.error('Error highlighting text:', error);
       return this.formatMessageContent(text);
     }
   }
@@ -2231,13 +2152,12 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         this.pinnedMessageDetails = this.chatDetails.pinnedMessage as Message;
       }
       else if (typeof this.chatDetails.pinnedMessage === 'string') {
-        this.pinnedMessageDetails = this.messages.find(m => m._id === this.chatDetails.pinnedMessage) || null;
+        this.pinnedMessageDetails = this.messages.find(m => m._id === this.chatDetails!.pinnedMessage) || null;
         if (!this.pinnedMessageDetails) {
             if (this.isSearchActive && this.searchResults.length > 0) {
-                this.pinnedMessageDetails = this.searchResults.find(m => m._id === this.chatDetails.pinnedMessage) || null;
+                this.pinnedMessageDetails = this.searchResults.find(m => m._id === this.chatDetails!.pinnedMessage) || null;
             }
             if (!this.pinnedMessageDetails) {
-                console.warn('Pinned message (ID) not found in current messages list. Consider fetching it.');
             }
         }
       } else {
@@ -2257,7 +2177,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
           this.activeContextMenuId = null;
         },
         error: (err) => {
-          console.error('Error pinning message:', err);
+          this.logger.error('Error pinning message:', err);
           this.showToast('Failed to pin message.');
         }
       });
@@ -2271,7 +2191,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
           this.showToast('Message unpinned!');
         },
         error: (err) => {
-          console.error('Error unpinning message:', err);
+          this.logger.error('Error unpinning message:', err);
           this.showToast('Failed to unpin message.');
         }
       });
@@ -2341,30 +2261,24 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
   onEditLastMessageRequested(): void {
     if (!this.userId || this.messages.length === 0) {
-      console.log('EditLast: No user or no messages.');
       return;
     }
-    console.log('EditLast: Request received. Searching for last own message.');
     for (let i = this.messages.length - 1; i >= 0; i--) {
       const message = this.messages[i];
-      const messageSenderId = (typeof message.senderId === 'object' && message.senderId !== null) 
-                            ? (message.senderId as any)._id 
+      const messageSenderId = (typeof message.senderId === 'object' && message.senderId !== null)
+                            ? (message.senderId as any)._id
                             : message.senderId;
-      // console.log(`EditLast: Checking message ${i}, sender: ${messageSenderId}, isEditing: ${message.isEditing}`);
       if (messageSenderId === this.userId) {
-        console.log(`EditLast: Found last own message to edit:`, message);
         if (message.isEditing) {
-          console.log('EditLast: Message is already being edited.');
           return;
         }
         this.startEdit(message); 
         return;
       }
     }
-    console.log('EditLast: No own message found to edit from ArrowUp.');
   }
 
-  onEditTextareaKeydown(event: KeyboardEvent, messageItemFromUI: any): void { 
+  onEditTextareaKeydown(event: KeyboardEvent, messageItemFromUI: Message): void {
     if (event.key === 'Enter') {
       if (event.shiftKey) { 
         return; 
@@ -2491,7 +2405,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         this.cancelSelectionMode();
       })
       .catch(err => {
-        console.error('Failed to copy messages:', err);
+        this.logger.error('Failed to copy messages:', err);
         this.showToast('Failed to copy messages');
       });
   }
@@ -2556,7 +2470,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
           this.cancelSelectionMode();
         },
         error: (err) => {
-          console.error("Error deleting messages", err);
+          this.logger.error("Error deleting messages", err);
           this.showToast('Failed to delete messages');
         }
       });
@@ -2623,7 +2537,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onMediaLoad(message: Message, event: Event): void {
-    console.log('Media loaded successfully:', message._id);
     message.mediaLoadError = false;
     message.mediaLoaded = true;
     
@@ -2643,7 +2556,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   onMediaError(message: Message, event: Event): void {
-    console.error('Failed to load media for message:', message._id, event);
+    this.logger.error('Failed to load media for message:', message._id, event);
     message.mediaLoadError = true;
     message.mediaLoaded = false;
     
@@ -2769,7 +2682,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.lightboxItems = event.items;
     this.lightboxStartIndex = event.startIndex;
     this.showLightbox = true;
-    // this.showMediaGallery = false; 
+
   }
   
   closeLightbox(): void {
@@ -2782,7 +2695,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     const targetMessage = this.lightboxItems[this.lightboxStartIndex];
     if (!targetMessage || !targetMessage._id) return;
     
-    console.log(`Navigating to message ID: ${targetMessage._id}`);
 
     this.closeLightbox();
     this.closeMediaGallery();
@@ -2796,7 +2708,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     if (messageElement) {
       this.scrollToMessage(messageId, 'center', true);
     } else {
-      console.log(`Message ${messageId} not in DOM, loading context...`);
       this.showToast('Loading message context...', 3000);
       
       if (this.chatId) {
@@ -2817,7 +2728,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
               }
             },
             error: (err) => {
-              console.error('Failed to load message context:', err);
+              this.logger.error('Failed to load message context:', err);
               this.showToast('Could not load the message', 3000);
             }
           });

@@ -5,6 +5,7 @@ import User from '../models/User.js';
 import authenticateToken from '../middleware/authenticateToken.js';
 import { uploadMedia, getFileUrl } from '../config/multer-config.js';
 import { deleteFileFromCloudinary } from '../config/multer-config.js';
+import logger from '../config/logger.js';
 
 export default (io) => {
   const router = express.Router();
@@ -45,7 +46,7 @@ export default (io) => {
             }
           }
         } catch (parseError) {
-          console.error('Error parsing replyTo data:', parseError);
+          logger.error('Error parsing replyTo data:', parseError);
         }
       }
 
@@ -155,34 +156,29 @@ export default (io) => {
                 messageId: savedMessage._id,
                 status: 'delivered'
               });
-              console.log(`✅ File message ${savedMessage._id} status updated to 'delivered'`);
-            } else {
-              console.log(`ℹ️ File message ${savedMessage._id} status was NOT 'sent', skipping 'delivered' update.`);
             }
           }
         } catch (err) {
-          console.error(`❌ Error updating file message status for ${savedMessage._id}:`, err);
+          logger.error(`Error updating file message status for ${savedMessage._id}:`, err);
         }
       })();
       
       res.status(201).json({ message: 'File uploaded successfully', savedMessage: populatedMessageForSocket });
 
     } catch (error) {
-      console.error('Error processing uploaded file in chat', req.params.chatId, 'by user', req.user.id, ':', error);
+      logger.error('Error processing uploaded file in chat', req.params.chatId, 'by user', req.user.id, ':', error);
       
       if (req.file) {
         if (process.env.NODE_ENV === 'production') {
           await deleteFileFromCloudinary(req.file.path);
-          console.log(`🗑️ Deleted file from Cloudinary due to error: ${req.file.path}`);
         } else {
           try {
             const fs = await import('fs');
             if (req.file.path && fs.default.existsSync(req.file.path)) {
               fs.default.unlinkSync(req.file.path);
-              console.log(`Deleted file ${req.file.path} due to processing error.`);
             }
           } catch (e) {
-            console.error("Error deleting file after DB error:", e);
+            logger.error("Error deleting file after DB error:", e);
           }
         }
       }

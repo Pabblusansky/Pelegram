@@ -4,6 +4,7 @@ import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, tap, map, finalize, filter } from 'rxjs/operators';
 import { UserProfile, ProfileUpdateDto } from './profile.model';
 import { ThemeService } from '../services/theme.service';
+import { LoggerService } from '../services/logger.service';
 import { environment } from '../../environments/environment';
 @Injectable({
   providedIn: 'root'
@@ -20,7 +21,8 @@ export class ProfileService {
   
   constructor(
     private http: HttpClient,
-    private themeService: ThemeService
+    private themeService: ThemeService,
+    private logger: LoggerService
   ) {
     this.getMyProfile().subscribe({
       next: (profile) => this.currentProfileSubject.next(profile),
@@ -43,11 +45,10 @@ export class ProfileService {
     return this.http.get<UserProfile>(`${this.apiUrl}/me`, { headers })
       .pipe(
         tap(profile => {
-          console.log('Profile loaded successfully');
           this.currentProfileSubject.next(profile);
         }),
         catchError(error => {
-          console.error('Error loading profile:', error);
+          this.logger.error('Error loading profile:', error);
           return throwError(() => new Error(`Failed to load profile: ${error.message}`));
         })
       );
@@ -55,7 +56,6 @@ export class ProfileService {
 
   private applyProfileSettings(profile: UserProfile): void {
     if (profile.settings?.theme) {
-      console.log('Applying theme from profile:', profile.settings.theme);
       this.themeService.setTheme(profile.settings.theme);
     }
   
@@ -76,7 +76,7 @@ export class ProfileService {
     return this.http.get<UserProfile>(`${this.apiUrl}/${userId}`, { headers })
       .pipe(
         catchError(error => {
-          console.error(`Error loading profile for user ${userId}:`, error);
+          this.logger.error('Error loading profile for user ' + userId + ':', error);
           return throwError(() => new Error(`Failed to load user profile: ${error.message}`));
         })
       );
@@ -96,11 +96,10 @@ export class ProfileService {
     return this.http.patch<UserProfile>(`${this.apiUrl}/me`, profileData, { headers })
       .pipe(
         tap(profile => {
-          console.log('Profile updated successfully');
           this.currentProfileSubject.next(profile);
         }),
         catchError(error => {
-          console.error('Error updating profile:', error);
+          this.logger.error('Error updating profile:', error);
           return throwError(() => new Error(`Failed to update profile: ${error.message}`));
         })
       );
@@ -142,14 +141,12 @@ export class ProfileService {
     ).pipe(
       map(event => this.getUploadEventData(event)),
       filter((response): response is { avatar: string; user: UserProfile } => response !== null),
-      tap(response => {
-        console.log('Avatar upload complete:', response);
-      }),
+      tap(() => {}),
       finalize(() => {
         this.avatarUploadProgress.next(0);
       }),
       catchError(error => {
-        console.error('Error uploading avatar:', error);
+        this.logger.error('Error uploading avatar:', error);
         return throwError(() => new Error(`Failed to upload avatar: ${error.message || error}`));
       })
     );
@@ -164,7 +161,6 @@ export class ProfileService {
     return this.http.delete<{ success: boolean; message: string; user: UserProfile }>(`${this.apiUrl}/avatar`, { headers })
       .pipe(
         tap(response => {
-          console.log('Avatar deletion response:', response);
           if (response.success && response.user) {
             this.currentProfileSubject.next(response.user); 
           }
@@ -176,17 +172,17 @@ export class ProfileService {
   private getAuthHeaders(): HttpHeaders | null {
     const token = localStorage.getItem('token'); 
     if (!token) {
-      console.error('No token found for auth headers');
+      this.logger.error('No token found for auth headers');
       return null;
     }
     return new HttpHeaders().set('Authorization', `Bearer ${token}`);
   }
-  private handleError(error: any) {
-    console.error('API Error:', error);
+  private handleError = (error: { error?: { message?: string }; message?: string }) => {
+    this.logger.error('API Error:', error);
     return throwError(() => new Error(error.error?.message || error.message || 'Something went wrong'));
   }
 
-  private getUploadEventData(event: HttpEvent<any>): { avatar: string; user: UserProfile } | null {
+  private getUploadEventData(event: HttpEvent<{ avatar: string; user: UserProfile; success?: boolean }>): { avatar: string; user: UserProfile } | null {
     switch (event.type) {
       case HttpEventType.UploadProgress:
         const progress = Math.round((100 * event.loaded) / (event.total || 1));

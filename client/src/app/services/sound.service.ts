@@ -1,6 +1,6 @@
-// src/app/services/sound.service.ts
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
+import { LoggerService } from './logger.service';
 
 @Injectable({
   providedIn: 'root'
@@ -11,7 +11,7 @@ export class SoundService {
   
   private sounds: {[key: string]: HTMLAudioElement} = {};
   
-  constructor() {
+  constructor(private logger: LoggerService) {
     this.preloadSounds();
   }
   
@@ -23,8 +23,6 @@ export class SoundService {
   setSoundEnabled(enabled: boolean): void {
     localStorage.setItem('soundEnabled', String(enabled));
     this.soundEnabledSubject.next(enabled);
-    
-    console.log('Sound ' + (enabled ? 'enabled' : 'disabled'));
   }
   
   private preloadSounds(): void {
@@ -42,7 +40,6 @@ export class SoundService {
   
   playSound(soundName: 'message' | 'notification' | 'call'): void {
     if (!this.soundEnabledSubject.value) {
-      console.log('Sound is disabled, not playing:', soundName);
       return;
     }
     
@@ -50,10 +47,10 @@ export class SoundService {
     if (sound) {
       sound.currentTime = 0; 
       sound.play().catch(error => {
-        console.error(`Error playing ${soundName} sound:`, error);
+        this.logger.error(`Error playing ${soundName} sound:`, error);
       });
     } else {
-      console.error(`Sound "${soundName}" not found`);
+      this.logger.error(`Sound "${soundName}" not found`);
     }
   }
 }

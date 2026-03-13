@@ -8,6 +8,7 @@ import { User, Chat } from '../../chat.model';
 import { HttpClient } from '@angular/common/http';
 import { ProfileService } from '../../../profile/profile.service';
 import { getFullAvatarUrl } from '../../../utils/url-utils';
+import { LoggerService } from '../../../services/logger.service';
 
 @Component({
   selector: 'app-create-group-chat',
@@ -42,7 +43,8 @@ export class CreateGroupChatComponent implements OnInit {
     private fb: FormBuilder,
     private chatService: ChatService,
     private http: HttpClient,
-    private profileService: ProfileService
+    private profileService: ProfileService,
+    private logger: LoggerService
   ) {
     this.createGroupForm = this.fb.group({
       groupName: ['', [Validators.required, Validators.minLength(3)]]
@@ -99,7 +101,7 @@ export class CreateGroupChatComponent implements OnInit {
         this.isLoadingUsers = false;
       },
       error: err => {
-        console.error('Error searching users:', err);
+        this.logger.error('Error searching users:', err);
         this.errorMessage = 'Failed to search users.';
         this.isLoadingUsers = false;
         this.userSearchResults = [];
@@ -169,14 +171,14 @@ export class CreateGroupChatComponent implements OnInit {
       .subscribe({
         next: (newGroupChat) => {
           this.isCreatingGroup = false;
-          console.log('Group created successfully:', newGroupChat);
           this.groupCreated.emit(newGroupChat);
           this.close();
         },
-        error: (err: any) => {
+        error: (err: unknown) => {
           this.isCreatingGroup = false;
-          console.error('Error creating group chat:', err);
-          this.errorMessage = err.error?.message || err.message || 'Failed to create group. Please try again.';
+          this.logger.error('Error creating group chat:', err);
+          const error = err as Record<string, unknown>;
+          this.errorMessage = (error['error'] as Record<string, unknown>)?.['message'] as string || (error['message'] as string) || 'Failed to create group. Please try again.';
         }
       });
   }

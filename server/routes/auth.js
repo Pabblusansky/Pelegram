@@ -3,9 +3,9 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
 import { authenticateToken } from '../middleware/authenticateToken.js';
+import logger from '../config/logger.js';
 
 const router = express.Router();
-// const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
 
 router.post('/register', async (req, res) => {
   const { username, email, password } = req.body;
@@ -27,7 +27,6 @@ router.post('/register', async (req, res) => {
     if (error.code === 11000) { // Duplicate key error
       return res.status(400).json({ error: 'Username or email already exists' });
     }
-    console.error(error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -48,11 +47,10 @@ router.post('/login', async (req, res) => {
     if (!isPasswordValid) {
       return res.status(400).json({ error: 'Invalid username/password credentials' });
     }
-    console.log('User ID:', user._id);
     const token = jwt.sign({ id: user._id.toString() }, process.env.SECRET_KEY, { expiresIn: '1h' });
     return res.json({ token, userId: user._id.toString(), username: user.username });
   } catch (error) {
-    console.error('Error during login:', error);
+    logger.error('Error during login:', error);
     res.status(500).json({ error: 'Error logging in' });
   }
 });

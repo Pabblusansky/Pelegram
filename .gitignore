@@ -61,3 +61,7 @@ Thumbs.db
 # Build artifacts
 client/dist/
 server/dist/
+
+
+# Others
+.claude/

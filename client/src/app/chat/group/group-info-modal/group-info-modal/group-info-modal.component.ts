@@ -6,7 +6,8 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms'; 
 import { ToastService } from '../../../../utils/toast-service';
 import { ElementRef, ViewChild } from '@angular/core';
-import { ConfirmationService } from '../../../../shared/services/confirmation.service'; 
+import { ConfirmationService } from '../../../../shared/services/confirmation.service';
+import { LoggerService } from '../../../../services/logger.service';
 
 @Component({
   selector: 'app-group-info-modal',
@@ -40,7 +41,8 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
     public chatService: ChatService,
     private router: Router,
     private ToastService: ToastService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private logger: LoggerService
   ) {}
 
   ngOnInit(): void {
@@ -78,33 +80,17 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
       }
       if (adminId) {
         this.isAdmin = adminId.toString() === this.currentUserId.toString();
-        console.log('Admin status determined:', {
-          adminId,
-          currentUserId: this.currentUserId,
-          isAdmin: this.isAdmin
-        });
       } else {
         this.isAdmin = false;
-        console.log('Could not determine admin ID from:', adminField);
       }
     } else {
       this.isAdmin = false;
-      console.log('Admin status check failed:', {
-        hasDetails: !!this.chatDetails,
-        hasAdmin: !!(this.chatDetails && this.chatDetails.admin),
-        hasCurrentId: !!this.currentUserId
-      });
     }
   }
 
   
   getIsParticipantAdmin(participantId: string): boolean {
     if (!this.chatDetails || !this.chatDetails.admin || !participantId) {
-      console.log('Missing data for admin check:', {
-        hasDetails: !!this.chatDetails,
-        hasAdmin: !!(this.chatDetails && this.chatDetails.admin),
-        participantId
-      });
       return false;
     }
     
@@ -124,7 +110,6 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
       adminId = (adminField as User)._id;
     }
     else {
-      console.log('Unexpected admin field format:', adminField);
       return false;
     }
     
@@ -206,7 +191,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
       },
       error: (err) => {
         this.isSavingName = false;
-        console.error('Error updating group name:', err);
+        this.logger.error('Error updating group name:', err);
         this.ToastService.showToast('Failed to update group name.', 3000, 'error');
       }
       });
@@ -221,7 +206,6 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files[0] && this.chatDetails?._id) {
       const file = input.files[0];
-      console.log('GroupInfoModal: File selected for avatar:', file.name, file.type, file.size);
     
       if (!file.type.match(/image\/(jpeg|jpg|png|)/)) {
         this.ToastService.showToast('Please select a valid image file (JPEG, PNG, JPG)', 3000, 'error');
@@ -245,7 +229,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
         },
         error: (err) => {
           this.isUploadingAvatar = false;
-          console.error('GroupInfoModal: Error updating group avatar from service:', err.message);
+          this.logger.error('GroupInfoModal: Error updating group avatar from service:', err.message);
           this.ToastService.showToast('Failed to update group avatar', 3000, 'error');
           if (this.avatarFileInput) this.avatarFileInput.nativeElement.value = '';
         }
@@ -283,7 +267,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
       this.isSearching = false;
     },
     error: (err) => {
-      console.error('Error searching users:', err);
+      this.logger.error('Error searching users:', err);
       this.ToastService.showToast('Failed to search users', 3000, 'error');
       this.isSearching = false;
     }
@@ -316,7 +300,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
         this.closeAddParticipantsModal();
       },
       error: (err) => {
-        console.error('Error adding participants:', err);
+        this.logger.error('Error adding participants:', err);
         this.ToastService.showToast('Failed to add participants', 3000, 'error');
       }
     });
@@ -347,7 +331,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
         },
         error: (err) => {
           this.isRemovingParticipant = false;
-          console.error('Error removing participant:', err);
+          this.logger.error('Error removing participant:', err);
           this.ToastService.showToast('Failed to remove participant', 3000, 'error');
         }
       });
@@ -357,7 +341,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
   async leaveGroup(): Promise<void> {
     if (!this.chatDetails?._id) {
       this.ToastService.showToast('Chat details are not available.', 3000, 'error');
-      console.error('Chat details are not available for leaving group.');
+      this.logger.error('Chat details are not available for leaving group.');
       return;
     }
     const confirmed = await this.confirmationService.confirm({
@@ -375,7 +359,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
           this.router.navigate(['/home']);
         },
         error: (err) => {
-          console.error('Error leaving group:', err);
+          this.logger.error('Error leaving group:', err);
           this.ToastService.showToast('Failed to leave the group.', 3000, 'error');
         }
       });
@@ -401,7 +385,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
         },
         error: (err) => {
           this.isDeletingGroup = false;
-          console.error('Error deleting group:', err);
+          this.logger.error('Error deleting group:', err);
           this.ToastService.showToast('Failed to delete group', 3000, 'error');
         }
       });
@@ -441,7 +425,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
         },
         error: (err) => {
           this.isDeletingAvatar = false;
-          console.error('GroupInfoModal: Error deleting group avatar:', err.message);
+          this.logger.error('GroupInfoModal: Error deleting group avatar:', err.message);
           this.ToastService.showToast('Failed to delete group avatar', 3000, 'error');
         }
       });
