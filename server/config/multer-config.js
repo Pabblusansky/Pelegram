@@ -96,7 +96,16 @@ if (IS_PROD) {
     params: {
       folder: 'pelegram/media',
       resource_type: 'auto', // auto-detect: image, video, raw
-      allowed_formats: ['jpeg', 'jpg', 'png', 'gif', 'webp', 'mp4', 'webm', 'mp3', 'wav', 'pdf', 'doc', 'docx'],
+      allowed_formats: [
+        // Images
+        'jpeg', 'jpg', 'png', 'gif', 'webp',
+        // Videos
+        'mp4', 'webm', 'mov',
+        // Audio formats
+        'mp3', 'wav', 'ogg', 'opus', 'm4a', 'aac', 'flac',
+        // Documents
+        'pdf', 'doc', 'docx', 'txt'
+      ],
     },
   });
 } else {
@@ -127,7 +136,7 @@ const mediaFilter = (req, file, cb) => {
   const allowedTypes = [
     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
     'video/mp4', 'video/webm', 'video/quicktime',
-    'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm',
+    'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm', 'audio/opus', 'audio/mp4', 'audio/aac', 'audio/flac',
     'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'text/plain'
   ];
