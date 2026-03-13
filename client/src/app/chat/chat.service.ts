@@ -9,6 +9,7 @@ import { first, shareReplay, takeUntil } from 'rxjs/operators';
 import { SoundService } from '../services/sound.service';
 import { NotificationService } from '../services/notifications.service';
 import { LoggerService } from '../services/logger.service';
+import { TokenService } from '../services/token.service';
 import { environment } from '../../environments/environment';
 interface MessageDeletedEvent {
   messageId: string;
@@ -70,7 +71,8 @@ export class ChatService implements OnDestroy {
     private http: HttpClient,
     private soundService: SoundService,
     private notificationService: NotificationService,
-    private logger: LoggerService
+    private logger: LoggerService,
+    private tokenService: TokenService
   ) {
     this.initializeSocket();
   }
@@ -85,7 +87,7 @@ export class ChatService implements OnDestroy {
   }
 
   private getHeaders() {
-    const token = localStorage.getItem('token');
+    const token = this.tokenService.getToken();
     if (!token) {
       this.router.navigate(['/login']);
       return undefined;
@@ -100,7 +102,7 @@ export class ChatService implements OnDestroy {
       this.destroySocket$.complete();
       this.destroySocket$ = new Subject<void>();
     }
-    const token = localStorage.getItem('token');
+    const token = this.tokenService.getToken();
 
     if (token) {
       this.socket = io(this.apiUrl, {
@@ -228,7 +230,7 @@ export class ChatService implements OnDestroy {
   }
 
   private handleIncomingMessageNotification(message: Message): void {
-    const userId = localStorage.getItem('userId');
+    const userId = this.tokenService.getUserId();
     const isAppVisible = this.notificationService.isAppCurrentlyVisible();
     const isChatActive = this.currentActiveChatId === message.chatId;
 
@@ -612,7 +614,7 @@ export class ChatService implements OnDestroy {
   }
 
   createOrGetDirectChat(userId: string): Observable<Chat> {
-    const token = localStorage.getItem('token');
+    const token = this.tokenService.getToken();
     if (!token) {
       this.logger.error('No token found, cannot create chat');
       return throwError(() => new Error('Authentication required'));
@@ -772,7 +774,7 @@ export class ChatService implements OnDestroy {
 
   // Favicon methods
   private recalculateTotalUnread(allChats: Chat[]): void {
-    const currentUserId = localStorage.getItem('userId');
+    const currentUserId = this.tokenService.getUserId();
     if (!currentUserId) {
       this.totalUnreadCountSubject.next(0);
       return;
@@ -896,7 +898,7 @@ export class ChatService implements OnDestroy {
   }
 
   updateGroupAvatar(chatId: string, file: File): Observable<Chat> {
-    const token = localStorage.getItem('token');
+    const token = this.tokenService.getToken();
     if (!token) {
       this.router.navigate(['/login']);
       return throwError(() => new Error('Not authorized for group avatar update (token missing)'));
@@ -976,7 +978,7 @@ export class ChatService implements OnDestroy {
   }
 
   deleteGroupAvatar(chatId: string): Observable<Chat> {
-    const token = localStorage.getItem('token');
+    const token = this.tokenService.getToken();
     if (!token) {
       this.router.navigate(['/login']);
       return throwError(() => new Error('Not authorized for group avatar deletion (token missing)'));

@@ -6,6 +6,7 @@ import authenticateToken from '../middleware/authenticateToken.js';
 import { uploadMedia, getFileUrl } from '../config/multer-config.js';
 import { deleteFileFromCloudinary } from '../config/multer-config.js';
 import logger from '../config/logger.js';
+import { MESSAGE_POPULATE, CHAT_POPULATE, applyPopulate } from '../config/populate.js';
 
 export default (io) => {
   const router = express.Router();
@@ -107,28 +108,19 @@ export default (io) => {
 
       const savedMessage = await newMessage.save();
 
-      const updatedChat = await Chat.findByIdAndUpdate(
-        chatId,
-        { lastMessage: savedMessage._id, updatedAt: new Date() },
-        { new: true }
-      )
-      .populate('participants', '_id username avatar')
-      .populate({
-        path: 'lastMessage',
-        populate: [
-            { path: 'senderId', select: '_id username avatar name' },
-            { path: 'replyTo', select: 'content senderName senderId _id', populate: { path: 'senderId', select: 'username _id'} }
-        ]
-      });
+      const updatedChat = await applyPopulate(
+        Chat.findByIdAndUpdate(
+          chatId,
+          { lastMessage: savedMessage._id, updatedAt: new Date() },
+          { new: true }
+        ),
+        CHAT_POPULATE
+      );
 
-      const populatedMessageForSocket = await Message.findById(savedMessage._id)
-        .populate('senderId', '_id username avatar name')
-        .populate({
-            path: 'replyTo',
-            select: 'content senderName senderId _id messageType filePath',
-            populate: { path: 'senderId', select: 'username _id'}
-        })
-        .lean();
+      const populatedMessageForSocket = await applyPopulate(
+        Message.findById(savedMessage._id),
+        MESSAGE_POPULATE
+      ).lean();
 
       io.to(chatId.toString()).emit('receive_message', populatedMessageForSocket);
       if (updatedChat) {

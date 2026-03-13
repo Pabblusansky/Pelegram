@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { debounceTime, Observable, Subject, Subscription, takeUntil } from 'rxjs';
+import { debounceTime, Observable, Subject, takeUntil } from 'rxjs';
 import { ChatService } from '../chat.service';
 import { Chat, Message, Reaction, User} from '../chat.model';
 import { MessageInputComponent } from "../message-input/message-input.component";
@@ -27,6 +27,7 @@ import DOMPurify from 'dompurify';
 import { MessageContextMenuComponent } from '../message-context-menu/message-context-menu.component';
 import { ChatHeaderComponent } from '../chat-header/chat-header.component';
 import { LoggerService } from '../../services/logger.service';
+import { TokenService } from '../../services/token.service';
 
 @Component({
   selector: 'app-chat-room',
@@ -85,7 +86,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   users: User[] = [];
   menuPosition: { x: number; y: number } = { x: 0, y: 0 };
   private markAsReadDebounce = new Subject<void>();
-  typingSubscription: Subscription | null = null;
   selectedMessageId: string | null = null;
   private editTextareaRef: ElementRef | null = null;
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -146,7 +146,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     private cdr: ChangeDetectorRef,
     private soundService: SoundService,
     private confirmationService: ConfirmationService,
-    private logger: LoggerService
+    private logger: LoggerService,
+    private tokenService: TokenService
   ) {
     this.markAsReadDebounce.pipe(debounceTime(500)).subscribe(() => {
       this.markMessagesAsRead();
@@ -264,7 +265,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     });
   
-    this.userId = localStorage.getItem('userId');
+    this.userId = this.tokenService.getUserId();
     
 
     
@@ -383,9 +384,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.editAnimationTimeouts.forEach(timeout => clearTimeout(timeout));
     this.editAnimationTimeouts.clear();
 
-    if (this.typingSubscription) {
-      this.typingSubscription.unsubscribe();
-    }  
   }
   
   getTypingUserName(userId: string): string {

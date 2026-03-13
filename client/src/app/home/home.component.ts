@@ -6,7 +6,7 @@ import { CommonModule } from '@angular/common';
 import { ProfileCardComponent } from "../profile/profile-card/profile-card.component";
 import { ProfileService } from "../profile/profile.service";
 import { UserProfile } from "../profile/profile.model";
-import { Subscription, filter } from 'rxjs';
+import { Subject, filter, takeUntil } from 'rxjs';
 import { ChatService } from '../chat/chat.service';
 import { FaviconService } from '../services/favicon/favicon.service';
 import { LoggerService } from '../services/logger.service';
@@ -28,10 +28,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   selectedChatId: string | null = null;
   isProfileRoute: boolean = false;
   userProfile: UserProfile | null = null;
-  
-  private routerSubscription: Subscription | null = null;
-  private profileSubscription: Subscription | null = null;
-  private unreadFaviconSubscription: Subscription | null = null;
+  private destroy$ = new Subject<void>();
 
   constructor(
     private router: Router, 
@@ -45,41 +42,47 @@ export class HomeComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadUserProfile();
     
-    this.route.paramMap.subscribe((params) => {
-      this.selectedChatId = params.get('chatId') || null;
-    });
-    
-    this.routerSubscription = this.router.events
-      .pipe(filter(event => event instanceof NavigationEnd))
+    this.route.paramMap
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((params) => {
+        this.selectedChatId = params.get('chatId') || null;
+      });
+
+    this.router.events
+      .pipe(
+        filter(event => event instanceof NavigationEnd),
+        takeUntil(this.destroy$)
+      )
       .subscribe((event: NavigationEnd) => {
-        this.isProfileRoute = 
-          event.url.includes('/profile') || 
+        this.isProfileRoute =
+          event.url.includes('/profile') ||
           event.url.includes('/user/');
       });
-    
-    this.isProfileRoute = 
-      this.router.url.includes('/profile') || 
+
+    this.isProfileRoute =
+      this.router.url.includes('/profile') ||
       this.router.url.includes('/user/');
-      this.unreadFaviconSubscription = this.chatService.totalUnreadCount$
-        .subscribe(unreadCount => {
-          if (unreadCount > 0) {
-            this.faviconService.setNotificationBadge(unreadCount);
-          } else {
-            this.faviconService.resetFavicon();
-          }
+
+    this.chatService.totalUnreadCount$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(unreadCount => {
+        if (unreadCount > 0) {
+          this.faviconService.setNotificationBadge(unreadCount);
+        } else {
+          this.faviconService.resetFavicon();
+        }
       });
   }
 
   ngOnDestroy(): void {
-    this.routerSubscription?.unsubscribe();
-    this.profileSubscription?.unsubscribe();
-    this.unreadFaviconSubscription?.unsubscribe();
-
+    this.destroy$.next();
+    this.destroy$.complete();
     this.faviconService.resetFavicon();
   }
 
   loadUserProfile(): void {
-    this.profileSubscription = this.profileService.getMyProfile()
+    this.profileService.getMyProfile()
+      .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (profile) => {
           this.userProfile = profile;

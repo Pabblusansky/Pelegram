@@ -4,6 +4,7 @@ import authenticateToken from '../middleware/authenticateToken.js';
 import Chat from '../models/Chat.js';
 import User from '../models/User.js';
 import logger from '../config/logger.js';
+import { MESSAGE_POPULATE, CHAT_POPULATE, applyPopulate, populateMessageSender, populateChatParticipants } from '../config/populate.js';
 
 import fs from 'fs';
 import path from 'path';
@@ -22,10 +23,9 @@ export default (io) => {
     try {
       const userId = req.user.id;
       
-      const chats = await Chat.find({ participants: userId })
-        .populate('participants', '_id username avatar')
-        .populate('lastMessage')
-        .sort({ updatedAt: -1 });
+      const chats = await applyPopulate(
+        Chat.find({ participants: userId }), CHAT_POPULATE
+      ).sort({ updatedAt: -1 });
       
       res.json(chats);
     } catch (error) {
@@ -53,20 +53,16 @@ export default (io) => {
 
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const messages = await Message.find({
-        chatId: chatId,
-        content: searchRegex,
-      })
-      .sort({ timestamp: -1 }) 
-      .skip(skip) 
-      .limit(parseInt(limit))
-      .populate('senderId', 'username avatar')
-      .populate({ 
-          path: 'replyTo',
-          select: 'content senderName senderId _id', 
-          populate: { path: 'senderId', select: 'username _id'}
-      })
-      .lean();
+      const messages = await applyPopulate(
+        Message.find({
+          chatId: chatId,
+          content: searchRegex,
+        })
+        .sort({ timestamp: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+        MESSAGE_POPULATE
+      ).lean();
 
       res.json(messages);
 
@@ -94,25 +90,25 @@ export default (io) => {
 
       const targetTimestamp = targetMessage.createdAt || targetMessage.timestamp;
 
-      const messagesBefore = await Message.find({
-        chatId: chatId,
-        createdAt: { $lt: targetTimestamp }
-      })
-      .sort({ createdAt: -1 }) 
-      .limit(contextLimit)
-      .populate('senderId', 'username avatar _id')
-      .populate({ path: 'replyTo', select: 'content senderName senderId _id', populate: { path: 'senderId', select: 'username _id'}})
-      .lean();
+      const messagesBefore = await applyPopulate(
+        Message.find({
+          chatId: chatId,
+          createdAt: { $lt: targetTimestamp }
+        })
+        .sort({ createdAt: -1 })
+        .limit(contextLimit),
+        MESSAGE_POPULATE
+      ).lean();
 
-      const messagesAfterAndTarget = await Message.find({
-        chatId: chatId,
-        createdAt: { $gte: targetTimestamp }
-      })
-      .sort({ createdAt: 1 })
-      .limit(contextLimit + 1)
-      .populate('senderId', 'username avatar _id')
-      .populate({ path: 'replyTo', select: 'content senderName senderId _id', populate: { path: 'senderId', select: 'username _id'}})
-      .lean();
+      const messagesAfterAndTarget = await applyPopulate(
+        Message.find({
+          chatId: chatId,
+          createdAt: { $gte: targetTimestamp }
+        })
+        .sort({ createdAt: 1 })
+        .limit(contextLimit + 1),
+        MESSAGE_POPULATE
+      ).lean();
 
       // Combine messages before the target and the target message with messages after it
       let combinedMessages = [
@@ -185,22 +181,18 @@ export default (io) => {
         targetChat.updatedAt = new Date();
         await targetChat.save();
 
-        const updatedTargetChatForEmit = await Chat.findById(targetChatId)
-          .populate('participants', '_id username avatar')
-          .populate({
-            path: 'lastMessage',
-            populate: { path: 'senderId', select: '_id username avatar name' }
-          });
+        const updatedTargetChatForEmit = await applyPopulate(
+          Chat.findById(targetChatId), CHAT_POPULATE
+        );
         
         if (updatedTargetChatForEmit) {
             io.to(targetChatId).emit('chat_updated', updatedTargetChatForEmit);
         }
 
         for (const newMessage of savedNewMessages) {
-          const populatedMsg = await Message.findById(newMessage._id)
-                                      .populate('senderId', '_id username avatar name')
-                                      .populate({ path: 'replyTo', populate: {path: 'senderId', select: '_id username'}}) // Популейт ответа
-                                      .lean();
+          const populatedMsg = await applyPopulate(
+            Message.findById(newMessage._id), MESSAGE_POPULATE
+          ).lean();
           io.to(targetChatId).emit('receive_message', populatedMsg);
         }
       }
@@ -279,16 +271,14 @@ export default (io) => {
         updateData.lastMessage = null;
       }
       
-      const updatedChat = await Chat.findByIdAndUpdate(
-        chatId, 
-        updateData,
-        { new: true }
-      )
-      .populate('participants', '_id username avatar')
-      .populate({
-        path: 'lastMessage',
-        populate: { path: 'senderId', select: '_id username avatar name' }
-      });
+      const updatedChat = await applyPopulate(
+        Chat.findByIdAndUpdate(
+          chatId,
+          updateData,
+          { new: true }
+        ),
+        CHAT_POPULATE
+      );
 
       if (updatedChat) {
         io.to(chatId.toString()).emit('chat_updated', updatedChat);
@@ -354,21 +344,17 @@ export default (io) => {
         updatedAt: new Date(),
       });
 
-      const updatedTargetChat = await Chat.findById(targetChatId)
-        .populate('participants', '_id username avatar name')
-        .populate({
-          path: 'lastMessage',
-          populate: { path: 'senderId', select: '_id username avatar name' }
-        });
+      const updatedTargetChat = await applyPopulate(
+        Chat.findById(targetChatId), CHAT_POPULATE
+      );
       
       if (updatedTargetChat) {
         io.to(targetChatId).emit('chat_updated', updatedTargetChat);
       }
 
-      const populatedSavedMessage = await Message.findById(savedMessage._id)
-        .populate('senderId', '_id username avatar name')
-        .populate({ path: 'replyTo', populate: { path: 'senderId', select: '_id username' } })
-        .lean();
+      const populatedSavedMessage = await applyPopulate(
+        Message.findById(savedMessage._id), MESSAGE_POPULATE
+      ).lean();
       
       io.to(targetChatId).emit('receive_message', populatedSavedMessage);
 
@@ -408,7 +394,7 @@ export default (io) => {
       const { chatId, content } = req.body;
 
       if (!content) {
-          return res.status(400).json({ error: 'Content is required' });
+          return res.status(400).json({ message: 'Content is required' });
       }
       try {
           const newMessage = new Message({ 
@@ -427,7 +413,7 @@ export default (io) => {
           });
 
           res.status(201).json(newMessage); } catch (error) {
-              res.status(500).json({ error: 'Failed sending message' });
+              res.status(500).json({ message: 'Failed sending message' });
           }
   });
 
@@ -453,7 +439,7 @@ export default (io) => {
         res.status(200).json(messages.reverse());
       } catch (error) {
         logger.error('Error fetching messages:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ message: 'Internal server error' });
     }
   });
   router.route('/:id')
@@ -465,37 +451,37 @@ export default (io) => {
         const existingMessage = await Message.findById(req.params.id);
         
         if (!existingMessage) {
-          return res.status(404).json({ error: 'Message not found' });
+          return res.status(404).json({ message: 'Message not found' });
         }
         
         if (existingMessage.senderId.toString() !== req.user.id) {
-          return res.status(403).json({ error: 'Not authorized to edit this message' });
+          return res.status(403).json({ message: 'Not authorized to edit this message' });
         }
         
-        const updatedMessage = await Message.findByIdAndUpdate(
-          messageId,
-          { 
-            content: req.body.content, 
-            edited: true,
-            editedAt: now
-          },
-          { new: true }
-        ).populate('senderId', '_id username avatar name');
+        const updatedMessage = await applyPopulate(
+          Message.findByIdAndUpdate(
+            messageId,
+            {
+              content: req.body.content,
+              edited: true,
+              editedAt: now
+            },
+            { new: true }
+          ),
+          [populateMessageSender]
+        );
 
         if (!updatedMessage) {
-          return res.status(404).json({ error: 'Message not found' });
+          return res.status(404).json({ message: 'Message not found' });
         }
         io.to(updatedMessage.chatId.toString()).emit('message_edited', updatedMessage.toObject());
 
         const chat = await Chat.findById(updatedMessage.chatId)
         
         if (chat && chat.lastMessage &&  chat.lastMessage.toString() === updatedMessage._id.toString()) {
-          const updatedChatForEmit = await Chat.findById(chat._id)
-            .populate('participants', '_id username avatar name')
-            .populate({
-              path: 'lastMessage',
-              populate: { path: 'senderId', select: '_id username avatar name' }
-            });
+          const updatedChatForEmit = await applyPopulate(
+            Chat.findById(chat._id), CHAT_POPULATE
+          );
             if (updatedChatForEmit) {
               io.to(updatedMessage.chatId.toString()).emit('chat_updated', updatedChatForEmit.toObject());
             } else {
@@ -505,7 +491,7 @@ export default (io) => {
         res.json(updatedMessage.toObject());
       } catch (err) {
         logger.error('Error editing message:', err);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ message: err.message });
       }
     });
   router.delete('/:id', authenticateToken, async (req, res) => {
@@ -515,11 +501,11 @@ export default (io) => {
       const message = await Message.findById(messageId);
       
       if (!message) {
-        return res.status(404).json({ error: 'Message not found' });
+        return res.status(404).json({ message: 'Message not found' });
       }
       
       if (message.senderId.toString() !== req.user.id) {
-        return res.status(403).json({ error: 'Not authorized to delete this message' });
+        return res.status(403).json({ message: 'Not authorized to delete this message' });
       }
 
       const chatId = message.chatId;
@@ -558,17 +544,23 @@ export default (io) => {
       let updatedChat;
 
       if (lastMessage.length > 0) {
-        updatedChat = await Chat.findByIdAndUpdate(
-          chatId,
-          { lastMessage: lastMessage[0]._id },
-          { new: true }
-        ).populate('lastMessage').populate('participants', 'username');
+        updatedChat = await applyPopulate(
+          Chat.findByIdAndUpdate(
+            chatId,
+            { lastMessage: lastMessage[0]._id },
+            { new: true }
+          ),
+          CHAT_POPULATE
+        );
       } else {
-        updatedChat = await Chat.findByIdAndUpdate(
-          chatId,
-          { lastMessage: null },
-          { new: true }
-        ).populate('participants', 'username');
+        updatedChat = await applyPopulate(
+          Chat.findByIdAndUpdate(
+            chatId,
+            { lastMessage: null },
+            { new: true }
+          ),
+          [populateChatParticipants]
+        );
       }
   
       io.to(chatId.toString()).emit('message_deleted', { 
@@ -580,7 +572,7 @@ export default (io) => {
       res.status(200).json({ success: true, messageId });
     } catch (err) {
       logger.error('Error deleting message:', err);
-      res.status(500).json({ error: 'Server error' });
+      res.status(500).json({ message: 'Server error' });
     }
   });
 

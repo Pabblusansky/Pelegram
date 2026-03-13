@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { ChatService } from '../chat.service';
 import { Chat, User } from '../chat.model';
 import { LoggerService } from '../../services/logger.service';
+import { TokenService } from '../../services/token.service';
 
 @Component({
   selector: 'app-forward-dialog',
@@ -432,10 +433,10 @@ export class ForwardDialogComponent implements OnInit {
   loading: boolean = true;
   currentUserId: string | null = null;
   
-  constructor(private chatService: ChatService, private logger: LoggerService) {}
+  constructor(private chatService: ChatService, private logger: LoggerService, private tokenService: TokenService) {}
   
   ngOnInit(): void {
-    this.currentUserId = localStorage.getItem('userId');
+    this.currentUserId = this.tokenService.getUserId();
     this.loadChats();
   }
   

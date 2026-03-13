@@ -9,6 +9,7 @@ import { HttpClient } from '@angular/common/http';
 import { ProfileService } from '../../../profile/profile.service';
 import { getFullAvatarUrl } from '../../../utils/url-utils';
 import { LoggerService } from '../../../services/logger.service';
+import { TokenService } from '../../../services/token.service';
 
 @Component({
   selector: 'app-create-group-chat',
@@ -44,7 +45,8 @@ export class CreateGroupChatComponent implements OnInit {
     private chatService: ChatService,
     private http: HttpClient,
     private profileService: ProfileService,
-    private logger: LoggerService
+    private logger: LoggerService,
+    private tokenService: TokenService
   ) {
     this.createGroupForm = this.fb.group({
       groupName: ['', [Validators.required, Validators.minLength(3)]]
@@ -52,7 +54,7 @@ export class CreateGroupChatComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.currentUserId = localStorage.getItem('userId');
+    this.currentUserId = this.tokenService.getUserId();
     this.setupUserSearch();
   }
 
@@ -77,7 +79,7 @@ export class CreateGroupChatComponent implements OnInit {
       switchMap(query => {
         const startTime = Date.now();
         return this.http.get<User[]>(`${this.chatService.getApiUrl()}/chats/search?query=${query}`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 'Authorization': `Bearer ${this.tokenService.getToken()}` }
         }).pipe(
           switchMap(users => {
             const elapsed = Date.now() - startTime;

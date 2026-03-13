@@ -8,6 +8,7 @@ import { uploadGroupAvatar, getFileUrl, deleteFileFromCloudinary } from '../conf
 import fs from 'fs';
 import path from 'path';
 import logger from '../config/logger.js';
+import { CHAT_POPULATE, GROUP_CHAT_POPULATE, FULL_CHAT_POPULATE, applyPopulate, populateDoc, populateChatParticipants, populateChatAdmin, populateChatLastMessage, populateChatPinnedMessage, populateMessageSender } from '../config/populate.js';
 
 export default (io) => {
   const router = express.Router();
@@ -49,9 +50,7 @@ export default (io) => {
 
       let savedChat = await newGroupChat.save();
 
-      savedChat = await Chat.findById(savedChat._id)
-        .populate('participants', '_id username avatar name')
-        .populate('admin', '_id username avatar name');
+      savedChat = await applyPopulate(Chat.findById(savedChat._id), [populateChatParticipants, populateChatAdmin]);
 
       if (!savedChat) {
         return res.status(500).json({ message: 'Failed to save and populate the group chat.' });
@@ -110,13 +109,7 @@ export default (io) => {
       chat.groupAvatar = avatarUrl;
       await chat.save();
 
-      const updatedChat = await Chat.findById(chatId)
-        .populate('participants', '_id username avatar name')
-        .populate('admin', '_id username avatar name')
-        .populate({
-          path: 'lastMessage',
-          populate: { path: 'senderId', select: '_id username avatar name' }
-        });
+      const updatedChat = await applyPopulate(Chat.findById(chatId), GROUP_CHAT_POPULATE);
 
       updatedChat.participants.forEach(participant => {
         io.to(participant._id.toString()).emit('chat_updated', updatedChat);
@@ -207,14 +200,8 @@ export default (io) => {
       chat.updatedAt = new Date();
       await chat.save();
       
-      const updatedChat = await Chat.findById(chatId)
-        .populate('participants', '_id username avatar name')
-        .populate('admin', '_id username avatar name')
-        .populate({
-          path: 'lastMessage',
-          populate: { path: 'senderId', select: '_id username avatar name' }
-        });
-      
+      const updatedChat = await applyPopulate(Chat.findById(chatId), GROUP_CHAT_POPULATE);
+
       if (updatedChat) {
         updatedChat.participants.forEach(participant => {
           io.to(participant._id.toString()).emit('chat_updated', updatedChat);
@@ -300,21 +287,15 @@ export default (io) => {
       chat.updatedAt = new Date();
       await chat.save();
       
-      const updatedChat = await Chat.findById(chatId)
-        .populate('participants', '_id username avatar name')
-        .populate('admin', '_id username avatar name')
-        .populate({
-          path: 'lastMessage',
-          populate: { path: 'senderId', select: '_id username avatar name' }
-        });
-      
+      const updatedChat = await applyPopulate(Chat.findById(chatId), GROUP_CHAT_POPULATE);
+
       if (updatedChat) {
         updatedChat.participants.forEach(participant => {
           io.to(participant._id.toString()).emit('chat_updated', updatedChat);
           io.to(participant._id.toString()).emit('receive_message', savedSystemMessage.toObject());
         });
       }
-      
+
       // Notify the removed user that they've been removed
       io.to(participantId).emit('user_removed_from_chat', { 
         chatId: chatId, 
@@ -457,20 +438,14 @@ export default (io) => {
       });
     
       const savedSystemMessage = await systemMessage.save();
-        const updatedChat = await Chat.findByIdAndUpdate(
+        const updatedChat = await applyPopulate(Chat.findByIdAndUpdate(
         chatId,
-        { 
+        {
           lastMessage: savedSystemMessage._id,
           updatedAt: new Date()
         },
         { new: true }
-      )
-      .populate('participants', '_id username avatar name')
-      .populate('admin', '_id username avatar name')
-      .populate({
-        path: 'lastMessage',
-        populate: { path: 'senderId', select: '_id username avatar name' }
-      });
+      ), GROUP_CHAT_POPULATE);
 
       if (updatedChat) {
         updatedChat.participants.forEach(participant => {
@@ -523,13 +498,7 @@ export default (io) => {
       chat.updatedAt = new Date();
       await chat.save();
 
-      const updatedChat = await Chat.findById(chatId)
-        .populate('participants', '_id username avatar name')
-        .populate('admin', '_id username avatar name')
-        .populate({
-          path: 'lastMessage',
-          populate: { path: 'senderId', select: '_id username avatar name' }
-        });
+      const updatedChat = await applyPopulate(Chat.findById(chatId), GROUP_CHAT_POPULATE);
 
       if (!updatedChat) {
         return res.status(500).json({ message: 'Failed to retrieve updated chat details.' });
@@ -594,12 +563,7 @@ export default (io) => {
         });
       }
 
-      const updatedChat = await Chat.findById(chatId)
-        .populate('participants', '_id username avatar name')
-        .populate({
-          path: 'lastMessage',
-          populate: { path: 'senderId', select: '_id username avatar name' }
-        });
+      const updatedChat = await applyPopulate(Chat.findById(chatId), CHAT_POPULATE);
         
       if (updatedChat) {
         io.to(chatId.toString()).emit('chat_updated', updatedChat);
@@ -670,7 +634,7 @@ export default (io) => {
     const { query } = req.query;
       
       if (!query) {
-        return res.status(400).json({ error: 'Query parameter is required' });
+        return res.status(400).json({ message: 'Query parameter is required' });
       }
     
       try {
@@ -681,7 +645,7 @@ export default (io) => {
         res.json(users);
       } catch (error) {
         logger.error('Error in search:', error);
-        res.status(500).json({ error: 'Error searching for users' });
+        res.status(500).json({ message: 'Error searching for users' });
       }
   });
     
@@ -699,16 +663,11 @@ export default (io) => {
       
       const participantsArray = [initiatorId, recipientId].sort();
 
-      let chat = await Chat.findOne({
+      let chat = await applyPopulate(Chat.findOne({
         isGroupChat: false,
-        participants: { $all: participantsArray, $size: 2 }, 
+        participants: { $all: participantsArray, $size: 2 },
         type: { $ne: 'self' }
-      })
-      .populate('participants', '_id username avatar name')
-      .populate({
-          path: 'lastMessage',
-          populate: { path: 'senderId', select: '_id username avatar name' }
-      });
+      }), CHAT_POPULATE);
       
       let isNewChat = false;
       if (!chat) {
@@ -721,12 +680,7 @@ export default (io) => {
         });
         
         chat = await newChatDoc.save();
-        chat = await Chat.findById(chat._id)
-          .populate('participants', '_id username avatar')
-          .populate({
-              path: 'lastMessage',
-              populate: { path: 'senderId', select: '_id username avatar' }
-          });
+        chat = await applyPopulate(Chat.findById(chat._id), CHAT_POPULATE);
       }
 
       if (isNewChat && chat) {
@@ -745,45 +699,29 @@ export default (io) => {
   router.get('/', authenticateToken, async (req, res) => {
       try {
           const userId = req.user.id;
-          const chats = await Chat.find({ participants: userId })
-          .populate('participants', '_id username avatar name')
-          .populate('admin', '_id username avatar name')
-          .populate({
-            path: 'lastMessage',
-            populate: { path: 'senderId', select: '_id username avatar name' }
-          })
+          const chats = await applyPopulate(Chat.find({ participants: userId }), GROUP_CHAT_POPULATE)
           .sort({ updatedAt: -1 });
 
           res.json(chats);
       } catch (error) {
           logger.error('Error getting chats:', error);
-          res.status(500).json({ error: 'Error getting chats' });
+          res.status(500).json({ message: 'Error getting chats' });
       }
   });
 
   router.get('/:id', authenticateToken, async (req, res) => {
     try {
       const chatId = req.params.id;
-      const chat = await Chat.findById(chatId)
-        .populate('participants', '_id username avatar name')
-        .populate('admin', '_id username avatar name')
-        .populate({
-            path: 'lastMessage',
-            populate: { path: 'senderId', select: '_id username avatar name' }
-        })
-        .populate({
-            path: 'pinnedMessage',
-            populate: { path: 'senderId', select: '_id username avatar name' }
-        });
+      const chat = await applyPopulate(Chat.findById(chatId), FULL_CHAT_POPULATE);
         
       if (!chat) {
-        return res.status(404).json({ error: 'Chat not found' });
+        return res.status(404).json({ message: 'Chat not found' });
       }
       
       res.json(chat);
     } catch (err) {
       logger.error('Error getting chat details:', err);
-      res.status(500).json({ error: 'Server error' });
+      res.status(500).json({ message: 'Server error' });
     }
   });
 
@@ -888,14 +826,9 @@ export default (io) => {
     try {
       const userId = req.user.id;
 
-      let savedMessagesChat = await Chat.findOne({
+      let savedMessagesChat = await applyPopulate(Chat.findOne({
         participants: { $eq: [userId], $size: 1 }
-      })
-      .populate('participants', '_id username avatar')
-      .populate({
-          path: 'lastMessage',
-          populate: { path: 'senderId', select: '_id username avatar name' }
-      });
+      }), CHAT_POPULATE);
 
       let isNewChat = false;
       if (!savedMessagesChat) {
@@ -907,12 +840,7 @@ export default (io) => {
           unreadCounts: [{ userId: userId, count: 0 }],
         });
         savedMessagesChat = await newChatDoc.save();
-        savedMessagesChat = await Chat.findById(savedMessagesChat._id)
-          .populate('participants', '_id username avatar')
-          .populate({
-              path: 'lastMessage',
-              populate: { path: 'senderId', select: '_id username avatar name' }
-          });
+        savedMessagesChat = await applyPopulate(Chat.findById(savedMessagesChat._id), CHAT_POPULATE);
       }
 
       if (isNewChat && savedMessagesChat) {
@@ -945,13 +873,7 @@ export default (io) => {
         chat.pinnedMessage = messageId;
         await chat.save();
 
-        const updatedChat = await Chat.findById(chatId)
-            .populate('participants', 'username avatar _id')
-            .populate('lastMessage')
-            .populate({
-                path: 'pinnedMessage',
-                populate: { path: 'senderId', select: 'username avatar _id' }
-            });
+        const updatedChat = await applyPopulate(Chat.findById(chatId), [populateChatParticipants, populateChatLastMessage, populateChatPinnedMessage]);
         
         if (updatedChat) {
             io.to(chatId.toString()).emit('chat_updated', updatedChat);
@@ -982,9 +904,7 @@ export default (io) => {
           chat.pinnedMessage = null;
           await chat.save();
 
-          const updatedChat = await Chat.findById(chatId)
-              .populate('participants', 'username avatar _id')
-              .populate('lastMessage');
+          const updatedChat = await applyPopulate(Chat.findById(chatId), CHAT_POPULATE);
 
           if (updatedChat) {
               io.to(chatId.toString()).emit('chat_updated', updatedChat);
@@ -1039,13 +959,7 @@ export default (io) => {
         await deleteFileFromCloudinary(avatarToDelete);
       }
 
-      const updatedChat = await Chat.findById(chatId)
-        .populate('participants', '_id username avatar name')
-        .populate('admin', '_id username avatar name')
-        .populate({
-          path: 'lastMessage',
-          populate: { path: 'senderId', select: '_id username avatar name' }
-        });
+      const updatedChat = await applyPopulate(Chat.findById(chatId), GROUP_CHAT_POPULATE);
 
       updatedChat.participants.forEach(participant => {
         io.to(participant._id.toString()).emit('chat_updated', updatedChat);

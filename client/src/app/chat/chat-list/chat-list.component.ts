@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChatService } from '../chat.service';
 import { Router, RouterModule } from '@angular/router';
 import { User, Chat, Message, UnreadCount } from '../chat.model';
-import { debounceTime, Subject, Subscription } from 'rxjs';
+import { debounceTime, Subject } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef } from '@angular/core';
@@ -14,6 +14,7 @@ import { ProfileService } from '../../profile/profile.service';
 import { CreateGroupChatComponent } from "../group/create-group-chat/create-group-chat.component";
 import { ToastService } from '../../utils/toast-service';
 import { LoggerService } from '../../services/logger.service';
+import { TokenService } from '../../services/token.service';
 import { ConfirmationService } from '../../shared/services/confirmation.service';
 
 @Component({
@@ -35,7 +36,6 @@ export class ChatListComponent implements OnInit, OnDestroy {
   loadingUserSearch: boolean = false;
   private searchSubject = new Subject<string>();
   public currentUserId: string | null = null;
-  private subscription: Subscription = new Subscription();
   private destroy$ = new Subject<void>();
   participantStatuses: Map<string, boolean> = new Map();
   
@@ -55,20 +55,20 @@ export class ChatListComponent implements OnInit, OnDestroy {
     private profileService: ProfileService,
     private ToastService: ToastService,
     private confirmationService: ConfirmationService,
-    private logger: LoggerService
+    private logger: LoggerService,
+    private tokenService: TokenService
   ) {}
 
   ngOnInit(): void {
-    this.currentUserId = localStorage.getItem('userId');
+    this.currentUserId = this.tokenService.getUserId();
     this.loadInitialChats();
     this.setupSearch();
 
-    this.subscription.add(
-      this.chatService.newMessage$.subscribe(message => {
+    this.chatService.newMessage$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(message => {
         this.handleNewMessage(message);
-      })
-    );
-    
+      });
 
     this.chatService.userRemovedFromChat$
       .pipe(takeUntil(this.destroy$))
@@ -79,35 +79,31 @@ export class ChatListComponent implements OnInit, OnDestroy {
           this.router.navigate(['/home']);
         }
         this.cdr.detectChanges();
-    });
-    this.subscription.add(
-      this.chatService.chatDeletedGlobally$
-        .pipe(takeUntil(this.destroy$))
-        .subscribe(data => {
-          this.removeChatFromList(data.chatId, data.deletedBy);
-        })
-    );
-    
-    this.subscription.add(
-      this.chatService.messageDeleted$
-        .pipe(takeUntil(this.destroy$))
-        .subscribe(event => {
-          this.handleMessageDeletedEvent(event);
-        })
-    );
-    this.subscription.add(
-      this.chatService.newChatCreated$
-        .pipe(takeUntil(this.destroy$))
-        .subscribe(newChat => {
-          this.handleNewChatCreated(newChat);
-        })
-    );
-    
-    this.subscription.add(
-      this.chatService.chatUpdated$.pipe(takeUntil(this.destroy$)).subscribe(updatedChat => {
+      });
+
+    this.chatService.chatDeletedGlobally$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.removeChatFromList(data.chatId, data.deletedBy);
+      });
+
+    this.chatService.messageDeleted$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(event => {
+        this.handleMessageDeletedEvent(event);
+      });
+
+    this.chatService.newChatCreated$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(newChat => {
+        this.handleNewChatCreated(newChat);
+      });
+
+    this.chatService.chatUpdated$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(updatedChat => {
         this.handleChatUpdate(updatedChat);
-      })
-    );
+      });
 
     this.chatService.userStatuses$
       .pipe(takeUntil(this.destroy$))
@@ -279,7 +275,6 @@ loadRegularChats(): void {
   }
   
   ngOnDestroy(): void {
-    this.subscription.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -535,7 +530,7 @@ loadRegularChats(): void {
   }
   
   private searchUsersInternal(query: string) { 
-    const token = localStorage.getItem('token');
+    const token = this.tokenService.getToken();
     if (query.trim()) {
       this.loadingUserSearch = true;
       this.searchResults = [];

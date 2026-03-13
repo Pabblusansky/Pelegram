@@ -5,6 +5,7 @@ import { ChatService } from '../chat/chat.service';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { LoggerService } from '../services/logger.service';
+import { TokenService } from '../services/token.service';
 @Injectable({
   providedIn: 'root',
 })
@@ -15,26 +16,22 @@ export class AuthService {
   public isAuthenticated$: Observable<boolean> = this.isAuthenticatedSubject.asObservable();
 
   constructor(
-    private http: HttpClient, 
-    private router: Router, 
+    private http: HttpClient,
+    private router: Router,
     private chatService: ChatService,
-    private logger: LoggerService)
+    private logger: LoggerService,
+    private tokenService: TokenService)
     {
       this.checkAuthStatusOnLoad();
     }
 
 
   private hasInitialToken(): boolean {
-    const token = localStorage.getItem('token');
-    const expiration = localStorage.getItem('tokenExpiration');
-    if (!token || !expiration) {
-      return false;
-    }
-    return new Date().getTime() < parseInt(expiration, 10);
+    return this.tokenService.isTokenValid();
   }
 
   private checkAuthStatusOnLoad(): void {
-    this.isAuthenticatedSubject.next(this.hasInitialToken());
+    this.isAuthenticatedSubject.next(this.tokenService.isTokenValid());
   }
 
   register(user: { username: string; email: string; password: string }) {
@@ -45,11 +42,8 @@ export class AuthService {
     return this.http.post<{ token: string, userId: string, username: string }>(`${this.apiUrl}/login`, credentials).pipe(
       tap(response => {
         if (response && response.token && response.userId) {
-          localStorage.setItem('token', response.token);
-          localStorage.setItem('userId', response.userId);
-          localStorage.setItem('username', response.username);
-          const tokenExpiration = new Date().getTime() + 3600 * 1000; // 1 hour 
-          localStorage.setItem('tokenExpiration', tokenExpiration.toString());
+          const tokenExpiration = new Date().getTime() + 3600 * 1000; // 1 hour
+          this.tokenService.setAuthData(response.token, response.userId, response.username, tokenExpiration);
           this.isAuthenticatedSubject.next(true);
           this.chatService.logoutAndReconnectSocket();
           this.router.navigate(['/']);
@@ -60,37 +54,29 @@ export class AuthService {
       })
     );
   }
-  
+
 
   logout(): void {
-    const userId = localStorage.getItem('userId');
+    const userId = this.tokenService.getUserId();
     const socket = this.chatService.getSocket();
     if (socket && socket.connected && userId) {
        socket.emit('user_logout_attempt', { userId });
     }
-    localStorage.removeItem('token');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('username');
-    localStorage.removeItem('tokenExpiration');
+    this.tokenService.clearAuthData();
     this.isAuthenticatedSubject.next(false);
     this.chatService.logoutAndReconnectSocket();
     this.router.navigate(['/auth/login']);
   }
 
   isTokenExpired(): boolean {
-    const expiration = localStorage.getItem('tokenExpiration');
-    if (!expiration) {
+    if (!this.tokenService.isTokenValid()) {
       this.isAuthenticatedSubject.next(false);
       return true;
     }
-    const expired = new Date().getTime() > parseInt(expiration, 10);
-    if (expired) {
-      this.isAuthenticatedSubject.next(false);
-    }
-    return expired;
+    return false;
   }
 
-  isAuthenticatedUser(): boolean {  
+  isAuthenticatedUser(): boolean {
     const token = this.getToken();
     if (!token) return false;
     return !this.isTokenExpired();
@@ -100,6 +86,6 @@ export class AuthService {
     return !this.isTokenExpired();
   }
   getToken(): string | null {
-    return localStorage.getItem('token');
+    return this.tokenService.getToken();
   }
 }

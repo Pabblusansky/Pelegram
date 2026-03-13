@@ -8,6 +8,7 @@ import { ToastService } from '../../../../utils/toast-service';
 import { ElementRef, ViewChild } from '@angular/core';
 import { ConfirmationService } from '../../../../shared/services/confirmation.service';
 import { LoggerService } from '../../../../services/logger.service';
+import { TokenService } from '../../../../services/token.service';
 
 @Component({
   selector: 'app-group-info-modal',
@@ -42,11 +43,12 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
     private router: Router,
     private ToastService: ToastService,
     private confirmationService: ConfirmationService,
-    private logger: LoggerService
+    private logger: LoggerService,
+    private tokenService: TokenService
   ) {}
 
   ngOnInit(): void {
-    this.currentUserId = localStorage.getItem('userId');
+    this.currentUserId = this.tokenService.getUserId();
     this.updateAdminStatus();
   }
 

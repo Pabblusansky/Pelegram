@@ -5,6 +5,7 @@ import { catchError, tap, map, finalize, filter } from 'rxjs/operators';
 import { UserProfile, ProfileUpdateDto } from './profile.model';
 import { ThemeService } from '../services/theme.service';
 import { LoggerService } from '../services/logger.service';
+import { TokenService } from '../services/token.service';
 import { environment } from '../../environments/environment';
 @Injectable({
   providedIn: 'root'
@@ -22,7 +23,8 @@ export class ProfileService {
   constructor(
     private http: HttpClient,
     private themeService: ThemeService,
-    private logger: LoggerService
+    private logger: LoggerService,
+    private tokenService: TokenService
   ) {
     this.getMyProfile().subscribe({
       next: (profile) => this.currentProfileSubject.next(profile),
@@ -32,7 +34,7 @@ export class ProfileService {
 
 
   getMyProfile(): Observable<UserProfile> {
-    const token = localStorage.getItem('token');
+    const token = this.tokenService.getToken();
     if (!token) {
       return throwError(() => new Error('Authentication required'));
     }
@@ -63,7 +65,7 @@ export class ProfileService {
   }
 
   getUserProfile(userId: string): Observable<UserProfile> {
-    const token = localStorage.getItem('token');
+    const token = this.tokenService.getToken();
     if (!token) {
       return throwError(() => new Error('Authentication required'));
     }
@@ -83,7 +85,7 @@ export class ProfileService {
   }
 
   updateProfile(profileData: ProfileUpdateDto): Observable<UserProfile> {
-    const token = localStorage.getItem('token');
+    const token = this.tokenService.getToken();
     if (!token) {
       return throwError(() => new Error('Authentication required'));
     }
@@ -107,7 +109,7 @@ export class ProfileService {
 
 
   uploadAvatar(file: File): Observable<{ avatar: string; user: UserProfile }> {
-    const token = localStorage.getItem('token');
+    const token = this.tokenService.getToken();
     if (!token) {
       return throwError(() => new Error('Authentication required'));
     }
@@ -170,7 +172,7 @@ export class ProfileService {
   }
 
   private getAuthHeaders(): HttpHeaders | null {
-    const token = localStorage.getItem('token'); 
+    const token = this.tokenService.getToken();
     if (!token) {
       this.logger.error('No token found for auth headers');
       return null;

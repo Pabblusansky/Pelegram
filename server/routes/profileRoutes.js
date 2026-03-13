@@ -13,13 +13,13 @@ router.get('/me', authenticateToken, async (req, res) => {
     const user = await User.findById(req.user.id).select('-password');
     
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
     res.json(user);
   } catch (err) {
     logger.error('Error fetching profile:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -29,13 +29,13 @@ router.get('/:userId', authenticateToken, async (req, res) => {
       .select('username displayName bio avatar lastActive');
     
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
     res.json(user);
   } catch (err) {
     logger.error('Error fetching user profile:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -48,7 +48,7 @@ router.patch('/me', authenticateToken, async (req, res) => {
 
     const currentUserData = await User.findById(req.user.id);
     if (!currentUserData) {
-      return res.status(404).json({ error: 'User not found for update' });
+      return res.status(404).json({ message: 'User not found for update' });
     }
 
     Object.keys(req.body).forEach(key => {
@@ -152,7 +152,7 @@ router.patch('/me', authenticateToken, async (req, res) => {
     ).select('-password');
 
     if (!updatedUser) {
-      return res.status(404).json({ error: 'User not found during final update step' });
+      return res.status(404).json({ message: 'User not found during final update step' });
     }
 
     res.json(updatedUser);
@@ -166,14 +166,14 @@ router.patch('/me', authenticateToken, async (req, res) => {
       }
       return res.status(400).json({ errors });
     }
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
   
 router.post('/avatar', authenticateToken, uploadAvatar.single('avatar'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({ message: 'No file uploaded' });
     }
     
     const avatarUrl = getFileUrl(req.file);
@@ -181,7 +181,7 @@ router.post('/avatar', authenticateToken, uploadAvatar.single('avatar'), async (
     const user = await User.findById(req.user.id);
     
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
     const oldAvatarUrl = user.avatar;
@@ -215,7 +215,7 @@ router.post('/avatar', authenticateToken, uploadAvatar.single('avatar'), async (
     });
   } catch (err) {
     logger.error('Error uploading avatar:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -223,7 +223,7 @@ router.delete('/avatar', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user || !user.avatar) {
-      return res.status(400).json({ error: 'User does not have an avatar to delete' });
+      return res.status(400).json({ message: 'User does not have an avatar to delete' });
     }
 
     const avatarToDelete = user.avatar;
@@ -250,7 +250,7 @@ router.delete('/avatar', authenticateToken, async (req, res) => {
 
   } catch (err) {
     logger.error('Error deleting avatar:', err);
-    res.status(500).json({ error: 'Server error while deleting avatar' });
+    res.status(500).json({ message: 'Server error while deleting avatar' });
   }
 });
 

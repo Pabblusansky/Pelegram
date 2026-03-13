@@ -34,6 +34,8 @@ import { differenceInMinutes } from 'date-fns';
 import { profileRoutes } from './routes/profileRoutes.js';
 import  fileRoutes from './routes/files.js';
 import logger from './config/logger.js';
+import { globalErrorHandler } from './middleware/errorHandler.js';
+import { CHAT_POPULATE, applyPopulate } from './config/populate.js';
 
 const app = express();
 
@@ -301,15 +303,10 @@ io.on('connection', (socket) => {
 
       io.to(chatId).emit('receive_message', messageForClient);
 
-      const updatedChat = await Chat.findById(
-        chatId, 
-      )
-        .populate('participants', '_id username avatar')
-        .populate({
-          path: 'lastMessage',
-          populate: { path: 'senderId', select: '_id username avatar' }
-        })
-        .lean();
+      const updatedChat = await applyPopulate(
+        Chat.findById(chatId),
+        CHAT_POPULATE
+      ).lean();
       if (updatedChat) {
         if (updatedChat.lastMessage && updatedChat.lastMessage.senderId && typeof updatedChat.lastMessage.senderId === 'object') {
           const lmSender = updatedChat.lastMessage.senderId;
@@ -571,8 +568,11 @@ app.get('/api/users/status', authenticateToken, async (req, res) => {
     res.json(statusesObject);
   } catch (err) {
     logger.error('Error getting user statuses:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
+// Catch-all error middleware (must be after all routes)
+app.use(globalErrorHandler);
+
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => logger.info(`Server running on http://localhost:${PORT}`));

@@ -11,13 +11,13 @@ router.post('/register', async (req, res) => {
   const { username, email, password } = req.body;
 
   if (!username || !email || !password) {
-    return res.status(400).json({ error: 'Username, email, and password are required' });
+    return res.status(400).json({ message: 'Username, email, and password are required' });
   }
 
   try {
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
+      return res.status(400).json({ message: 'User already exists' });
     }
     const newUser = new User({ username, email, password });
 
@@ -25,9 +25,9 @@ router.post('/register', async (req, res) => {
     res.status(201).json({ message: 'User registered successfully' });
   } catch (error) {
     if (error.code === 11000) { // Duplicate key error
-      return res.status(400).json({ error: 'Username or email already exists' });
+      return res.status(400).json({ message: 'Username or email already exists' });
     }
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 
@@ -35,23 +35,23 @@ router.post('/login', async (req, res) => {
   try {
     const { usernameOrEmail, password } = req.body;
     if (!usernameOrEmail || !password) {
-      return res.status(400).json({ error: 'Username/Email and password are required' });
+      return res.status(400).json({ message: 'Username/Email and password are required' });
     }
 
     const user = await User.findOne({ $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }] });
     if (!user) {
-      return res.status(400).json({ error: 'Invalid username/password credentials' });
+      return res.status(400).json({ message: 'Invalid username/password credentials' });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ error: 'Invalid username/password credentials' });
+      return res.status(400).json({ message: 'Invalid username/password credentials' });
     }
     const token = jwt.sign({ id: user._id.toString() }, process.env.SECRET_KEY, { expiresIn: '1h' });
     return res.json({ token, userId: user._id.toString(), username: user.username });
   } catch (error) {
     logger.error('Error during login:', error);
-    res.status(500).json({ error: 'Error logging in' });
+    res.status(500).json({ message: 'Error logging in' });
   }
 });
 router.get('/protected', authenticateToken, (req, res) => {
