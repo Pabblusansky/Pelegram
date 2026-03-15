@@ -36,6 +36,7 @@ import  fileRoutes from './routes/files.js';
 import logger from './config/logger.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { CHAT_POPULATE, applyPopulate } from './config/populate.js';
+import { validateChatMembership, isValidObjectId, sanitizeText } from './middleware/socketAuth.js';
 
 const app = express();
 
@@ -204,8 +205,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('user_logout_attempt', async (data) => { 
-    const userId = data && data.userId ? data.userId : (socket.user ? socket.user.id : null);
+  socket.on('user_logout_attempt', async () => {
+    const userId = socket.user ? socket.user.id : null;
     if (userId) {
       updateUserStatus(userId, false);
       try {
@@ -220,10 +221,21 @@ io.on('connection', (socket) => {
     }
   });
   socket.on('send_message', async (data, callback) => {
-    const { chatId, content, replyTo, fileInfo, messageType= 'text' } = data;
+    const { chatId, replyTo, fileInfo, messageType= 'text' } = data;
+    const content = sanitizeText(data.content);
     const senderId = socket.user.id;
+
+    if (!isValidObjectId(chatId)) {
+      if (typeof callback === 'function') callback({ success: false, error: 'Invalid chat ID' });
+      return;
+    }
+    if (!content && !fileInfo) {
+      if (typeof callback === 'function') callback({ success: false, error: 'Message content is required' });
+      return;
+    }
+
     try {
-      const sender = await User.findById(senderId).select('username avatar').lean(); 
+      const sender = await User.findById(senderId).select('username avatar').lean();
       if (!sender) {
         if (typeof callback === 'function') callback({ success: false, error: 'Sender not found' });
         return;
@@ -233,6 +245,11 @@ io.on('connection', (socket) => {
       if (!chatBeforeMessage) {
         logger.error(`Error sending message: Chat with ID ${chatId} not found.`);
         if (typeof callback === 'function') callback({ success: false, error: 'Chat not found' });
+        return;
+      }
+
+      if (!chatBeforeMessage.participants.some(p => p.toString() === senderId.toString())) {
+        if (typeof callback === 'function') callback({ success: false, error: 'Not a participant of this chat' });
         return;
       }
       const isFirstMessageInChat = chatBeforeMessage.messages.length === 0;
@@ -362,31 +379,37 @@ io.on('connection', (socket) => {
         }
     }
   });
-  socket.on('typing', (data) => {
+  socket.on('typing', async (data) => {
     const { chatId, isTyping } = data;
+    if (!isValidObjectId(chatId)) return;
     const senderId = socket.user.id;
-    socket.to(chatId).emit('typing', { 
-      chatId, 
-      senderId,
-      isTyping });
+    const chat = await validateChatMembership(chatId, senderId);
+    if (!chat) return;
+    socket.to(chatId).emit('typing', { chatId, senderId, isTyping: !!isTyping });
   })
 
   socket.on('edit_message', async (data) => {
     try {
-      const { messageId, content } = data;
+      const { messageId } = data;
+      const content = sanitizeText(data.content);
       const userId = socket.user.id;
-      
+
+      if (!isValidObjectId(messageId) || !content) {
+        socket.emit('edit_error', { error: 'Invalid message ID or empty content' });
+        return;
+      }
+
       const message = await Message.findById(messageId);
       if (!message) {
         socket.emit('edit_error', { error: 'Message not found' });
         return;
       }
-      
+
       if (message.senderId.toString() !== userId) {
         socket.emit('edit_error', { error: 'Not authorized to edit this message' });
         return;
       }
-      
+
       message.content = content;
       message.edited = true;
       message.editedAt = new Date();
@@ -406,6 +429,10 @@ io.on('connection', (socket) => {
       socket.emit('reaction_error', { messageId, error: 'User not authenticated for reaction.' });
       return;
     }
+    if (!isValidObjectId(messageId) || typeof reactionType !== 'string' || !reactionType.trim()) {
+      socket.emit('reaction_error', { messageId, error: 'Invalid reaction data.' });
+      return;
+    }
 
     const userId = socket.user.id;
 
@@ -413,6 +440,12 @@ io.on('connection', (socket) => {
       const message = await Message.findById(messageId);
       if (!message) {
         socket.emit('reaction_error', { messageId, error: 'Message not found.' });
+        return;
+      }
+
+      const chat = await validateChatMembership(message.chatId, userId);
+      if (!chat) {
+        socket.emit('reaction_error', { messageId, error: 'Not a participant of this chat.' });
         return;
       }
 
@@ -454,8 +487,14 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('join_chat', (chatId) => {
-      socket.join(chatId);
+  socket.on('join_chat', async (chatId) => {
+    if (!isValidObjectId(chatId)) return;
+    const chat = await validateChatMembership(chatId, socket.user.id);
+    if (!chat) {
+      socket.emit('error', { message: 'Not a participant of this chat' });
+      return;
+    }
+    socket.join(chatId);
   });
 
   socket.on('disconnect', () => {
