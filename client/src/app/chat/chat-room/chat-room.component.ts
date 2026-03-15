@@ -1050,6 +1050,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         this.messageActionsService.selectedMessageId = null;
       }, 300);
     }
+    // Close read receipts panel on outside click
+    if (this.readReceiptsMessageId && !target.closest('.read-receipts-panel') && !target.closest('.status')) {
+      this.readReceiptsMessageId = null;
+    }
   }
 
   @HostListener('window:scroll')
@@ -1072,6 +1076,12 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     if (event.key === 'Escape') {
+      if (this.readReceiptsMessageId) {
+        this.readReceiptsMessageId = null;
+        event.preventDefault();
+        return;
+      }
+
       if (this.selectionService.isActive) {
         this.selectionService.cancel();
         event.preventDefault();

@@ -101,7 +101,16 @@ export class MessageActionsService {
 
     const userId = this.ctx.userId();
     const MenuWidth = 220;
-    const itemCount = message.senderId === userId ? 6 : 4;
+    // Base items: Reply, Copy, Forward, Pin, Select = 5
+    // Own message adds: Edit, Delete = +2
+    // Group + own + readBy adds: Read by = +1
+    let itemCount = 5;
+    if (message.senderId === userId) {
+      itemCount += 2;
+      if (message.readBy && message.readBy.length > 0) {
+        itemCount += 1;
+      }
+    }
     const MenuHeight = (itemCount * 40) + 60;
     const cursorOffset = 5;
 
