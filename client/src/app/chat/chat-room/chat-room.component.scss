@@ -489,6 +489,83 @@ cdk-virtual-scroll-viewport.messages {
       opacity: 1;
       color: #4CAF50;
     }
+
+    &.has-read-receipts {
+      cursor: pointer;
+      &:hover {
+        opacity: 0.8;
+      }
+    }
+
+    .read-count {
+      font-size: 11px;
+      margin-left: 2px;
+      color: #4CAF50;
+      font-weight: 600;
+    }
+  }
+
+  .read-receipts-panel {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    background: var(--bg-secondary, #2a2a2a);
+    border: 1px solid var(--border-color, #444);
+    border-radius: 8px;
+    padding: 8px 0;
+    min-width: 200px;
+    max-width: 280px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    margin-bottom: 4px;
+
+    .read-receipts-header {
+      padding: 4px 12px 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary, #fff);
+      border-bottom: 1px solid var(--border-color, #444);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .read-receipts-close {
+        cursor: pointer;
+        font-size: 16px;
+        color: var(--text-muted, #999);
+        &:hover { color: var(--text-primary, #fff); }
+      }
+    }
+
+    .read-receipts-list {
+      max-height: 200px;
+      overflow-y: auto;
+
+      .read-receipt-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+
+        .read-receipt-avatar {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+
+        .read-receipt-name {
+          flex: 1;
+          font-size: 13px;
+          color: var(--text-primary, #fff);
+        }
+
+        .read-receipt-time {
+          font-size: 11px;
+          color: var(--text-muted, #999);
+        }
+      }
+    }
   }
 
   &.forwarded {

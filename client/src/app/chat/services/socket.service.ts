@@ -244,13 +244,13 @@ export class SocketService implements OnDestroy {
     return this.messageDeleted$;
   }
 
-  onMessageStatusUpdated(): Observable<{ messageId: string; status: string }> {
+  onMessageStatusUpdated(): Observable<{ messageId: string; status: string; readBy?: { userId: string; readAt: string } }> {
     return new Observable((observer) => {
       if (!this.socket) {
         observer.error(new Error('Socket not initialized'));
         return;
       }
-      this.socket.on('messageStatusUpdated', (data: { messageId: string; status: string }) => {
+      this.socket.on('messageStatusUpdated', (data: { messageId: string; status: string; readBy?: { userId: string; readAt: string } }) => {
         observer.next(data);
       });
     });

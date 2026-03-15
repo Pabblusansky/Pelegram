@@ -5,6 +5,11 @@ export interface IReaction {
   reaction: string;
 }
 
+export interface IReadReceipt {
+  userId: Types.ObjectId;
+  readAt: Date;
+}
+
 export interface IReplyTo {
   _id?: Types.ObjectId;
   senderName?: string;
@@ -37,6 +42,7 @@ export interface IMessage extends Document {
   originalSenderId?: Types.ObjectId | null;
   originalSenderName?: string | null;
   reactions: IReaction[];
+  readBy: IReadReceipt[];
   replyTo?: IReplyTo;
   createdAt: Date;
   updatedAt: Date;
@@ -46,6 +52,14 @@ const reactionSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     reaction: { type: String, required: true },
+  },
+  { _id: false }
+);
+
+const readReceiptSchema = new mongoose.Schema(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    readAt: { type: Date, default: Date.now },
   },
   { _id: false }
 );
@@ -80,6 +94,7 @@ const messageSchema = new mongoose.Schema<IMessage>(
     originalSenderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     originalSenderName: { type: String, default: null },
     reactions: [reactionSchema],
+    readBy: { type: [readReceiptSchema], default: [] },
     replyTo: {
       _id: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
       senderName: { type: String },

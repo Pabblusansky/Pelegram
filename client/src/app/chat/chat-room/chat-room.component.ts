@@ -119,6 +119,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild(ChatSearchBarComponent) searchBar?: ChatSearchBarComponent;
   isLoadingContext: boolean = false;
   private isScrollingProgrammatically: boolean = false;
+  // Read receipts
+  readReceiptsMessageId: string | null = null;
   // Group chat functionality
   isGroupChat: boolean = false;
   groupAdmin: User | null = null;
@@ -310,8 +312,17 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       const message = this.messages.find(msg => msg._id === data.messageId);
       if (message) {
         message.status = data.status;
+        if (data.readBy) {
+          if (!message.readBy) {
+            message.readBy = [];
+          }
+          const alreadyTracked = message.readBy.some(r => r.userId === data.readBy.userId);
+          if (!alreadyTracked) {
+            message.readBy.push(data.readBy);
+          }
+        }
         this.updateMessagesWithDividers();
-        this.cdr.detectChanges(); 
+        this.cdr.detectChanges();
       }
     });
 
@@ -990,6 +1001,24 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     
     return `${this.chatApiService.getApiUrl()}/${user.avatar}`;
+  }
+
+  getUserName(userId: string): string {
+    const user = this.users.find(u => u._id === userId);
+    return user ? user.username : 'Unknown';
+  }
+
+  toggleReadReceipts(message: any, event: Event): void {
+    event.stopPropagation();
+    if (!message.readBy || message.readBy.length === 0) return;
+    this.readReceiptsMessageId = this.readReceiptsMessageId === message._id ? null : message._id;
+    this.cdr.detectChanges();
+  }
+
+  showReadReceiptsForMessage(message: Message): void {
+    if (!message.readBy || message.readBy.length === 0) return;
+    this.readReceiptsMessageId = message._id || null;
+    this.cdr.detectChanges();
   }
   
   forwardMessage(message: Message): void {

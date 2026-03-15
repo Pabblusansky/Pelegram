@@ -567,24 +567,38 @@ export default (io: Server) => {
         await chat.save();
       }
 
+      // Find messages not sent by this user that they haven't read yet
       const messagesToUpdate = await Message.find({
         chatId: chatId,
         senderId: { $ne: userId },
-        status: { $in: ['sent', 'delivered'] }
-      }).select('_id');
+        'readBy.userId': { $ne: userId }
+      }).select('_id senderId');
 
       const messageIdsToUpdate = messagesToUpdate.map(m => m._id);
 
       if (messageIdsToUpdate.length > 0) {
+        const readAt = new Date();
+
+        // Add this user to readBy array for all unread messages
         await Message.updateMany(
           { _id: { $in: messageIdsToUpdate } },
+          { $addToSet: { readBy: { userId, readAt } } }
+        );
+
+        // Determine status: in 1:1 chats, any readBy entry means 'read'.
+        // In group chats, we still set 'read' for simplicity (sender sees blue ticks),
+        // but readBy tracks exactly who read it.
+        await Message.updateMany(
+          { _id: { $in: messageIdsToUpdate }, status: { $in: ['sent', 'delivered'] } },
           { $set: { status: 'read' } }
         );
 
+        const readByEntry = { userId, readAt: readAt.toISOString() };
         messageIdsToUpdate.forEach(messageId => {
           io.to(chatId.toString()).emit('messageStatusUpdated', {
             messageId: messageId,
-            status: 'read'
+            status: 'read',
+            readBy: readByEntry
           });
         });
       }

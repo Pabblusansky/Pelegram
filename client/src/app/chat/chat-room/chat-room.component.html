@@ -315,14 +315,36 @@
             </div>
             
             <!-- Message status -->
-            <span *ngIf="item.ismyMessage" class="status">
+            <span
+              *ngIf="item.ismyMessage"
+              class="status"
+              [class.has-read-receipts]="item.readBy?.length > 0"
+              (click)="toggleReadReceipts(item, $event)"
+            >
               <img
                 [src]="getMessageStatusIcon(item.status ?? 'sent')"
                 [alt]="item.status || 'Sent'"
                 class="status-icon"
               />
-              {{ item.status || 'Sent' }}
+              <span *ngIf="isGroupChat && item.readBy?.length > 0" class="read-count">{{ item.readBy.length }}</span>
             </span>
+            <!-- Read receipts tooltip -->
+            <div
+              *ngIf="readReceiptsMessageId === item._id && item.readBy?.length > 0"
+              class="read-receipts-panel"
+            >
+              <div class="read-receipts-header">
+                Read by {{ item.readBy.length }}
+                <span class="read-receipts-close" (click)="readReceiptsMessageId = null; $event.stopPropagation()">×</span>
+              </div>
+              <div class="read-receipts-list">
+                <div *ngFor="let receipt of item.readBy" class="read-receipt-item">
+                  <img [src]="getUserAvatar(receipt.userId)" class="read-receipt-avatar" />
+                  <span class="read-receipt-name">{{ getUserName(receipt.userId) }}</span>
+                  <span class="read-receipt-time">{{ formatTimestamp(receipt.readAt) }}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </ng-container>
@@ -541,4 +563,6 @@
   (pin)="pinnedMessageDetails?._id === $event._id ? unpinCurrentMessage() : pinSelectedMessage()"
   (select)="activateSelectionMode($event)"
   (delete)="deleteMessage($event._id)"
+  (viewReadReceipts)="showReadReceiptsForMessage($event)"
+  [isGroupChat]="isGroupChat"
 ></app-message-context-menu>

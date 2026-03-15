@@ -15,6 +15,11 @@ export interface Reaction {
   createdAt?: string | Date;
 }
 
+export interface ReadReceipt {
+  userId: string;
+  readAt: string;
+}
+
 export interface UnreadCount {
   userId: string;
   count: number;
@@ -71,7 +76,8 @@ export interface Message {
   mediaLoadError?: boolean;
 
   reactions?: Reaction[];
-  
+  readBy?: ReadReceipt[];
+
   // File-related properties
   messageType?: MessageType;
   filePath?: string;

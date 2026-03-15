@@ -60,6 +60,12 @@ import { animate, style, transition, trigger } from '@angular/animations';
           {{ isPinned ? 'Unpin' : 'Pin' }}
         </button>
         
+        <ng-container *ngIf="isMyMessage && isGroupChat && selectedMessage?.readBy?.length">
+          <button class="menu-item" (click)="onViewReadReceipts()">
+            <span class="menu-icon">👁️</span> Read by {{ selectedMessage!.readBy!.length }}
+          </button>
+        </ng-container>
+
         <button class="menu-item" (click)="onSelect()">
           <span class="menu-icon">☑️</span> Select
         </button>
@@ -118,8 +124,10 @@ export class MessageContextMenuComponent {
   @Input() isPinned: boolean = false;
   @Input() userId: string | null = null;
   @Input() availableReactions: string[] = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+  @Input() isGroupChat: boolean = false;
 
   @Output() close = new EventEmitter<void>();
+  @Output() viewReadReceipts = new EventEmitter<Message>();
   @Output() reactionClick = new EventEmitter<string>();
   @Output() reply = new EventEmitter<Message>();
   @Output() edit = new EventEmitter<Message>();
@@ -168,6 +176,13 @@ export class MessageContextMenuComponent {
   onPin(): void {
     if (this.selectedMessage) {
       this.pin.emit(this.selectedMessage);
+      this.onClose();
+    }
+  }
+
+  onViewReadReceipts(): void {
+    if (this.selectedMessage) {
+      this.viewReadReceipts.emit(this.selectedMessage);
       this.onClose();
     }
   }
