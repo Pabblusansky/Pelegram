@@ -3,7 +3,7 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
 import { Router } from '@angular/router';
-import { ChatService } from '../../chat/chat.service';
+import { SocketService } from '../../chat/services/socket.service';
 
 @Component({
   selector: 'app-login',
@@ -19,7 +19,7 @@ export class LoginComponent {
   isLoading: boolean = false;
   errorMessage: string = '';
 
-  constructor(private authService: AuthService, private router: Router, private chatService: ChatService) {}
+  constructor(private authService: AuthService, private router: Router, private socketService: SocketService) {}
 
   onSubmit() {
     if (!this.credentials.usernameOrEmail || !this.credentials.password) return;
@@ -31,7 +31,7 @@ export class LoginComponent {
       next: () => {
         this.isLoading = false;
         this.router.navigate(['/']);
-        this.chatService.logoutAndReconnectSocket();
+        this.socketService.logoutAndReconnectSocket();
       },
       error: (err) => {
         this.isLoading = false;

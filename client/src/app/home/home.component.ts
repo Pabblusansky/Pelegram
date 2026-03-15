@@ -7,7 +7,7 @@ import { ProfileCardComponent } from "../profile/profile-card/profile-card.compo
 import { ProfileService } from "../profile/profile.service";
 import { UserProfile } from "../profile/profile.model";
 import { Subject, filter, takeUntil } from 'rxjs';
-import { ChatService } from '../chat/chat.service';
+import { ChatStateService } from '../chat/services/chat-state.service';
 import { FaviconService } from '../services/favicon/favicon.service';
 import { LoggerService } from '../services/logger.service';
 
@@ -34,7 +34,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     private router: Router, 
     private route: ActivatedRoute,
     private profileService: ProfileService,
-    private chatService: ChatService,
+    private chatStateService: ChatStateService,
     private faviconService: FaviconService,
     private logger: LoggerService
   ) {}
@@ -63,7 +63,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       this.router.url.includes('/profile') ||
       this.router.url.includes('/user/');
 
-    this.chatService.totalUnreadCount$
+    this.chatStateService.totalUnreadCount$
       .pipe(takeUntil(this.destroy$))
       .subscribe(unreadCount => {
         if (unreadCount > 0) {

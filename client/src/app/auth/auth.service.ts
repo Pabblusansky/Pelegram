@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
-import { ChatService } from '../chat/chat.service';
+import { SocketService } from '../chat/services/socket.service';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { LoggerService } from '../services/logger.service';
@@ -18,7 +18,7 @@ export class AuthService {
   constructor(
     private http: HttpClient,
     private router: Router,
-    private chatService: ChatService,
+    private socketService: SocketService,
     private logger: LoggerService,
     private tokenService: TokenService)
     {
@@ -36,7 +36,7 @@ export class AuthService {
           const tokenExpiration = new Date().getTime() + 3600 * 1000; // 1 hour
           this.tokenService.setAuthData(response.token, response.userId, response.username, tokenExpiration);
           this.isAuthenticatedSubject.next(true);
-          this.chatService.logoutAndReconnectSocket();
+          this.socketService.logoutAndReconnectSocket();
           this.router.navigate(['/']);
         } else {
           this.logger.error('Token is missing in the response');
@@ -49,13 +49,13 @@ export class AuthService {
 
   logout(): void {
     const userId = this.tokenService.getUserId();
-    const socket = this.chatService.getSocket();
+    const socket = this.socketService.getSocket();
     if (socket && socket.connected && userId) {
        socket.emit('user_logout_attempt', { userId });
     }
     this.tokenService.clearAuthData();
     this.isAuthenticatedSubject.next(false);
-    this.chatService.logoutAndReconnectSocket();
+    this.socketService.logoutAndReconnectSocket();
     this.router.navigate(['/auth/login']);
   }
 

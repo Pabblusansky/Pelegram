@@ -5,18 +5,16 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 
 import { routes } from './app.routes';
-import { ChatService } from './chat/chat.service';
 import { authInterceptor } from './auth/interceptors/auth.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideZoneChangeDetection({ eventCoalescing: true }), 
+    provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes, withComponentInputBinding()),
-    provideAnimations(), 
+    provideAnimations(),
     provideHttpClient(
       withFetch(),
-      withInterceptors([authInterceptor]) 
+      withInterceptors([authInterceptor])
     ),
-    ChatService
   ]
 };

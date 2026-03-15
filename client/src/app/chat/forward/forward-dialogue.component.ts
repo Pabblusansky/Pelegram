@@ -2,7 +2,7 @@
 import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ChatService } from '../chat.service';
+import { ChatApiService } from '../services/chat-api.service';
 import { Chat, User } from '../chat.model';
 import { LoggerService } from '../../services/logger.service';
 import { TokenService } from '../../services/token.service';
@@ -433,7 +433,7 @@ export class ForwardDialogComponent implements OnInit {
   loading: boolean = true;
   currentUserId: string | null = null;
   
-  constructor(private chatService: ChatService, private logger: LoggerService, private tokenService: TokenService) {}
+  constructor(private chatApiService: ChatApiService, private logger: LoggerService, private tokenService: TokenService) {}
   
   ngOnInit(): void {
     this.currentUserId = this.tokenService.getUserId();
@@ -442,7 +442,7 @@ export class ForwardDialogComponent implements OnInit {
   
   loadChats(): void {
     this.loading = true;
-    this.chatService.getAvailableChatsForForward().subscribe({
+    this.chatApiService.getAvailableChatsForForward().subscribe({
       next: (chats) => {
         this.chats = chats;
         this.filteredChats = [...this.chats];
@@ -516,7 +516,7 @@ export class ForwardDialogComponent implements OnInit {
     }
     
     if (otherParticipant.avatar.startsWith('/uploads')) {
-      return `${this.chatService.getApiUrl()}${otherParticipant.avatar}`;
+      return `${this.chatApiService.getApiUrl()}${otherParticipant.avatar}`;
     }
     
     return otherParticipant.avatar;

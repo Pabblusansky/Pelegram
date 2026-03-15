@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Chat, User } from '../../../chat.model';
-import { ChatService } from '../../../chat.service';
+import { ChatApiService } from '../../../services/chat-api.service';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms'; 
 import { ToastService } from '../../../../utils/toast-service';
@@ -39,7 +39,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
   isDeletingAvatar: boolean = false;
 
   constructor(
-    public chatService: ChatService,
+    public chatApiService: ChatApiService,
     private router: Router,
     private ToastService: ToastService,
     private confirmationService: ConfirmationService,
@@ -122,7 +122,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
   getGroupAvatarUrl(): string {
     if (this.chatDetails?.groupAvatar) {
       if (this.chatDetails.groupAvatar.startsWith('/uploads/')) {
-        return `${this.chatService.getApiUrl()}${this.chatDetails.groupAvatar}`;
+        return `${this.chatApiService.getApiUrl()}${this.chatDetails.groupAvatar}`;
       }
       return this.chatDetails.groupAvatar;
     }
@@ -140,7 +140,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
 
     if (avatarPath) {
       if (avatarPath.startsWith('/uploads/')) {
-        return `${this.chatService.getApiUrl()}${avatarPath}`;
+        return `${this.chatApiService.getApiUrl()}${avatarPath}`;
       }
       return avatarPath;
     }
@@ -182,7 +182,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
     }
 
     this.isSavingName = true;
-    this.chatService.updateGroupName(this.chatDetails._id, trimmedName).subscribe({
+    this.chatApiService.updateGroupName(this.chatDetails._id, trimmedName).subscribe({
       next: (updatedChat) => {
         if (this.chatDetails) {
             this.chatDetails.name = updatedChat.name;
@@ -220,7 +220,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
       }
       
       this.isUploadingAvatar = true;
-      this.chatService.updateGroupAvatar(this.chatDetails._id, file).subscribe({
+      this.chatApiService.updateGroupAvatar(this.chatDetails._id, file).subscribe({
         next: (updatedChat) => {
           if (this.chatDetails) {
             this.chatDetails.groupAvatar = updatedChat.groupAvatar;
@@ -261,7 +261,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
   }
   
   this.isSearching = true;
-  this.chatService.searchUsers(this.searchQuery).subscribe({
+  this.chatApiService.searchUsers(this.searchQuery).subscribe({
     next: (users) => {
       this.searchResults = users.filter(user => 
         !this.chatDetails?.participants.some(p => p._id === user._id)
@@ -293,7 +293,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
     if (!this.chatDetails?._id || this.selectedUsers.length === 0) return;
     
     const participantIds = this.selectedUsers.map(user => user._id);
-    this.chatService.addGroupParticipants(this.chatDetails._id, participantIds).subscribe({
+    this.chatApiService.addGroupParticipants(this.chatDetails._id, participantIds).subscribe({
       next: (updatedChat) => {
         if (this.chatDetails) {
           this.chatDetails.participants = updatedChat.participants;
@@ -323,7 +323,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
 
     if (confirmed) {
       this.isRemovingParticipant = true;
-      this.chatService.removeGroupParticipant(this.chatDetails._id, participantId).subscribe({
+      this.chatApiService.removeGroupParticipant(this.chatDetails._id, participantId).subscribe({
         next: (updatedChat) => {
           if (this.chatDetails) {
             this.chatDetails.participants = updatedChat.participants;
@@ -354,7 +354,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
     });
 
     if (confirmed) {
-      this.chatService.leaveGroup(this.chatDetails._id).subscribe({
+      this.chatApiService.leaveGroup(this.chatDetails._id).subscribe({
         next: (response) => {
           this.ToastService.showToast('You have left the group.', 3000, 'success');
           this.closeModal();
@@ -380,7 +380,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
 
     if (confirmed) {
       this.isDeletingGroup = true;
-      this.chatService.deleteGroup(this.chatDetails._id).subscribe({
+      this.chatApiService.deleteGroup(this.chatDetails._id).subscribe({
         next: () => {
           this.isDeletingGroup = false;
           this.closeModal();
@@ -417,7 +417,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
 
     if (confirmed) {
       this.isDeletingAvatar = true;
-      this.chatService.deleteGroupAvatar(this.chatDetails._id).subscribe({
+      this.chatApiService.deleteGroupAvatar(this.chatDetails._id).subscribe({
         next: (updatedChat) => {
           if (this.chatDetails) {
             this.chatDetails.groupAvatar = updatedChat.groupAvatar;

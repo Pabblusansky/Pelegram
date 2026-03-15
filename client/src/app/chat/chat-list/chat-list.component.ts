@@ -1,6 +1,8 @@
 import { Component, EventEmitter, OnInit, OnDestroy, Output } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { ChatService } from '../chat.service';
+import { ChatApiService } from '../services/chat-api.service';
+import { SocketService } from '../services/socket.service';
+import { ChatStateService } from '../services/chat-state.service';
 import { Router, RouterModule } from '@angular/router';
 import { User, Chat, Message, UnreadCount } from '../chat.model';
 import { debounceTime, Subject } from 'rxjs';
@@ -48,7 +50,9 @@ export class ChatListComponent implements OnInit, OnDestroy {
   isCreateGroupDialogOpen = false;
   
   constructor(
-    private chatService: ChatService, 
+    private chatApiService: ChatApiService,
+    private socketService: SocketService,
+    private chatStateService: ChatStateService,
     public router: Router, 
     private http: HttpClient,
     private cdr: ChangeDetectorRef,
@@ -64,13 +68,13 @@ export class ChatListComponent implements OnInit, OnDestroy {
     this.loadInitialChats();
     this.setupSearch();
 
-    this.chatService.newMessage$
+    this.socketService.newMessage$
       .pipe(takeUntil(this.destroy$))
       .subscribe(message => {
         this.handleNewMessage(message);
       });
 
-    this.chatService.userRemovedFromChat$
+    this.socketService.userRemovedFromChat$
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         this.chats = this.chats.filter(chat => chat._id !== data.chatId);
@@ -81,31 +85,31 @@ export class ChatListComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       });
 
-    this.chatService.chatDeletedGlobally$
+    this.socketService.chatDeletedGlobally$
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         this.removeChatFromList(data.chatId, data.deletedBy);
       });
 
-    this.chatService.messageDeleted$
+    this.socketService.messageDeleted$
       .pipe(takeUntil(this.destroy$))
       .subscribe(event => {
         this.handleMessageDeletedEvent(event);
       });
 
-    this.chatService.newChatCreated$
+    this.socketService.newChatCreated$
       .pipe(takeUntil(this.destroy$))
       .subscribe(newChat => {
         this.handleNewChatCreated(newChat);
       });
 
-    this.chatService.chatUpdated$
+    this.socketService.chatUpdated$
       .pipe(takeUntil(this.destroy$))
       .subscribe(updatedChat => {
         this.handleChatUpdate(updatedChat);
       });
 
-    this.chatService.userStatuses$
+    this.socketService.userStatuses$
       .pipe(takeUntil(this.destroy$))
       .subscribe(statuses => {
         let changed = false;
@@ -135,7 +139,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
 loadInitialChats(): void {
   this.loadingChats = true;
-  this.chatService.getSavedMessagesChat().subscribe({
+  this.chatApiService.getSavedMessagesChat().subscribe({
     next: (smChat) => {
       if (smChat && smChat._id) {
         this.savedMessagesChat = this.formatChatForDisplay(smChat, true);
@@ -154,7 +158,7 @@ loadInitialChats(): void {
 }
 
 loadRegularChats(): void {
-  this.chatService.getChats()?.subscribe({
+  this.chatApiService.getChats()?.subscribe({
     next: (regularChatsData: Chat[]) => {
       let regularChats: Chat[] = Array.isArray(regularChatsData) ? regularChatsData : [];
 
@@ -202,7 +206,7 @@ loadRegularChats(): void {
       
       if (chat.groupAvatar) {
         if (chat.groupAvatar.startsWith('/uploads/')) {
-          formatted.displayAvatarUrl = `${this.chatService.getApiUrl()}${chat.groupAvatar}`;
+          formatted.displayAvatarUrl = `${this.chatApiService.getApiUrl()}${chat.groupAvatar}`;
         } else {
           formatted.displayAvatarUrl = chat.groupAvatar;
         }
@@ -406,7 +410,7 @@ loadRegularChats(): void {
     this.chats.forEach(chat => {
       total += this.getUnreadCountForChat(chat);
     });
-    this.chatService.updateTotalUnreadCount(total);
+    this.chatStateService.updateTotalUnreadCount(total);
   }
   handleNewMessage(message: Message): void {
     const chatIndex = this.chats.findIndex(chat => chat._id === message.chatId);
@@ -534,7 +538,7 @@ loadRegularChats(): void {
     if (query.trim()) {
       this.loadingUserSearch = true;
       this.searchResults = [];
-      const baseUrl = this.chatService.getApiUrl(); 
+      const baseUrl = this.chatApiService.getApiUrl(); 
       const searchUrl = `${baseUrl}/chats/search?query=${query}`;
       this.http.get<User[]>(searchUrl, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -567,7 +571,7 @@ loadRegularChats(): void {
     if (!user || !user._id) return;
 
     this.loading = true;
-    this.chatService.createOrGetDirectChat(user._id)
+    this.chatApiService.createOrGetDirectChat(user._id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (newChat: Chat) => {
@@ -622,7 +626,7 @@ loadRegularChats(): void {
 
     if (confirmed) {
       this.loading = true;
-      this.chatService.deleteChat(chatToDelete._id).subscribe({
+      this.chatApiService.deleteChat(chatToDelete._id).subscribe({
         next: (response) => {
           this.loading = false;
           

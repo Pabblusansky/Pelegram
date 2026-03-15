@@ -1,6 +1,7 @@
 import { Component, Input, OnInit, OnDestroy, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ChatService, MediaGalleryResponse } from '../chat.service';
+import { ChatApiService } from '../services/chat-api.service';
+import { MediaGalleryResponse } from '../chat.model';
 import { Message } from '../chat.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -28,7 +29,7 @@ export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
-  constructor(private chatService: ChatService, private logger: LoggerService) {}
+  constructor(private chatApiService: ChatApiService, private logger: LoggerService) {}
 
   ngOnInit(): void {
     if (!this.chatId) {
@@ -55,7 +56,7 @@ export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
       this.currentPage = 1;
     }
 
-    this.chatService.getChatMedia(this.chatId, this.currentFilter, this.currentPage)
+    this.chatApiService.getChatMedia(this.chatId, this.currentFilter, this.currentPage)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response: MediaGalleryResponse) => {
@@ -91,7 +92,7 @@ export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
       return filePath;
     }
 
-    const baseUrl = this.chatService.getApiUrl();
+    const baseUrl = this.chatApiService.getApiUrl();
 
     if (filePath.startsWith('/')) {
       return `${baseUrl}${filePath}`;

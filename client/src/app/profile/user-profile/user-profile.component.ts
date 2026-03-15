@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ProfileService } from '../profile.service';
 import { UserProfile } from '../profile.model';
-import { ChatService } from '../../chat/chat.service';
+import { SocketService } from '../../chat/services/socket.service';
+import { ChatApiService } from '../../chat/services/chat-api.service';
 import { Observable } from 'rxjs';
 import { Location } from '@angular/common';
 import { LoggerService } from '../../services/logger.service';
@@ -28,7 +29,8 @@ export class UserProfileComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private profileService: ProfileService,
-    private chatService: ChatService,
+    private socketService: SocketService,
+    private chatApiService: ChatApiService,
     private location: Location,
     private logger: LoggerService
   ) {}
@@ -38,8 +40,8 @@ export class UserProfileComponent implements OnInit {
       this.userId = params.get('userId');
       if (this.userId) {
         this.loadUserProfile();
-        this.userStatus$ = this.chatService.getUserStatusText(this.userId);
-        this.isOnline$ = this.chatService.isUserOnline(this.userId);
+        this.userStatus$ = this.socketService.getUserStatusText(this.userId);
+        this.isOnline$ = this.socketService.isUserOnline(this.userId);
       }
     });
   }
@@ -115,7 +117,7 @@ export class UserProfileComponent implements OnInit {
     
     this.isLoading = true;
     
-    this.chatService.createOrGetDirectChat(this.userId)
+    this.chatApiService.createOrGetDirectChat(this.userId)
       .subscribe({
         next: (chat) => {
           this.isLoading = false;

@@ -5,7 +5,9 @@ import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnIn
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { debounceTime, Observable, Subject, takeUntil } from 'rxjs';
-import { ChatService } from '../chat.service';
+import { ChatApiService } from '../services/chat-api.service';
+import { SocketService } from '../services/socket.service';
+import { ChatStateService } from '../services/chat-state.service';
 import { Chat, Message, Reaction, User} from '../chat.model';
 import { MessageInputComponent } from "../message-input/message-input.component";
 import { Router } from '@angular/router';
@@ -142,7 +144,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    public chatService: ChatService,
+    private chatApiService: ChatApiService,
+    private socketService: SocketService,
+    private chatStateService: ChatStateService,
     private cdr: ChangeDetectorRef,
     private soundService: SoundService,
     private confirmationService: ConfirmationService,
@@ -175,7 +179,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   
 
-    this.chatService.chatDeletedGlobally$
+    this.socketService.chatDeletedGlobally$
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         if (this.chatId && this.chatId === data.chatId) {
@@ -183,7 +187,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         }
     });
     
-    this.chatService.chatUpdated$
+    this.socketService.chatUpdated$
       .pipe(takeUntil(this.destroy$))
       .subscribe(updatedChat => {
         if (updatedChat._id === this.chatId) {
@@ -192,13 +196,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
           this.cdr.detectChanges();
         }
     });
-    this.chatService.messageReactionUpdated$
+    this.socketService.messageReactionUpdated$
       .pipe(takeUntil(this.destroy$))
       .subscribe(update => {
       this.handleReactionUpdate(update.messageId, update.reactions);
     });
 
-    this.chatService.onTyping().subscribe((data: { chatId: string; senderId: string; isTyping: boolean }) => {
+    this.socketService.onTyping().subscribe((data: { chatId: string; senderId: string; isTyping: boolean }) => {
       if (data.chatId === this.chatId) {
         this.isTyping = data.isTyping;
         if (data.isTyping) {
@@ -213,7 +217,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     });
 
-    this.chatService.onMessageEdited()
+    this.socketService.onMessageEdited()
       .pipe(takeUntil(this.destroy$))
       .subscribe((editedMessage: Message) => {
         if (this.chatId !== editedMessage.chatId) {
@@ -254,7 +258,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       const routeChatId = params.get('chatId');
       this.chatId = routeChatId || this.selectedChatId;
       if (this.chatId) {
-        this.chatService.setActiveChatId(this.chatId);
+        this.chatStateService.setActiveChatId(this.chatId);
         this.isChatEffectivelyDeleted = false;
         this.loadMessages();
         this.loadChatDetails();
@@ -269,7 +273,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     
 
     
-    this.chatService.getUsers().subscribe({
+    this.chatApiService.getUsers().subscribe({
       next: (users: User[]) => {
         this.users = users;
       },
@@ -278,7 +282,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       },
     });
 
-    this.chatService.onMessageStatusUpdated().subscribe((data: any) => {
+    this.socketService.onMessageStatusUpdated().subscribe((data: any) => {
       const message = this.messages.find(msg => msg._id === data.messageId);
       if (message) {
         message.status = data.status;
@@ -287,7 +291,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     });
 
-    this.chatService.newMessage$
+    this.socketService.newMessage$
     .pipe(takeUntil(this.destroy$))
     .subscribe(message => {
       const isCurrentChat = this.chatId === message.chatId;
@@ -317,7 +321,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     });
 
-    this.chatService.onMessageDeleted()
+    this.socketService.onMessageDeleted()
     .pipe(takeUntil(this.destroy$))
     .subscribe(event => {
       const deletedMessageId = event.messageId;
@@ -372,8 +376,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
   ngOnDestroy(): void {
-    if (this.chatId === this.chatService.getActiveChatId()) {
-         this.chatService.setActiveChatId(null);
+    if (this.chatId === this.chatStateService.getActiveChatId()) {
+         this.chatStateService.setActiveChatId(null);
     }
     this.destroy$.next();
     this.destroy$.complete();    
@@ -415,7 +419,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   onInputChange(isTyping: boolean): void {
     if (this.chatId) {
-      this.chatService.sendTyping(this.chatId, isTyping);
+      this.socketService.sendTyping(this.chatId, isTyping);
       this.isTyping = isTyping;
     }
   }
@@ -505,7 +509,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   loadChatDetails(): void {
     if (!this.chatId) return;
     
-    this.chatService.getChat(this.chatId).subscribe({
+    this.chatApiService.getChat(this.chatId).subscribe({
       next: (chat) => {
         this.chatDetails = chat;
         this.updatePinnedMessageDetails();
@@ -526,8 +530,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
           ) || null;
 
           if (this.otherParticipant) {
-            this.otherParticipantStatus$ = this.chatService.getUserStatusText(this.otherParticipant._id);
-            this.isOtherParticipantOnline$ = this.chatService.isUserOnline(this.otherParticipant._id);
+            this.otherParticipantStatus$ = this.socketService.getUserStatusText(this.otherParticipant._id);
+            this.isOtherParticipantOnline$ = this.socketService.isUserOnline(this.otherParticipant._id);
           } else {
             this.otherParticipantStatus$ = null;
             this.isOtherParticipantOnline$ = null;
@@ -581,7 +585,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       
       if (!hasUnread) return;
     
-      this.chatService.markMessagesAsRead(this.chatId).subscribe({
+      this.chatApiService.markMessagesAsRead(this.chatId).subscribe({
         next: () => {},
         error: (err) => {
           this.logger.error('Failed to send markMessagesAsRead request:', err);
@@ -607,9 +611,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         this.resizeObserver.disconnect();
     }
 
-    this.chatService.joinChat(this.chatId);
+    this.socketService.joinChat(this.chatId);
 
-    this.chatService.getMessages(this.chatId)?.subscribe({
+    this.chatApiService.getMessages(this.chatId)?.subscribe({
         next: (messagesFromServer: Message[]) => {
             this.messages = messagesFromServer.map((msg) => ({
                 ...msg,
@@ -1026,7 +1030,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.updateMessagesWithDividers();
     this.cdr.detectChanges();
 
-    this.chatService.editMessage(messageInArray._id!, newContent).subscribe({
+    this.chatApiService.editMessage(messageInArray._id!, newContent).subscribe({
       next: (updatedMessageFromServer) => {
         const finalMessageIndex = this.messages.findIndex(m => m._id === updatedMessageFromServer._id);
         if (finalMessageIndex !== -1) {
@@ -1086,7 +1090,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         cancelText: 'Cancel'
     });
     if (confirmed) {      
-      this.chatService.deleteMessage(messageId).subscribe({
+      this.chatApiService.deleteMessage(messageId).subscribe({
         next: () => {
           this.messages = this.messages.filter(msg => msg._id !== messageId);
           this.updateMessagesWithDividers();
@@ -1124,7 +1128,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.isGroupChat) {
       if (this.chatDetails.groupAvatar) {
         if (this.chatDetails.groupAvatar.startsWith('/uploads/')) {
-          return `${this.chatService.getApiUrl()}${this.chatDetails.groupAvatar}`;
+          return `${this.chatApiService.getApiUrl()}${this.chatDetails.groupAvatar}`;
         }
         return this.chatDetails.groupAvatar;
       }
@@ -1142,7 +1146,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.otherParticipant && this.otherParticipant.avatar) {
       const avatarPath = this.otherParticipant.avatar;
       if (avatarPath.startsWith('/uploads/')) { 
-        return `${this.chatService.getApiUrl()}${avatarPath}`;
+        return `${this.chatApiService.getApiUrl()}${avatarPath}`;
       }
       return avatarPath; 
     }
@@ -1155,11 +1159,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     
       if (this.otherParticipant.avatar.startsWith('/uploads')) {
-        return `${this.chatService.getApiUrl()}${this.otherParticipant.avatar}`;
+        return `${this.chatApiService.getApiUrl()}${this.otherParticipant.avatar}`;
       }
 
       return this.otherParticipant.avatar.startsWith('/uploads')
-      ? `${this.chatService.getApiUrl()}${this.otherParticipant.avatar}`
+      ? `${this.chatApiService.getApiUrl()}${this.otherParticipant.avatar}`
       : this.otherParticipant.avatar;
   }
 
@@ -1184,10 +1188,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     
     if (user.avatar.startsWith('/')) {
-      return `${this.chatService.getApiUrl()}${user.avatar}`;
+      return `${this.chatApiService.getApiUrl()}${user.avatar}`;
     }
     
-    return `${this.chatService.getApiUrl()}/${user.avatar}`;
+    return `${this.chatApiService.getApiUrl()}/${user.avatar}`;
   }
   
   forwardMessage(message: Message): void {
@@ -1216,7 +1220,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.messagetoForward._id === 'multiple') {
       const selectedMessages = this.getArrayOfSelectedMessages();
       if (selectedMessages.length > 0) {
-        this.chatService.forwardMultipleMessages(selectedMessages.map(m => m._id!), targetChatId)
+        this.chatApiService.forwardMultipleMessages(selectedMessages.map(m => m._id!), targetChatId)
           .subscribe({
             next: () => {
               this.showToast(`${selectedMessages.length} messages forwarded`);
@@ -1231,7 +1235,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
           });
       }
     } else if (this.messagetoForward._id) {
-      this.chatService.forwardMessage(this.messagetoForward._id, targetChatId).subscribe({
+      this.chatApiService.forwardMessage(this.messagetoForward._id, targetChatId).subscribe({
         next: () => {
           this.showToast('Message forwarded successfully');
           this.cancelSelectionMode();
@@ -1565,7 +1569,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
     const oldFirstMessageId = oldestMessage._id;
 
-    this.chatService.getMessagesBefore(this.chatId, oldestMessage._id, 30)
+    this.chatApiService.getMessagesBefore(this.chatId, oldestMessage._id, 30)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (olderMessages) => {
@@ -1717,7 +1721,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     if (fileToSend) {
-      this.chatService.uploadMediaFile(this.chatId, fileToSend, textOrCaption, replyToPayload, eventData.duration)
+      this.chatApiService.uploadMediaFile(this.chatId, fileToSend, textOrCaption, replyToPayload, eventData.duration)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (response) => {
@@ -1737,7 +1741,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
           }
         });
     } else if (textOrCaption) {
-      this.chatService.sendMessage(this.chatId, textOrCaption, replyToPayload)
+      this.socketService.sendMessage(this.chatId, textOrCaption, replyToPayload)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (sentMessage) => {
@@ -1787,7 +1791,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         return;
     }
     this.isLoadingContext = true; 
-    this.chatService.loadMessageContext(this.chatId, messageId)
+    this.chatApiService.loadMessageContext(this.chatId, messageId)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
             next: (contextMessages) => {
@@ -1908,7 +1912,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     
   onReactionClick(messageId: string | undefined | null, reactionType: string): void {
     if (!messageId) return;
-    this.chatService.toggleReaction(messageId, reactionType);
+    this.socketService.toggleReaction(messageId, reactionType);
     this.activeContextMenuId = null; 
     this.selectedMessageId = null;
   }
@@ -1944,7 +1948,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.isSearching = true;
     this.resetMessageHighlights(); 
     
-    this.chatService.searchMessages(this.chatId!, query).pipe(
+    this.chatApiService.searchMessages(this.chatId!, query).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: (results) => {
@@ -2169,7 +2173,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   pinSelectedMessage(): void {
     const messageToPin = this.getSelectedMessage();
     if (messageToPin && messageToPin._id && this.chatId) {
-      this.chatService.pinMessage(this.chatId, messageToPin._id).subscribe({
+      this.chatApiService.pinMessage(this.chatId, messageToPin._id).subscribe({
         next: (updatedChat) => {
           this.showToast('Message pinned!');
           this.activeContextMenuId = null;
@@ -2184,7 +2188,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
   unpinCurrentMessage(): void {
     if (this.chatId && this.chatDetails?.pinnedMessage) {
-      this.chatService.unpinMessage(this.chatId).subscribe({
+      this.chatApiService.unpinMessage(this.chatId).subscribe({
         next: (updatedChat) => {
           this.showToast('Message unpinned!');
         },
@@ -2460,7 +2464,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     });
 
     if (confirmed) {
-      this.chatService.deleteMultipleMessages(selectedMessageIds).subscribe({
+      this.chatApiService.deleteMultipleMessages(selectedMessageIds).subscribe({
         next: (response) => {
           this.showToast(`${response.deletedCount} message${response.deletedCount > 1 ? 's' : ''} deleted`);
           this.messages = this.messages.filter(msg => !selectedMessageIds.includes(msg._id!));
@@ -2709,7 +2713,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       this.showToast('Loading message context...', 3000);
       
       if (this.chatId) {
-        this.chatService.loadMessageContext(this.chatId, messageId)
+        this.chatApiService.loadMessageContext(this.chatId, messageId)
           .pipe(takeUntil(this.destroy$))
           .subscribe({
             next: (contextMessages) => {
@@ -2758,10 +2762,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     if (filePath.startsWith('/')) {
-      return `${this.chatService.getApiUrl()}${filePath}`;
+      return `${this.chatApiService.getApiUrl()}${filePath}`;
     }
 
-    return `${this.chatService.getApiUrl()}/${filePath}`;
+    return `${this.chatApiService.getApiUrl()}/${filePath}`;
   }
 
   retryLoadMedia(message: Message): void {

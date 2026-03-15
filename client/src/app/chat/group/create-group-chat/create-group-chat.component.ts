@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, filter, switchMap, takeUntil, tap, map } from 'rxjs/operators';
 import { Subject, timer, of } from 'rxjs';
-import { ChatService } from '../../chat.service';
+import { ChatApiService } from '../../services/chat-api.service';
 import { User, Chat } from '../../chat.model';
 import { HttpClient } from '@angular/common/http';
 import { ProfileService } from '../../../profile/profile.service';
@@ -42,7 +42,7 @@ export class CreateGroupChatComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
-    private chatService: ChatService,
+    private chatApiService: ChatApiService,
     private http: HttpClient,
     private profileService: ProfileService,
     private logger: LoggerService,
@@ -78,7 +78,7 @@ export class CreateGroupChatComponent implements OnInit {
       tap(() => this.isLoadingUsers = true),
       switchMap(query => {
         const startTime = Date.now();
-        return this.http.get<User[]>(`${this.chatService.getApiUrl()}/chats/search?query=${query}`, {
+        return this.http.get<User[]>(`${this.chatApiService.getApiUrl()}/chats/search?query=${query}`, {
           headers: { 'Authorization': `Bearer ${this.tokenService.getToken()}` }
         }).pipe(
           switchMap(users => {
@@ -168,7 +168,7 @@ export class CreateGroupChatComponent implements OnInit {
     const groupName = this.createGroupForm.value.groupName;
     const participantIds = this.selectedParticipants.map(p => p._id);
 
-    this.chatService.createGroupChat({ name: groupName, participantIds })
+    this.chatApiService.createGroupChat({ name: groupName, participantIds })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (newGroupChat) => {
