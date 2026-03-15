@@ -12,7 +12,7 @@ import { TokenService } from '../services/token.service';
 export class AuthService {
     private apiUrl = `${environment.apiUrl}/api/auth`;
 
-  private isAuthenticatedSubject = new BehaviorSubject<boolean>(this.hasInitialToken());
+  private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
   public isAuthenticated$: Observable<boolean> = this.isAuthenticatedSubject.asObservable();
 
   constructor(
@@ -22,17 +22,8 @@ export class AuthService {
     private logger: LoggerService,
     private tokenService: TokenService)
     {
-      this.checkAuthStatusOnLoad();
+      this.isAuthenticatedSubject.next(this.tokenService.isTokenValid());
     }
-
-
-  private hasInitialToken(): boolean {
-    return this.tokenService.isTokenValid();
-  }
-
-  private checkAuthStatusOnLoad(): void {
-    this.isAuthenticatedSubject.next(this.tokenService.isTokenValid());
-  }
 
   register(user: { username: string; email: string; password: string }) {
     return this.http.post(`${this.apiUrl}/register`, user);
