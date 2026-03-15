@@ -17,9 +17,9 @@ import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
 import { GroupInfoModalComponent } from '../group/group-info-modal/group-info-modal/group-info-modal.component';
 import { ConfirmationService } from '../../shared/services/confirmation.service';
 import { GroupReactionsPipe } from '../../pipes/fileSize/groupReactions/group-reactions.pipe';
-import { SharedMediaGalleryComponent } from "../shared-media-gallery/shared-media-gallery.component";   
+import { SharedMediaGalleryComponent } from "../shared-media-gallery/shared-media-gallery.component";
 import { LightboxComponent } from '../../shared/lightbox/lightbox.component';
-import { ScrollingModule } from '@angular/cdk/scrolling'; 
+import { ScrollingModule } from '@angular/cdk/scrolling';
 import { AfterViewInit } from '@angular/core';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { AudioPlayerComponent } from "../../shared/components/audio-player/audio-player.component";
@@ -30,6 +30,8 @@ import { ChatSearchBarComponent } from '../chat-search-bar/chat-search-bar.compo
 import { LoggerService } from '../../services/logger.service';
 import { TokenService } from '../../services/token.service';
 import { ToastService } from '../../utils/toast-service';
+import { SelectionService } from './services/selection.service';
+import { MessageActionsService } from './services/message-actions.service';
 
 @Component({
   selector: 'app-chat-room',
@@ -52,7 +54,7 @@ import { ToastService } from '../../utils/toast-service';
     ChatHeaderComponent,
     ChatSearchBarComponent
   ],
-
+  providers: [SelectionService, MessageActionsService],
 })
 
 
@@ -83,17 +85,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   messages: Message[] = [];
   messagesWithDividers: any = [];
   userId: string | null = null;
-  activeContextMenuId: string | null = null;
   public isAtBottom = true;
-  public isAtTop: boolean = false; 
+  public isAtTop: boolean = false;
   users: User[] = [];
-  menuPosition: { x: number; y: number } = { x: 0, y: 0 };
   private markAsReadDebounce = new Subject<void>();
-  selectedMessageId: string | null = null;
   private editTextareaRef: ElementRef | null = null;
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
   private destroy$ = new Subject<void>();
-  private editAnimationTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
   isLoadingMore = false;
   noMoreMessages = false;
   scrollHeightBeforeLoad = 0;
@@ -103,19 +101,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   otherParticipant: User | null = null;
   otherParticipantStatus$: Observable<string> | null = null;
   isOtherParticipantOnline$: Observable<boolean> | null = null;
-  showForwardDialogue = false;
-  messagetoForward: any = null;
-  replyingToMessage: Message | null = null;
-  availableReactions: string[] = ['👍', '❤️', '😂', '😮', '😢', '🙏']; // Available reactions, alpha test (1.0)
-  isChatEffectivelyDeleted: boolean = false; 
-  pinnedMessageDetails: Message | null = null; 
+  isChatEffectivelyDeleted: boolean = false;
   public unreadMessagesCount: number = 0;
-  private newMessagesWhileScrolledUp: Message[] = []; 
+  private newMessagesWhileScrolledUp: Message[] = [];
   private isWindowFocused: boolean = document.hasFocus();
-  isSelectionModeActive: boolean = false;
-  selectedMessagesMap = new Map<string, Message>();
-  private isDragging: boolean = false;
-  private lastDraggedMessageId: string | null = null;
   @ViewChild(MessageInputComponent) messageInputComponent?: MessageInputComponent; 
   @ViewChild(CdkVirtualScrollViewport) scrollViewport!: CdkVirtualScrollViewport;
   showKeyboardHelp: boolean = false;
@@ -139,6 +128,20 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   lightboxItems: Message[] = [];
   lightboxStartIndex: number = 0;
 
+  // Template accessors for MessageActionsService state
+  get activeContextMenuId(): string | null { return this.messageActionsService.activeContextMenuId; }
+  set activeContextMenuId(value: string | null) { this.messageActionsService.activeContextMenuId = value; }
+  get menuPosition(): { x: number; y: number } { return this.messageActionsService.menuPosition; }
+  set menuPosition(value: { x: number; y: number }) { this.messageActionsService.menuPosition = value; }
+  get selectedMessageId(): string | null { return this.messageActionsService.selectedMessageId; }
+  set selectedMessageId(value: string | null) { this.messageActionsService.selectedMessageId = value; }
+  get replyingToMessage(): Message | null { return this.messageActionsService.replyingToMessage; }
+  get pinnedMessageDetails(): Message | null { return this.messageActionsService.pinnedMessageDetails; }
+  set pinnedMessageDetails(value: Message | null) { this.messageActionsService.pinnedMessageDetails = value; }
+  get messagetoForward(): any { return this.messageActionsService.messagetoForward; }
+  get showForwardDialogue(): boolean { return this.messageActionsService.showForwardDialogue; }
+  get availableReactions(): string[] { return this.messageActionsService.availableReactions; }
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -150,7 +153,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     private confirmationService: ConfirmationService,
     private logger: LoggerService,
     private tokenService: TokenService,
-    private toastService: ToastService
+    private toastService: ToastService,
+    public selectionService: SelectionService,
+    public messageActionsService: MessageActionsService
   ) {
     this.markAsReadDebounce.pipe(debounceTime(500)).subscribe(() => {
       this.markMessagesAsRead();
@@ -159,6 +164,38 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
   ngOnInit(): void {
     this.componentIsCurrentlyFocused = document.hasFocus();
+
+    this.selectionService.init({
+      messages: () => this.messages,
+      messagesWithDividers: () => this.messagesWithDividers,
+      userId: () => this.userId,
+      updateMessagesWithDividers: () => this.updateMessagesWithDividers(),
+      detectChanges: () => this.cdr.detectChanges(),
+      showToast: (msg, duration?) => this.showToast(msg, duration),
+      formatTimestamp: (ts) => this.formatTimestamp(ts),
+      removeMessages: (ids) => { this.messages = this.messages.filter(msg => !ids.includes(msg._id!)); },
+      chatApiService: this.chatApiService,
+      confirmationService: this.confirmationService,
+      logger: this.logger,
+    });
+
+    this.messageActionsService.init({
+      messages: () => this.messages,
+      messagesWithDividers: () => this.messagesWithDividers,
+      userId: () => this.userId,
+      chatId: () => this.chatId,
+      chatDetails: () => this.chatDetails,
+      updateMessagesWithDividers: () => this.updateMessagesWithDividers(),
+      detectChanges: () => this.cdr.detectChanges(),
+      showToast: (msg, duration?) => this.showToast(msg, duration),
+      removeMessages: (ids) => { this.messages = this.messages.filter(msg => !ids.includes(msg._id!)); },
+      focusMessageInput: () => this.messageInputComponent?.focusInput(),
+      chatApiService: this.chatApiService,
+      socketService: this.socketService,
+      confirmationService: this.confirmationService,
+      logger: this.logger,
+    });
+
     this.loadMoreDebounce.pipe(
       debounceTime(100),
       takeUntil(this.destroy$)
@@ -186,7 +223,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.socketService.messageReactionUpdated$
       .pipe(takeUntil(this.destroy$))
       .subscribe(update => {
-      this.handleReactionUpdate(update.messageId, update.reactions);
+      this.messageActionsService.handleReactionUpdate(update.messageId, update.reactions);
     });
 
     this.socketService.onTyping().subscribe((data: { chatId: string; senderId: string; isTyping: boolean }) => {
@@ -234,7 +271,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         delete this.messages[index].editedContent;
 
         if (editedMessage.senderId !== this.userId) {
-          this.applyEditAnimation(editedMessage._id!);
+          this.messageActionsService.applyEditAnimation(editedMessage._id!);
         }
         
         this.updateMessagesWithDividers();
@@ -372,8 +409,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       this.cancelStabilization();
       this.cancelStabilization = null;
     }
-    this.editAnimationTimeouts.forEach(timeout => clearTimeout(timeout));
-    this.editAnimationTimeouts.clear();
+    this.messageActionsService.cleanup();
 
   }
   
@@ -780,125 +816,40 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   getSelectedMessage(): Message | null {
-    if (!this.activeContextMenuId) {
-      return null;
-    }
-    
-    const messageFromMainArray = this.messages.find(
-      (msg: Message) => msg._id === this.activeContextMenuId
-    );
-
-    if (messageFromMainArray) {
-    } else {
-      const messageFromDividers = this.messagesWithDividers.find(
-          (item: any) => item.type === 'message' && item._id === this.activeContextMenuId
-      );
-      if (messageFromDividers) {
-          return messageFromDividers as Message;
-      } else {
-          this.logger.error('getSelectedMessage: Message NOT FOUND anywhere for ID:', this.activeContextMenuId);
-      }
-    }
-    return messageFromMainArray || null;
+    return this.messageActionsService.getSelectedMessage();
   }
   
   onMessageClick(message: Message, event?: MouseEvent): void {
-    if (this.isSelectionModeActive) {
-      if (event && (event.ctrlKey || event.metaKey)) {
-        this.toggleMessageSelection(message);
-      } else {
-        this.toggleMessageSelection(message);
-      }
+    if (this.selectionService.isActive) {
+      this.selectionService.toggle(message);
     } else {
       if (event && (event.ctrlKey || event.metaKey)) {
-        this.activateSelectionMode(message);
+        this.selectionService.activate(message);
       } else {
-        if (this.activeContextMenuId && this.activeContextMenuId !== message._id) {
-          this.activeContextMenuId = null;
+        if (this.messageActionsService.activeContextMenuId && this.messageActionsService.activeContextMenuId !== message._id) {
+          this.messageActionsService.activeContextMenuId = null;
         }
       }
     }
   }
   
   showContextMenu(event: MouseEvent, message: Message): void {
-    if (this.isSelectionModeActive) {
-      event.preventDefault();
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (!message || !message._id) {
-      this.logger.error('Cannot show context menu: Invalid message object', message);
-      return;
-    }
-
-    this.activeContextMenuId = message._id;
-    this.selectedMessageId = message._id;
-
-    const actualMessage = this.messages.find(m => m._id === this.activeContextMenuId);
-
-    if (!actualMessage) {
-        this.logger.error('CONTEXT_MENU_ERROR: Could not find actual message in this.messages for ID:', this.activeContextMenuId);
-        this.activeContextMenuId = null;
-        return;
-    }
-
-    const MenuWidth = 220;  
-    const itemCount = message.senderId === this.userId ? 6 : 4;
-    const MenuHeight = (itemCount * 40) + 60;
-    const cursorOffset = 5;
-
-    let positionX = event.clientX;
-    let positionY = event.clientY;
-
-    if (positionX + MenuWidth + cursorOffset > window.innerWidth) {
-      positionX = positionX - MenuWidth - cursorOffset;
-    } else {
-      positionX = positionX + cursorOffset;
-    }
-    if (positionX < 10) {
-      positionX = 10;
-    }
-
-    if (positionY - MenuHeight - cursorOffset < 0) {
-      positionY = positionY + cursorOffset;
-
-      if (positionY + MenuHeight > window.innerHeight) {
-        positionY = window.innerHeight - MenuHeight - 10;
-      }
-    } else {
-      positionY = positionY - MenuHeight - cursorOffset;
-    }
-    if (positionY < 10) {
-      positionY = 10;
-    }
-
-    if (positionX + MenuWidth > window.innerWidth) {
-      positionX = window.innerWidth - MenuWidth - 10;
-      if (positionX < 10) positionX = 10;
-    }
-
-
-    this.menuPosition = { x: positionX, y: positionY };
-    this.activeContextMenuId = message._id;
-    this.selectedMessageId = message._id; 
-    this.cdr.detectChanges();
+    this.messageActionsService.showContextMenu(event, message);
   }
   
   startLongPress(event: TouchEvent, message: Message): void {
-    if (this.isSelectionModeActive) {
+    if (this.selectionService.isActive) {
       this.endLongPress();
       return;
     }
-    
+
     if (event && event.preventDefault) {
       event.preventDefault();
     }
-    
+
     this.longPressTimer = setTimeout(() => {
       if (!this.isSearchActive && !message.isEditing) {
-        this.activateSelectionMode(message);
+        this.selectionService.activate(message);
         if ('vibrate' in navigator) {
           navigator.vibrate(50);
         }
@@ -959,211 +910,25 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   startEdit(message: Message, isLastMessageEdit: boolean = false): void {
-    this.activeContextMenuId = null;
-    const messageInArray = this.messages.find(m => m._id === message._id);
-    if (!messageInArray || messageInArray.senderId !== this.userId) return;
-      messageInArray.isEditing = true;
-      messageInArray.editedContent = messageInArray.content; 
-
-    const messageInDividers = this.messagesWithDividers.find(
-      (item: any) => item.type === 'message' && item._id === message._id
-    );
-    if (messageInDividers) {
-      messageInDividers.isEditing = true;
-      messageInDividers.editedContent = messageInDividers.content;
-    }
-    this.selectedMessageId = null;
-    this.cdr.detectChanges();
-
-    setTimeout(() => {
-      const messageId = messageInArray._id;
-      if (!messageId) return;
-      const messageElement = document.getElementById('message-' + messageInArray._id);
-          const editContainerElement = messageElement?.querySelector('.edit-container') as HTMLElement;
-      const textarea = messageElement?.querySelector('.edit-textarea') as HTMLTextAreaElement;
-      if (textarea) {
-        textarea.focus();
-        textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
-      }
-      if (messageElement && editContainerElement) {
-        const messagesContainer = document.querySelector('.messages');
-        if (messagesContainer) {
-          const containerRect = messagesContainer.getBoundingClientRect();
-          const editContainerRect = editContainerElement.getBoundingClientRect();
-          const isFullyVisible = 
-              editContainerRect.top >= containerRect.top &&
-              editContainerRect.bottom <= containerRect.bottom;
-
-          if (!isFullyVisible || isLastMessageEdit) {
-            let scrollAdjustment = 0;
-
-            if (editContainerRect.bottom > containerRect.bottom) {
-              scrollAdjustment = (editContainerRect.bottom - containerRect.bottom) + 40;
-            }
-            else if (editContainerRect.top < containerRect.top) {
-              scrollAdjustment = (editContainerRect.top - containerRect.top) - 15;
-            }
-            
-            if (scrollAdjustment !== 0 || (isLastMessageEdit && messagesContainer.scrollTop + messagesContainer.clientHeight < messagesContainer.scrollHeight - 5)) {
-              messagesContainer.scrollTop += scrollAdjustment;
-              if (isLastMessageEdit && Math.abs(messagesContainer.scrollTop + messagesContainer.clientHeight - messagesContainer.scrollHeight) < 5) {
-                  messagesContainer.scrollTop = messagesContainer.scrollHeight;
-              }
-            }
-          }
-        }
-      }
-    }, 50);
-}
-  
-  cancelEdit(messageFromUI: Message): void {
-    const messageId = messageFromUI._id;
-
-    messageFromUI.isEditing = false;
-    delete messageFromUI.editedContent;
-
-    const messageInArray = this.messages.find(m => m._id === messageId);
-    if (messageInArray) {
-      messageInArray.isEditing = false;
-      delete messageInArray.editedContent;
-    }
-
-    this.messageInputComponent?.focusInput();
-    this.cdr.detectChanges();
+    this.messageActionsService.startEdit(message, isLastMessageEdit);
   }
-  
+
+  cancelEdit(messageFromUI: Message): void {
+    this.messageActionsService.cancelEdit(messageFromUI);
+  }
+
   saveMessageEdit(messageFromUI: Message): void {
-    const messageId = messageFromUI._id;
-    const messageInArray = this.messages.find(m => m._id === messageId);
-
-    if (!messageInArray) {
-      this.logger.error('Message to save not found in main messages array:', messageId);
-      this.cancelEdit(messageFromUI);
-      return;
-    }
-
-    const editedContentFromUI = messageFromUI.editedContent;
-
-    if (!editedContentFromUI?.trim()) {
-        this.cancelEdit(messageFromUI);
-        return;
-    }
-
-    const newContent = editedContentFromUI.trim();
-
-    if (messageInArray.content === newContent) {
-      messageInArray.isEditing = false;
-      delete messageInArray.editedContent;
-      messageFromUI.isEditing = false;
-      delete messageFromUI.editedContent;
-      this.cdr.detectChanges(); 
-      return;
-    }
-
-    const originalContent = messageInArray.content;
-
-    messageInArray.content = newContent;
-    messageInArray.isEditing = false;
-    messageInArray.edited = true;
-    messageInArray.editedAt = new Date();
-    delete messageInArray.editedContent;
-
-    messageFromUI.content = newContent;
-    messageFromUI.isEditing = false;
-    messageFromUI.edited = true;
-    messageFromUI.editedAt = messageInArray.editedAt;
-    delete messageFromUI.editedContent;
-    
-    this.updateMessagesWithDividers();
-    this.cdr.detectChanges();
-
-    this.chatApiService.editMessage(messageInArray._id!, newContent).subscribe({
-      next: (updatedMessageFromServer) => {
-        const finalMessageIndex = this.messages.findIndex(m => m._id === updatedMessageFromServer._id);
-        if (finalMessageIndex !== -1) {
-          this.messages[finalMessageIndex] = {
-            ...this.messages[finalMessageIndex],
-            content: updatedMessageFromServer.content,
-            edited: updatedMessageFromServer.edited,
-            editedAt: updatedMessageFromServer.editedAt,
-            isEditing: false, 
-          };
-          delete this.messages[finalMessageIndex].editedContent;
-        }
-        this.updateMessagesWithDividers();
-        this.messageInputComponent?.focusInput();
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.logger.error('Failed to edit message on server:', err);
-        const messageToRevert = this.messages.find(m => m._id === messageId);
-        if (messageToRevert) {
-          messageToRevert.content = originalContent;
-          messageToRevert.isEditing = false;
-          messageToRevert.edited = messageFromUI.edited; 
-          messageToRevert.editedAt = messageFromUI.editedAt;
-          delete messageToRevert.editedContent;
-        }
-        messageFromUI.content = originalContent;
-        messageFromUI.isEditing = true;
-        messageFromUI.editedContent = editedContentFromUI;
-
-        this.updateMessagesWithDividers();
-        this.messageInputComponent?.focusInput();
-        this.cdr.detectChanges();
-        this.showToast('Failed to save edit. Please try again.');
-      }
-    });
+    this.messageActionsService.saveMessageEdit(messageFromUI);
   }
 
 
   
   async deleteMessage(messageId: string | undefined): Promise<void> {
-    if (!messageId) {
-      if (this.activeContextMenuId) {
-        messageId = this.activeContextMenuId;
-      } else {
-        return;
-      }
-    }
-    
-    this.activeContextMenuId = null;
-    this.selectedMessageId = null;
-    
-    const confirmed = await this.confirmationService.confirm({
-        title: 'Delete Message',
-        message: 'Are you sure you want to delete this message? This action cannot be undone.',
-        confirmText: 'Delete',
-        cancelText: 'Cancel'
-    });
-    if (confirmed) {      
-      this.chatApiService.deleteMessage(messageId).subscribe({
-        next: () => {
-          this.messages = this.messages.filter(msg => msg._id !== messageId);
-          this.updateMessagesWithDividers();
-          this.cdr.detectChanges();
-        },
-        error: (err) => {
-          this.logger.error('Failed to delete message:', err);
-          this.cdr.detectChanges();
-        }
-      });
-    }
+    return this.messageActionsService.deleteMessage(messageId);
   }
-  
+
   copyMessageText(message: Message): void {
-    if (!message) return;
-    
-    this.activeContextMenuId = null;
-    this.selectedMessageId = null;
-    
-    navigator.clipboard.writeText(message.content)
-      .then(() => {
-        this.showToast('Message copied to clipboard');
-      })
-      .catch(err => {
-        this.showToast('Failed to copy message', err);
-      });
+    this.messageActionsService.copyMessageText(message);
   }
 
 
@@ -1228,58 +993,15 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   forwardMessage(message: Message): void {
-    if (!message) return;
-  
-    this.activeContextMenuId = null;
-    this.selectedMessageId = null;
-    
-    this.messagetoForward = message;
-    this.showForwardDialogue = true;
-    this.cdr.detectChanges();  
+    this.messageActionsService.forwardMessage(message);
   }
-  
-  cancelForward() {
-    this.showForwardDialogue = false;
-    this.messagetoForward = null;
+
+  cancelForward(): void {
+    this.messageActionsService.cancelForward();
   }
 
   confirmForward(targetChatId: string): void {
-    if (!this.messagetoForward) {
-      this.cancelSelectionMode();
-      this.cancelForward();
-      return;
-    }
-
-    if (this.messagetoForward._id === 'multiple') {
-      const selectedMessages = this.getArrayOfSelectedMessages();
-      if (selectedMessages.length > 0) {
-        this.chatApiService.forwardMultipleMessages(selectedMessages.map(m => m._id!), targetChatId)
-          .subscribe({
-            next: () => {
-              this.showToast(`${selectedMessages.length} messages forwarded`);
-              this.cancelSelectionMode();
-              this.cancelForward();
-            },
-            error: (err) => {
-              this.showToast('Failed to forward messages');
-              this.logger.error("Error forwarding multiple messages", err);
-              this.cancelForward();
-            }
-          });
-      }
-    } else if (this.messagetoForward._id) {
-      this.chatApiService.forwardMessage(this.messagetoForward._id, targetChatId).subscribe({
-        next: () => {
-          this.showToast('Message forwarded successfully');
-          this.cancelSelectionMode();
-          this.cancelForward();
-        },
-        error: (error) => {
-          this.showToast('Failed to forward message');
-          this.cancelForward();
-        }
-      });
-    }
+    this.messageActionsService.confirmForward(targetChatId);
   }
 
   public showToast(message: string, duration: number = 3000): void {
@@ -1290,21 +1012,21 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   closeContextMenu(event: Event): void {
     const target = event.target as HTMLElement;
     if (
-      this.activeContextMenuId && 
-      !target.closest('.context-menu') && 
+      this.messageActionsService.activeContextMenuId &&
+      !target.closest('.context-menu') &&
       !target.closest('.message-menu-icon')
     ) {
-      this.activeContextMenuId = null;
+      this.messageActionsService.activeContextMenuId = null;
       setTimeout(() => {
-        this.selectedMessageId = null;
+        this.messageActionsService.selectedMessageId = null;
       }, 300);
     }
   }
-  
+
   @HostListener('window:scroll')
   onWindowScroll(): void {
-    this.activeContextMenuId = null;
-    this.selectedMessageId = null;
+    this.messageActionsService.activeContextMenuId = null;
+    this.messageActionsService.selectedMessageId = null;
   }
   
   @HostListener('document:keydown', ['$event'])
@@ -1321,23 +1043,23 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     if (event.key === 'Escape') {
-      if (this.isSelectionModeActive) {
-        this.cancelSelectionMode();
+      if (this.selectionService.isActive) {
+        this.selectionService.cancel();
         event.preventDefault();
         return;
       }
-      
+
       if (this.isSearchActive) {
         this.closeSearch();
         event.preventDefault();
         return;
       }
-      
-      if (this.activeContextMenuId) {
-        this.activeContextMenuId = null;
-        this.selectedMessageId = null;
+
+      if (this.messageActionsService.activeContextMenuId) {
+        this.messageActionsService.activeContextMenuId = null;
+        this.messageActionsService.selectedMessageId = null;
         event.preventDefault();
-        
+
         this.messagesWithDividers.forEach((item: any) => {
           if (item.type === 'message' && item.isEditing) {
             this.cancelEdit(item);
@@ -1361,7 +1083,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if ((event.ctrlKey || event.metaKey) && event.key === 'a' && this.messages.length > 0) {
       event.preventDefault();
-      this.selectAllMessages();
+      this.selectionService.selectAll();
       return;
     }
 
@@ -1390,18 +1112,18 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     return;
     }
 
-    if (this.isSelectionModeActive && this.selectedMessagesMap.size > 0 && 
+    if (this.selectionService.isActive && this.selectionService.selectedMessagesMap.size > 0 &&
         (event.ctrlKey || event.metaKey) && event.key === 'c') {
       event.preventDefault();
-      this.copySelectedMessages();
+      this.selectionService.copySelected();
       return;
     }
 
-    if (this.isSelectionModeActive && this.selectedMessagesMap.size > 0 && 
+    if (this.selectionService.isActive && this.selectionService.selectedMessagesMap.size > 0 &&
         (event.key === 'Delete' || event.key === 'Backspace')) {
-      if (this.canDeleteSelectedMessages()) {
+      if (this.selectionService.canDeleteSelected()) {
         event.preventDefault();
-        this.deleteSelectedMessages();
+        this.selectionService.deleteSelected();
       }
       return;
     }
@@ -1444,31 +1166,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       minute: '2-digit', 
       second: '2-digit'
     })}`;
-  }
-
-  private applyEditAnimation(messageId: string): void {
-    if (this.editAnimationTimeouts.has(messageId)) {
-      clearTimeout(this.editAnimationTimeouts.get(messageId)!);
-    }
-    
-    const messageIndex = this.messages.findIndex(msg => msg._id === messageId);
-    if (messageIndex === -1) return;
-    
-    this.messages[messageIndex].editedRecently = true;
-    
-    this.updateMessagesWithDividers();
-    
-    const timeout = setTimeout(() => {
-      const msgIndex = this.messages.findIndex(msg => msg._id === messageId);
-      if (msgIndex !== -1) {
-        this.messages[msgIndex].editedRecently = false;
-        this.updateMessagesWithDividers();
-        this.cdr.detectChanges();
-      }
-      this.editAnimationTimeouts.delete(messageId);
-    }, 2000);
-    
-    this.editAnimationTimeouts.set(messageId, timeout);
   }
 
   loadMoreMessages(): void {
@@ -1615,16 +1312,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   startReply(message: Message): void {
-    this.replyingToMessage = message;
-    this.activeContextMenuId = null;
-    const messageInput = document.querySelector('app-message-input textarea') as HTMLTextAreaElement;
-    if (messageInput) {
-      messageInput.focus();
-    }
+    this.messageActionsService.startReply(message);
   }
 
   cancelReply(): void {
-    this.replyingToMessage = null; 
+    this.messageActionsService.cancelReply();
   }
 
   onMessageSend(eventData: { content: string; file?: File; caption?: string; replyTo?: Message; duration?: number; }): void {
@@ -1639,16 +1331,17 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
 
     let replyToPayload: { _id: string; senderName: string; content: string; senderId: string | undefined; messageType: string; filePath?: string } | undefined = undefined;
-    if (this.replyingToMessage && this.replyingToMessage._id) {
+    const replyingTo = this.messageActionsService.replyingToMessage;
+    if (replyingTo && replyingTo._id) {
       replyToPayload = {
-        _id: this.replyingToMessage._id,
-        senderName: this.replyingToMessage.senderName || 'User',
-        content: this.replyingToMessage.content ? this.replyingToMessage.content.substring(0, 100) : '',
-        senderId: (typeof this.replyingToMessage.senderId === 'string') 
-                    ? this.replyingToMessage.senderId 
-                    : (this.replyingToMessage.senderId as User)?._id,
-        messageType: this.replyingToMessage.messageType || 'text', 
-        filePath: this.replyingToMessage.filePath 
+        _id: replyingTo._id,
+        senderName: replyingTo.senderName || 'User',
+        content: replyingTo.content ? replyingTo.content.substring(0, 100) : '',
+        senderId: (typeof replyingTo.senderId === 'string')
+                    ? replyingTo.senderId
+                    : (replyingTo.senderId as User)?._id,
+        messageType: replyingTo.messageType || 'text',
+        filePath: replyingTo.filePath
       };
     }
 
@@ -1688,7 +1381,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     } else {
     }
 
-    if (this.replyingToMessage) {
+    if (this.messageActionsService.replyingToMessage) {
       this.cancelReply();
     }
   }
@@ -1804,18 +1497,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private handleReactionUpdate(messageId: string, newReactions: Reaction[]): void {
-    const messageIndex = this.messages.findIndex(m => m._id === messageId);
-
-    if (messageIndex !== -1) {
-      const originalMessage = this.messages[messageIndex];
-      this.messages[messageIndex] = {
-        ...originalMessage, 
-        reactions: newReactions
-      };      
-      
-      this.updateMessagesWithDividers();
-      this.cdr.detectChanges();
-    }
+    this.messageActionsService.handleReactionUpdate(messageId, newReactions);
   }
   getGroupedReactions(reactions: Reaction[] | undefined): { type: string; count: number; reactedByMe: boolean; userIds: string[] }[] {
     if (!reactions || reactions.length === 0) {
@@ -1843,10 +1525,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
     
   onReactionClick(messageId: string | undefined | null, reactionType: string): void {
-    if (!messageId) return;
-    this.socketService.toggleReaction(messageId, reactionType);
-    this.activeContextMenuId = null; 
-    this.selectedMessageId = null;
+    this.messageActionsService.onReactionClick(messageId, reactionType);
   }
 
   private handleCurrentChatWasDeleted(deletedBy?: string): void {
@@ -1997,33 +1676,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   pinSelectedMessage(): void {
-    const messageToPin = this.getSelectedMessage();
-    if (messageToPin && messageToPin._id && this.chatId) {
-      this.chatApiService.pinMessage(this.chatId, messageToPin._id).subscribe({
-        next: (updatedChat) => {
-          this.showToast('Message pinned!');
-          this.activeContextMenuId = null;
-        },
-        error: (err) => {
-          this.logger.error('Error pinning message:', err);
-          this.showToast('Failed to pin message.');
-        }
-      });
-    }
+    this.messageActionsService.pinSelectedMessage();
   }
 
   unpinCurrentMessage(): void {
-    if (this.chatId && this.chatDetails?.pinnedMessage) {
-      this.chatApiService.unpinMessage(this.chatId).subscribe({
-        next: (updatedChat) => {
-          this.showToast('Message unpinned!');
-        },
-        error: (err) => {
-          this.logger.error('Error unpinning message:', err);
-          this.showToast('Failed to unpin message.');
-        }
-      });
-    }
+    this.messageActionsService.unpinCurrentMessage();
   }
 
 
@@ -2090,207 +1747,31 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onEditTextareaKeydown(event: KeyboardEvent, messageItemFromUI: Message): void {
-    if (event.key === 'Enter') {
-      if (event.shiftKey) { 
-        return; 
-      }
-      event.preventDefault();
-      this.saveMessageEdit(messageItemFromUI);
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      this.cancelEdit(messageItemFromUI);
-    }
+    this.messageActionsService.onEditTextareaKeydown(event, messageItemFromUI);
   }
 
-  public activateSelectionMode(message: Message): void {
-    if (!message || !message._id) return;
-    
-    this.isSelectionModeActive = true;
-    this.selectedMessagesMap.clear();
-
-    message.isSelected = true;
-    this.selectedMessagesMap.set(message._id, message);
-
-    this.updateMessageInLocalArrays(message);
-    this.activeContextMenuId = null;
-    
-    // Apply selection-mode-active class to all messages
-    this.messages.forEach(msg => {
-      if (msg._id === message._id) {
-        msg.isSelected = true;
-      }
-    });
-    
-    this.updateMessagesWithDividers();
-    this.cdr.detectChanges();
-  }
-
-  toggleMessageSelection(message: Message, forcedState?: boolean): void {
-    if (!message || !message._id) return;
-
-    const isCurrentlySelected = this.selectedMessagesMap.has(message._id);
-    
-    if (typeof forcedState === 'boolean') {
-      if (forcedState === true && !isCurrentlySelected) {
-        message.isSelected = true;
-        this.selectedMessagesMap.set(message._id, message);
-      } else if (forcedState === false && isCurrentlySelected) {
-        message.isSelected = false;
-        this.selectedMessagesMap.delete(message._id);
-      }
-    } else {
-      if (isCurrentlySelected) {
-        message.isSelected = false;
-        this.selectedMessagesMap.delete(message._id);
-      } else {
-        message.isSelected = true;
-        this.selectedMessagesMap.set(message._id, message);
-      }
-    }
-
-    this.updateMessageInLocalArrays(message);
-
-    if (this.selectedMessagesMap.size === 0) {
-      this.cancelSelectionMode();
-    }
-    
-    this.cdr.detectChanges();
-  }
-
-  private updateMessageInLocalArrays(updatedMessage: Message): void {
-    if(!updatedMessage._id) return;
-    
-    const msgIndex = this.messages.findIndex(m => m._id === updatedMessage._id);
-    if (msgIndex !== -1) {
-      this.messages[msgIndex].isSelected = updatedMessage.isSelected;
-    }
-    
-    const msgDividerIndex = this.messagesWithDividers.findIndex(
-      (item: any) => item.type === 'message' && item._id === updatedMessage._id
-    );
-    
-    if (msgDividerIndex !== -1) {
-      this.messagesWithDividers[msgDividerIndex].isSelected = updatedMessage.isSelected;
-    }
-    
-    this.updateMessagesWithDividers();
-  }
-
-  cancelSelectionMode(): void {
-    this.isSelectionModeActive = false;
-    
-    this.messages.forEach(msg => msg.isSelected = false);
-    this.messagesWithDividers.forEach((item: any) => {
-      if (item.type === 'message') {
-        item.isSelected = false;
-      }
-    });
-    
-    this.selectedMessagesMap.clear();
-    this.cdr.detectChanges();
-  }
-
-  getArrayOfSelectedMessages(): Message[] {
-    const selectedMessages = Array.from(this.selectedMessagesMap.values());
-    return selectedMessages.sort((a, b) => 
-      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    );
-  }
-
-  copySelectedMessages(): void {
-    const selected = this.getArrayOfSelectedMessages();
-    if (selected.length === 0) return;
-
-    const textToCopy = selected.map(msg => {
-      let prefix = "";
-      if (msg.forwarded && msg.originalSenderName) {
-        prefix += `[Forwarded from ${msg.originalSenderName}]\n`;
-      }
-      const sender = msg.senderName || (msg.senderId === this.userId ? "You" : "Other");
-      return `${prefix}${sender} [${this.formatTimestamp(msg.timestamp)}]:\n${msg.content}`;
-    }).join('\n\n');
-
-    navigator.clipboard.writeText(textToCopy)
-      .then(() => {
-        this.showToast(`${selected.length} message${selected.length > 1 ? 's' : ''} copied`);
-        this.cancelSelectionMode();
-      })
-      .catch(err => {
-        this.logger.error('Failed to copy messages:', err);
-        this.showToast('Failed to copy messages');
-      });
-  }
+  // Selection service thin wrappers
+  get isSelectionModeActive(): boolean { return this.selectionService.isActive; }
+  get selectedMessagesMap(): Map<string, Message> { return this.selectionService.selectedMessagesMap; }
+  activateSelectionMode(message: Message): void { this.selectionService.activate(message); }
+  cancelSelectionMode(): void { this.selectionService.cancel(); }
+  selectAllMessages(): void { this.selectionService.selectAll(); }
+  copySelectedMessages(): void { this.selectionService.copySelected(); }
+  canDeleteSelectedMessages(): boolean { return this.selectionService.canDeleteSelected(); }
+  deleteSelectedMessages(): Promise<void> { return this.selectionService.deleteSelected(); }
 
   forwardSelectedMessages(): void {
-    const selected = this.getArrayOfSelectedMessages();
-    if (selected.length === 0) return;
-
-    this.activeContextMenuId = null;
-    
-    if (selected.length === 1) {
-      this.messagetoForward = selected[0];
-    } else {
-      this.messagetoForward = {
-        _id: 'multiple',
-        content: `${selected.length} messages`,
-      };
-    }
-    
-    this.showForwardDialogue = true;
+    const payload = this.selectionService.getForwardPayload();
+    if (!payload) return;
+    this.messageActionsService.activeContextMenuId = null;
+    this.messageActionsService.messagetoForward = payload;
+    this.messageActionsService.showForwardDialogue = true;
     this.cdr.detectChanges();
-  }
-
-  canDeleteSelectedMessages(): boolean {
-    if (this.selectedMessagesMap.size === 0) return false;
-    
-    for (const msg of this.selectedMessagesMap.values()) {
-      const senderId = typeof msg.senderId === 'object' && msg.senderId !== null 
-        ? (msg.senderId as any)._id 
-        : msg.senderId;
-        
-      if (senderId !== this.userId) {
-        return false;
-      }
-    }
-    
-    return true;
-  }
-
-  async deleteSelectedMessages(): Promise<void> {
-    const selectedMessageIds = Array.from(this.selectedMessagesMap.keys());
-    if (selectedMessageIds.length === 0) return;
-
-    if (!this.canDeleteSelectedMessages()) {
-      this.showToast("You can only delete your own messages in bulk.");
-      return;
-    }
-
-    const confirmed = await this.confirmationService.confirm({
-        title: 'Delete Group Avatar',
-        message: `Are you sure you want to delete ${selectedMessageIds.length} message${selectedMessageIds.length > 1 ? 's' : ''}? This action cannot be undone.`,
-        confirmText: 'Delete',
-        cancelText: 'Cancel'
-    });
-
-    if (confirmed) {
-      this.chatApiService.deleteMultipleMessages(selectedMessageIds).subscribe({
-        next: (response) => {
-          this.showToast(`${response.deletedCount} message${response.deletedCount > 1 ? 's' : ''} deleted`);
-          this.messages = this.messages.filter(msg => !selectedMessageIds.includes(msg._id!));
-          this.updateMessagesWithDividers();
-          this.cancelSelectionMode();
-        },
-        error: (err) => {
-          this.logger.error("Error deleting messages", err);
-          this.showToast('Failed to delete messages');
-        }
-      });
-    }
   }
 
   onBackClick(): void {
-    if (this.isSelectionModeActive) {
-      this.cancelSelectionMode();
+    if (this.selectionService.isActive) {
+      this.selectionService.cancel();
     } else if (this.isSearchActive) {
       this.closeSearch();
     } else {
@@ -2299,52 +1780,15 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onMessageMouseDown(event: MouseEvent, message: Message): void {
-  if (!this.isSelectionModeActive) return;
-  
-  if (event.button !== 0) return;
-  
-  this.isDragging = true;
-  this.lastDraggedMessageId = message._id || null;
-  
-  event.preventDefault();
-  } 
+    this.selectionService.onMouseDown(event, message);
+  }
 
   onMessagesContainerMouseMove(event: MouseEvent): void {
-    if (!this.isDragging || !this.isSelectionModeActive) return;
-    
-    const elementsUnderCursor = document.elementsFromPoint(event.clientX, event.clientY);
-    
-    for (const element of elementsUnderCursor) {
-      const messageId = this.getMessageIdFromElement(element as HTMLElement);
-      
-      if (messageId && messageId !== this.lastDraggedMessageId) {
-        const message = this.messages.find(m => m._id === messageId);
-        
-        if (message) {
-          this.toggleMessageSelection(message);
-          this.lastDraggedMessageId = messageId;
-          break;
-        }
-      }
-    }
+    this.selectionService.onMouseMove(event);
   }
 
   onMessagesContainerMouseUp(): void {
-    this.isDragging = false;
-    this.lastDraggedMessageId = null;
-  }
-
-  private getMessageIdFromElement(element: HTMLElement): string | null {
-    let current: HTMLElement | null = element;
-    
-    while (current) {
-      if (current.id && current.id.startsWith('message-')) {
-        return current.id.substring(8); 
-      }
-      current = current.parentElement;
-    }
-    
-    return null;
+    this.selectionService.onMouseUp();
   }
 
   onMediaLoad(message: Message, event: Event): void {
@@ -2437,24 +1881,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private isChatCurrentlyOpenAndVisible(): boolean {
     return !!this.chatId;
-  }
-
-  selectAllMessages(): void {
-    if (this.messages.length === 0) return;
-    
-    this.isSelectionModeActive = true;
-    this.selectedMessagesMap.clear();
-    
-    this.messages.forEach(message => {
-      if (message._id) {
-        message.isSelected = true;
-        this.selectedMessagesMap.set(message._id, message);
-      }
-    });
-    
-    this.updateMessagesWithDividers();
-    this.cdr.detectChanges();
-    this.showToast(`Selected ${this.selectedMessagesMap.size} messages`, 2000);
   }
 
   toggleKeyboardHelp(): void {
