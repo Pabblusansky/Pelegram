@@ -625,9 +625,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
   scrollToBottom(force: boolean = false, behavior: ScrollBehavior = 'smooth'): void {
     if (!this.scrollViewport) return;
-    if (this.isScrollingProgrammatically && !force) {
-      return;
-    }
+    if (this.isScrollingProgrammatically && !force) return;
     if (this.isScrollingToBottom && !force) return;
 
     if (this.returnToMessageIdAfterQuoteJump) {
@@ -643,41 +641,29 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.isScrollingToBottom = true;
     this.clearUnreadMessagesIndicator();
 
-    const attemptScroll = (attempt = 1) => {
-        if (!this.scrollViewport) {
-            this.isScrollingToBottom = false;
-            return;
+    const el = this.scrollViewport.elementRef.nativeElement;
+    if (behavior === 'auto') {
+      el.scrollTop = el.scrollHeight;
+      this.isAtBottom = true;
+      this.isScrollingToBottom = false;
+      this.cdr.detectChanges();
+      this.triggerMarkAsRead();
+    } else {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      setTimeout(() => {
+        // Ensure we actually reached the bottom after smooth scroll
+        if (this.scrollViewport) {
+          const remaining = this.scrollViewport.measureScrollOffset('bottom');
+          if (remaining > 1) {
+            el.scrollTop = el.scrollHeight;
+          }
         }
-        
-        const dataLength = this.scrollViewport.getDataLength();
-        if (dataLength === 0) {
-            this.isAtBottom = true;
-            this.isScrollingToBottom = false;
-            return;
-        }
-
-        this.scrollViewport.scrollToIndex(dataLength - 1, (attempt === 1) ? behavior : 'auto');
-
-        setTimeout(() => {
-            if (!this.scrollViewport) {
-                this.isScrollingToBottom = false;
-                return;
-            }
-
-            const offset = this.scrollViewport.measureScrollOffset('bottom');
-            
-            if (offset > 1 && attempt < 5) {
-                attemptScroll(attempt + 1);
-            } else {
-                this.isAtBottom = true;
-                this.isScrollingToBottom = false;
-                this.cdr.detectChanges();
-                this.triggerMarkAsRead();
-            }
-        }, 100 * attempt); 
-    };
-
-    attemptScroll();
+        this.isAtBottom = true;
+        this.isScrollingToBottom = false;
+        this.cdr.detectChanges();
+        this.triggerMarkAsRead();
+      }, 400);
+    }
   }
 
   formatTimestamp(timestamp: string): string {
@@ -1307,7 +1293,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       event.preventDefault();
       if (this.scrollViewport) {
         this.isScrollingProgrammatically = true;
-        this.scrollViewport.scrollToIndex(0, 'smooth');
+        const el = this.scrollViewport.elementRef.nativeElement;
+        el.scrollTo({ top: 0, behavior: 'smooth' });
         setTimeout(() => {
           this.isScrollingProgrammatically = false;
         }, 1500);
@@ -1444,26 +1431,30 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
                 status: msg.status || 'sent'
             }));
 
+            // Capture scroll position of the anchor element before prepending
+            const anchorEl = document.getElementById('message-' + oldFirstMessageId);
+            const anchorTopBefore = anchorEl?.getBoundingClientRect().top ?? 0;
+
             this.messages = [...newMessages, ...this.messages];
             this.updateMessagesWithDividers();
-
             this.cdr.detectChanges();
 
-            if (this.scrollViewport && oldFirstMessageId) {
-              const newIndexOfOldFirstMessage = this.messagesWithDividers.findIndex((item: { _id: string; }) => item._id === oldFirstMessageId);
-              requestAnimationFrame(() => {
-                  if (this.scrollViewport && newIndexOfOldFirstMessage !== -1) {
-                      this.scrollViewport.scrollToIndex(newIndexOfOldFirstMessage, 'auto');
-                  }
-                  setTimeout(() => {
-                      this.isLoadingMore = false;
-                      this.cdr.detectChanges();
-                  }, 50);
-              });
-            } else {
-              this.isLoadingMore = false;
-              this.cdr.detectChanges();
-            }
+            // Restore scroll so the anchor element stays at the same visual position
+            requestAnimationFrame(() => {
+              const anchorElAfter = document.getElementById('message-' + oldFirstMessageId);
+              if (anchorElAfter && this.scrollViewport) {
+                const anchorTopAfter = anchorElAfter.getBoundingClientRect().top;
+                const drift = anchorTopAfter - anchorTopBefore;
+                if (Math.abs(drift) > 1) {
+                  const el = this.scrollViewport.elementRef.nativeElement;
+                  el.scrollTop += drift;
+                }
+              }
+              setTimeout(() => {
+                this.isLoadingMore = false;
+                this.cdr.detectChanges();
+              }, 50);
+            });
         },
         error: (error) => {
             this.isLoadingMore = false;
@@ -2457,15 +2448,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   private forceVirtualScrollRefresh(): void {
     if (this.scrollViewport) {
       this.scrollViewport.checkViewportSize();
-      
-      setTimeout(() => {
-        if (this.scrollViewport) {
-          this.scrollViewport.setTotalContentSize(
-            this.messagesWithDividers.length * 80
-          );
-          this.scrollViewport.checkViewportSize();
-        }
-      }, 50);
     }
   }
 
