@@ -11,6 +11,12 @@ import User from '../models/User.js';
 import { uploadGroupAvatar, getFileUrl, deleteFileFromCloudinary } from '../config/multer-config.js';
 import logger from '../config/logger.js';
 import { CHAT_POPULATE, GROUP_CHAT_POPULATE, FULL_CHAT_POPULATE, applyPopulate, populateChatParticipants, populateChatAdmin, populateChatLastMessage, populateChatPinnedMessage } from '../config/populate.js';
+import { validate } from '../middleware/validate.js';
+import {
+  createGroupSchema, addParticipantsSchema, updateGroupNameSchema,
+  createDirectChatSchema, chatIdParam, chatIdWithParticipantParam,
+  pinMessageParam, mediaQuerySchema, searchQuerySchema,
+} from '../schemas/chat.schema.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,20 +27,10 @@ export default (io: Server) => {
   const router = express.Router();
 
   // Create a new group chat
-  router.post('/group', authenticateToken, async (req: Request, res: Response) => {
+  router.post('/group', authenticateToken, validate({ body: createGroupSchema }), async (req: Request, res: Response) => {
     try {
       const { name, participants: participantIds } = req.body;
       const adminId = req.user!.id;
-
-      if (!name || name.trim() === '') {
-        res.status(400).json({ message: 'Group name is required.' });
-        return;
-      }
-
-      if (!participantIds || !Array.isArray(participantIds) || participantIds.length < 1) {
-        res.status(400).json({ message: 'At least one other participant is required to create a group.' });
-        return;
-      }
 
       const allParticipantIds = new Set([adminId.toString(), ...participantIds.map((id: any) => id.toString())]);
       const finalParticipantIds = Array.from(allParticipantIds);
@@ -141,16 +137,12 @@ export default (io: Server) => {
   });
 
   // Add participants to group
-  router.post('/:chatId/group/participants', authenticateToken, async (req: Request, res: Response) => {
+  router.post('/:chatId/group/participants', authenticateToken, validate({ body: addParticipantsSchema, params: chatIdParam }), async (req: Request, res: Response) => {
     const { chatId } = req.params;
     const { participantIds } = req.body;
     const userId = req.user!.id;
 
     try {
-      if (!participantIds || !Array.isArray(participantIds) || participantIds.length === 0) {
-        res.status(400).json({ message: 'No participants provided to add' });
-        return;
-      }
 
       const chat: any = await Chat.findById(chatId);
       if (!chat) {
@@ -245,7 +237,7 @@ export default (io: Server) => {
   });
 
   // Remove participant
-  router.delete('/:chatId/group/participants/:participantId', authenticateToken, async (req: Request, res: Response) => {
+  router.delete('/:chatId/group/participants/:participantId', authenticateToken, validate({ params: chatIdWithParticipantParam }), async (req: Request, res: Response) => {
     const { chatId, participantId } = req.params;
     const userId = req.user!.id;
     const adminUserId = req.user!.id;
@@ -499,16 +491,12 @@ export default (io: Server) => {
     }
   });
 
-  router.patch('/:chatId/group/name', authenticateToken, async (req: Request, res: Response) => {
+  router.patch('/:chatId/group/name', authenticateToken, validate({ body: updateGroupNameSchema, params: chatIdParam }), async (req: Request, res: Response) => {
     const { chatId } = req.params;
     const { name } = req.body;
     const userId = req.user!.id;
 
     try {
-      if (!name || name.trim().length < 1) {
-        res.status(400).json({ message: 'Group name cannot be empty.' });
-        return;
-      }
 
       const chat: any = await Chat.findById(chatId);
       if (!chat) {
@@ -615,7 +603,7 @@ export default (io: Server) => {
     }
   });
 
-  router.get('/:chatId/media', authenticateToken, async (req: Request, res: Response) => {
+  router.get('/:chatId/media', authenticateToken, validate({ params: chatIdParam, query: mediaQuerySchema }), async (req: Request, res: Response) => {
     const { chatId } = req.params;
     const userId = req.user!.id;
 
@@ -669,13 +657,8 @@ export default (io: Server) => {
     }
   });
 
-  router.get('/search', authenticateToken, async (req: Request, res: Response) => {
+  router.get('/search', authenticateToken, validate({ query: searchQuerySchema }), async (req: Request, res: Response) => {
     const { query } = req.query;
-
-      if (!query) {
-        res.status(400).json({ message: 'Query parameter is required' });
-        return;
-      }
 
       try {
         const users = await User.find({
@@ -689,15 +672,10 @@ export default (io: Server) => {
       }
   });
 
-  router.post('/', authenticateToken, async (req: Request, res: Response) => {
+  router.post('/', authenticateToken, validate({ body: createDirectChatSchema }), async (req: Request, res: Response) => {
     try {
       const { recipientId } = req.body;
       const initiatorId = req.user!.id;
-
-      if (!recipientId) {
-        res.status(400).json({ message: 'Recipient ID is required.' });
-        return;
-      }
       if (recipientId === initiatorId) {
         res.status(400).json({ message: 'Cannot create a chat with yourself using this endpoint. Use "Saved Messages".' });
         return;
@@ -901,7 +879,7 @@ export default (io: Server) => {
     }
   });
 
-  router.patch('/:chatId/pin/:messageId', authenticateToken, async (req: Request, res: Response) => {
+  router.patch('/:chatId/pin/:messageId', authenticateToken, validate({ params: pinMessageParam }), async (req: Request, res: Response) => {
     const { chatId, messageId } = req.params;
     const userId = req.user!.id;
 

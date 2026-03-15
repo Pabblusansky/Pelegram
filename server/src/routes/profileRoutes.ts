@@ -5,6 +5,8 @@ import { uploadAvatar, getFileUrl, deleteFileFromCloudinary } from '../config/mu
 import path from 'path';
 import fs from 'fs';
 import logger from '../config/logger.js';
+import { validate } from '../middleware/validate.js';
+import { updateProfileSchema, userIdParam } from '../schemas/profile.schema.js';
 
 const router = express.Router();
 
@@ -24,7 +26,7 @@ router.get('/me', authenticateToken, async (req: Request, res: Response) => {
   }
 });
 
-router.get('/:userId', authenticateToken, async (req: Request, res: Response) => {
+router.get('/:userId', authenticateToken, validate({ params: userIdParam }), async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.params.userId)
       .select('username displayName bio avatar lastActive');
@@ -41,7 +43,7 @@ router.get('/:userId', authenticateToken, async (req: Request, res: Response) =>
   }
 });
 
-router.patch('/me', authenticateToken, async (req: Request, res: Response) => {
+router.patch('/me', authenticateToken, validate({ body: updateProfileSchema }), async (req: Request, res: Response) => {
   try {
     const allowedUpdates = ['displayName', 'bio', 'phoneNumber', 'settings'];
     const updates: Record<string, any> = {};

@@ -17,6 +17,12 @@ const __filename_messages = fileURLToPath(import.meta.url);
 const __dirname_messages = path.dirname(__filename_messages);
 const UPLOAD_BASE_DIR = path.resolve(__dirname_messages, '../../uploads');
 import { deleteFileFromCloudinary } from '../config/multer-config.js';
+import { validate } from '../middleware/validate.js';
+import {
+  sendMessageSchema, forwardMessageSchema, forwardMultipleSchema,
+  deleteMultipleSchema, editMessageSchema, chatIdParam, messageIdParam,
+  messageForwardParam, contextParam, searchQuerySchema, messagesQuerySchema,
+} from '../schemas/message.schema.js';
 
 export default (io: Server) => {
   const router = express.Router();
@@ -37,15 +43,10 @@ export default (io: Server) => {
     }
   });
 
-  router.get('/search/:chatId', authenticateToken, async (req: Request, res: Response) => {
+  router.get('/search/:chatId', authenticateToken, validate({ params: chatIdParam, query: searchQuerySchema }), async (req: Request, res: Response) => {
     const { chatId } = req.params;
     const { query, limit = 50, page = 1 } = req.query;
     const userId = req.user!.id;
-
-    if (!query) {
-      res.status(400).json({ message: 'Search query is required' });
-      return;
-    }
 
     try {
       const chat = await Chat.findOne({ _id: chatId, participants: userId });
@@ -77,7 +78,7 @@ export default (io: Server) => {
     }
   });
 
-  router.get('/:chatId/context/:messageId', authenticateToken, async (req: Request, res: Response) => {
+  router.get('/:chatId/context/:messageId', authenticateToken, validate({ params: contextParam }), async (req: Request, res: Response) => {
     const { chatId, messageId: targetMessageId } = req.params;
     const userId = req.user!.id;
     const contextLimit = parseInt(req.query.limit as string) || 15;
@@ -136,14 +137,9 @@ export default (io: Server) => {
     }
   });
 
-  router.post('/forward-multiple', authenticateToken, async (req: Request, res: Response) => {
+  router.post('/forward-multiple', authenticateToken, validate({ body: forwardMultipleSchema }), async (req: Request, res: Response) => {
     const { messageIds, targetChatId } = req.body;
     const userId = req.user!.id;
-
-    if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0 || !targetChatId) {
-      res.status(400).json({ message: 'Invalid request data' });
-      return;
-    }
 
     try {
       const user = await User.findById(userId);
@@ -214,15 +210,10 @@ export default (io: Server) => {
     }
   });
 
-  router.delete('/delete-multiple', authenticateToken, async (req: Request, res: Response) => {
+  router.delete('/delete-multiple', authenticateToken, validate({ body: deleteMultipleSchema }), async (req: Request, res: Response) => {
   try {
     const { messageIds } = req.body;
     const userId = req.user!.id;
-
-    if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
-      res.status(400).json({ message: 'Message IDs are required as an array' });
-      return;
-    }
 
     const messagesToDelete: any[] = await Message.find({
       _id: { $in: messageIds },
@@ -311,7 +302,7 @@ export default (io: Server) => {
   }
 });
   // Forward message
-  router.post('/:messageId/forward', authenticateToken, async (req: Request, res: Response) => {
+  router.post('/:messageId/forward', authenticateToken, validate({ params: messageForwardParam, body: forwardMessageSchema }), async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
       const { messageId } = req.params;
@@ -404,13 +395,9 @@ export default (io: Server) => {
     }
   });
 
-  router.post('/', authenticateToken, async (req: Request, res: Response) => {
+  router.post('/', authenticateToken, validate({ body: sendMessageSchema }), async (req: Request, res: Response) => {
       const { chatId, content } = req.body;
 
-      if (!content) {
-          res.status(400).json({ message: 'Content is required' });
-          return;
-      }
       try {
           const sender = await User.findById(req.user!.id).select('username').lean();
           const newMessage = new Message({

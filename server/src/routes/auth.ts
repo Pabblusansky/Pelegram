@@ -11,16 +11,13 @@ import {
   hashToken,
 } from '../utils/tokenUtils.js';
 import logger from '../config/logger.js';
+import { validate } from '../middleware/validate.js';
+import { registerSchema, loginSchema, refreshSchema, logoutSchema } from '../schemas/auth.schema.js';
 
 const router = express.Router();
 
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', validate({ body: registerSchema }), async (req: Request, res: Response) => {
   const { username, email, password } = req.body;
-
-  if (!username || !email || !password) {
-    res.status(400).json({ message: 'Username, email, and password are required' });
-    return;
-  }
 
   try {
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
@@ -41,13 +38,9 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', validate({ body: loginSchema }), async (req: Request, res: Response) => {
   try {
     const { usernameOrEmail, password } = req.body;
-    if (!usernameOrEmail || !password) {
-      res.status(400).json({ message: 'Username/Email and password are required' });
-      return;
-    }
 
     const user = await User.findOne({ $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }] });
     if (!user) {
@@ -84,13 +77,9 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/refresh', async (req: Request, res: Response) => {
+router.post('/refresh', validate({ body: refreshSchema }), async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
-    if (!refreshToken || typeof refreshToken !== 'string') {
-      res.status(401).json({ message: 'Refresh token is required' });
-      return;
-    }
 
     const incomingHash = hashToken(refreshToken);
     const storedToken = await RefreshToken.findOne({ tokenHash: incomingHash });
@@ -136,14 +125,9 @@ router.post('/refresh', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/logout', async (req: Request, res: Response) => {
+router.post('/logout', validate({ body: logoutSchema }), async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
-
-    if (!refreshToken || typeof refreshToken !== 'string') {
-      res.status(400).json({ message: 'Refresh token is required' });
-      return;
-    }
 
     const tokenHash = hashToken(refreshToken);
     const storedToken = await RefreshToken.findOne({ tokenHash });
