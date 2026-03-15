@@ -345,7 +345,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         this.triggerMarkAsRead();
     }
 
-    if (offsetTop < 300 && !this.isLoadingMore && !this.noMoreMessages) {
+    if (offsetTop < 300 && !this.isLoadingMore && !this.noMoreMessages && !this.isScrollingProgrammatically) {
         const now = Date.now();
         if (now - this.lastLoadTimestamp > 250) {
             this.loadMoreDebounce.next();
@@ -1305,7 +1305,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (event.key === 'Home') {
       event.preventDefault();
-      this.scrollViewport?.scrollToIndex(0, 'smooth');
+      if (this.scrollViewport) {
+        this.isScrollingProgrammatically = true;
+        this.scrollViewport.scrollToIndex(0, 'smooth');
+        setTimeout(() => {
+          this.isScrollingProgrammatically = false;
+        }, 1500);
+      }
       return;
     }
 
