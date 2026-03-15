@@ -1,3 +1,4 @@
+import { Server, Socket } from 'socket.io';
 import User from '../models/User.js';
 import Message from '../models/Message.js';
 import Chat from '../models/Chat.js';
@@ -5,22 +6,66 @@ import logger from '../config/logger.js';
 import { CHAT_POPULATE, applyPopulate } from '../config/populate.js';
 import { validateChatMembership, isValidObjectId, sanitizeText } from '../middleware/socketAuth.js';
 import { updateUserStatus, getStatusSnapshot } from './userStatus.js';
+import type { AuthUser } from '../middleware/authenticateToken.js';
 
-export function registerSocketHandlers(io, socket) {
+interface AuthenticatedSocket extends Socket {
+  user: AuthUser;
+}
+
+interface SendMessageData {
+  chatId: string;
+  content?: string;
+  replyTo?: {
+    _id: string;
+    senderName: string;
+    content: string;
+    senderId: string;
+  };
+  fileInfo?: {
+    filePath: string;
+    fileName: string;
+    fileSize: number;
+    fileMimeType: string;
+    fileOriginalName: string;
+    thumbnailPath?: string;
+  };
+  messageType?: string;
+}
+
+interface SendMessageCallback {
+  (result: { success: boolean; message?: unknown; error?: string }): void;
+}
+
+interface TypingData {
+  chatId: string;
+  isTyping: boolean;
+}
+
+interface EditMessageData {
+  messageId: string;
+  content: string;
+}
+
+interface ToggleReactionData {
+  messageId: string;
+  reactionType: string;
+}
+
+export function registerSocketHandlers(io: Server, socket: AuthenticatedSocket): void {
   sendInitialStatus(socket);
 
   socket.on('user_activity', () => handleUserActivity(socket));
   socket.on('user_logout_attempt', () => handleLogoutAttempt(socket));
-  socket.on('send_message', (data, callback) => handleSendMessage(io, socket, data, callback));
-  socket.on('typing', (data) => handleTyping(socket, data));
-  socket.on('edit_message', (data) => handleEditMessage(io, socket, data));
-  socket.on('toggle_reaction', (data) => handleToggleReaction(io, socket, data));
+  socket.on('send_message', (data: SendMessageData, callback: SendMessageCallback) => handleSendMessage(io, socket, data, callback));
+  socket.on('typing', (data: TypingData) => handleTyping(socket, data));
+  socket.on('edit_message', (data: EditMessageData) => handleEditMessage(io, socket, data));
+  socket.on('toggle_reaction', (data: ToggleReactionData) => handleToggleReaction(io, socket, data));
   socket.on('logout', () => handleLogout(socket));
-  socket.on('join_chat', (chatId) => handleJoinChat(socket, chatId));
+  socket.on('join_chat', (chatId: string) => handleJoinChat(socket, chatId));
   socket.on('disconnect', () => handleDisconnect(socket));
 }
 
-function sendInitialStatus(socket) {
+function sendInitialStatus(socket: AuthenticatedSocket): void {
   const { userLastActive, onlineUsers } = getStatusSnapshot();
   socket.emit('user_status_update', Object.fromEntries(
     Array.from(userLastActive.entries()).map(([userId, lastActive]) => [
@@ -30,13 +75,13 @@ function sendInitialStatus(socket) {
   ));
 }
 
-function handleUserActivity(socket) {
+function handleUserActivity(socket: AuthenticatedSocket): void {
   if (socket.user && socket.user.id) {
     updateUserStatus(socket.user.id, true);
   }
 }
 
-async function handleLogoutAttempt(socket) {
+async function handleLogoutAttempt(socket: AuthenticatedSocket): Promise<void> {
   const userId = socket.user ? socket.user.id : null;
   if (!userId) return;
 
@@ -48,7 +93,7 @@ async function handleLogoutAttempt(socket) {
   }
 }
 
-async function handleSendMessage(io, socket, data, callback) {
+async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: SendMessageData, callback: SendMessageCallback): Promise<void> {
   const { chatId, replyTo, fileInfo, messageType = 'text' } = data;
   const content = sanitizeText(data.content);
   const senderId = socket.user.id;
@@ -88,7 +133,7 @@ async function handleSendMessage(io, socket, data, callback) {
       senderName: sender.username,
       content,
       status: 'sent',
-      messageType: messageType,
+      messageType,
       filePath: fileInfo ? fileInfo.filePath : null,
       fileName: fileInfo ? fileInfo.fileName : null,
       fileSize: fileInfo ? fileInfo.fileSize : null,
@@ -99,23 +144,23 @@ async function handleSendMessage(io, socket, data, callback) {
 
     if (replyTo && replyTo._id) {
       message.replyTo = {
-        _id: replyTo._id,
+        _id: replyTo._id as any,
         senderName: replyTo.senderName,
         content: replyTo.content,
-        senderId: replyTo.senderId,
+        senderId: replyTo.senderId as any,
       };
     }
 
     await message.save();
 
-    chatBeforeMessage.lastMessage = message._id;
+    chatBeforeMessage.lastMessage = message._id as any;
     chatBeforeMessage.updatedAt = new Date();
 
     if (chatBeforeMessage.participants && Array.isArray(chatBeforeMessage.unreadCounts)) {
       chatBeforeMessage.participants.forEach(participantObjectId => {
         const participantIdString = participantObjectId.toString();
         if (participantIdString !== senderId.toString()) {
-          let unreadEntry = chatBeforeMessage.unreadCounts.find(uc =>
+          const unreadEntry = chatBeforeMessage.unreadCounts.find(uc =>
             uc.userId.toString() === participantIdString
           );
 
@@ -134,7 +179,7 @@ async function handleSendMessage(io, socket, data, callback) {
     await chatBeforeMessage.save();
 
     const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
-    const messageForClient = {
+    const messageForClient: any = {
       ...message.toObject(),
       senderAvatar: sender.avatar ? `${baseUrl}${sender.avatar}` : null,
     };
@@ -147,7 +192,7 @@ async function handleSendMessage(io, socket, data, callback) {
 
     io.to(chatId).emit('receive_message', messageForClient);
 
-    const updatedChat = await applyPopulate(
+    const updatedChat: any = await applyPopulate(
       Chat.findById(chatId),
       CHAT_POPULATE
     ).lean();
@@ -162,7 +207,7 @@ async function handleSendMessage(io, socket, data, callback) {
     }
 
     if (isFirstMessageInChat && updatedChat) {
-      updatedChat.participants.forEach(participant => {
+      updatedChat.participants.forEach((participant: any) => {
         if (participant && participant._id) {
           io.to(participant._id.toString()).emit('new_chat_created', updatedChat);
         }
@@ -172,16 +217,16 @@ async function handleSendMessage(io, socket, data, callback) {
       callback({ success: true, message: messageForClient });
     }
 
-    scheduleDeliveryStatus(io, chatId, message._id, senderId);
+    scheduleDeliveryStatus(io, chatId, message._id.toString(), senderId);
   } catch (err) {
     logger.error('Error sending message:', err);
     if (typeof callback === 'function') {
-      callback({ success: false, error: err.message || 'Server error while sending message' });
+      callback({ success: false, error: (err as Error).message || 'Server error while sending message' });
     }
   }
 }
 
-async function scheduleDeliveryStatus(io, chatId, messageId, senderId) {
+async function scheduleDeliveryStatus(io: Server, chatId: string, messageId: string, senderId: string): Promise<void> {
   try {
     await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -199,7 +244,7 @@ async function scheduleDeliveryStatus(io, chatId, messageId, senderId) {
 
       if (updated) {
         io.to(chatId).emit('messageStatusUpdated', {
-          messageId: messageId,
+          messageId,
           status: 'delivered',
         });
       }
@@ -209,7 +254,7 @@ async function scheduleDeliveryStatus(io, chatId, messageId, senderId) {
   }
 }
 
-async function handleTyping(socket, data) {
+async function handleTyping(socket: AuthenticatedSocket, data: TypingData): Promise<void> {
   const { chatId, isTyping } = data;
   if (!isValidObjectId(chatId)) return;
   const senderId = socket.user.id;
@@ -218,7 +263,7 @@ async function handleTyping(socket, data) {
   socket.to(chatId).emit('typing', { chatId, senderId, isTyping: !!isTyping });
 }
 
-async function handleEditMessage(io, socket, data) {
+async function handleEditMessage(io: Server, socket: AuthenticatedSocket, data: EditMessageData): Promise<void> {
   try {
     const { messageId } = data;
     const content = sanitizeText(data.content);
@@ -250,11 +295,11 @@ async function handleEditMessage(io, socket, data) {
     socket.emit('edit_success', message);
   } catch (err) {
     logger.error('Edit message error:', err);
-    socket.emit('edit_error', { error: err.message });
+    socket.emit('edit_error', { error: (err as Error).message });
   }
 }
 
-async function handleToggleReaction(io, socket, data) {
+async function handleToggleReaction(io: Server, socket: AuthenticatedSocket, data: ToggleReactionData): Promise<void> {
   const { messageId, reactionType } = data;
 
   if (!socket.user || !socket.user.id) {
@@ -275,7 +320,7 @@ async function handleToggleReaction(io, socket, data) {
       return;
     }
 
-    const chat = await validateChatMembership(message.chatId, userId);
+    const chat = await validateChatMembership(message.chatId.toString(), userId);
     if (!chat) {
       socket.emit('reaction_error', { messageId, error: 'Not a participant of this chat.' });
       return;
@@ -296,7 +341,7 @@ async function handleToggleReaction(io, socket, data) {
         reactionChanged = true;
       }
     } else {
-      message.reactions.push({ userId, reaction: reactionType });
+      message.reactions.push({ userId: userId as any, reaction: reactionType });
       reactionChanged = true;
     }
 
@@ -313,13 +358,13 @@ async function handleToggleReaction(io, socket, data) {
   }
 }
 
-function handleLogout(socket) {
+function handleLogout(socket: AuthenticatedSocket): void {
   if (socket.user && socket.user.id) {
     updateUserStatus(socket.user.id, false);
   }
 }
 
-async function handleJoinChat(socket, chatId) {
+async function handleJoinChat(socket: AuthenticatedSocket, chatId: string): Promise<void> {
   if (!isValidObjectId(chatId)) return;
   const chat = await validateChatMembership(chatId, socket.user.id);
   if (!chat) {
@@ -329,7 +374,7 @@ async function handleJoinChat(socket, chatId) {
   socket.join(chatId);
 }
 
-function handleDisconnect(socket) {
+function handleDisconnect(socket: AuthenticatedSocket): void {
   if (socket.user && socket.user.id) {
     updateUserStatus(socket.user.id, false);
   }

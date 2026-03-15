@@ -1,6 +1,15 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model, Types } from 'mongoose';
 
-const RefreshTokenSchema = new mongoose.Schema({
+export interface IRefreshToken extends Document {
+  userId: Types.ObjectId;
+  tokenHash: string;
+  family: string;
+  used: boolean;
+  expiresAt: Date;
+  createdAt: Date;
+}
+
+const RefreshTokenSchema = new mongoose.Schema<IRefreshToken>({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -33,4 +42,5 @@ const RefreshTokenSchema = new mongoose.Schema({
 // TTL index — MongoDB auto-deletes expired documents
 RefreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-export default mongoose.model('RefreshToken', RefreshTokenSchema);
+const RefreshToken: Model<IRefreshToken> = mongoose.model<IRefreshToken>('RefreshToken', RefreshTokenSchema);
+export default RefreshToken;

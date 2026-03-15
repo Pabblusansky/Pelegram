@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
 import RefreshToken from '../models/RefreshToken.js';
@@ -14,45 +14,51 @@ import logger from '../config/logger.js';
 
 const router = express.Router();
 
-router.post('/register', async (req, res) => {
+router.post('/register', async (req: Request, res: Response) => {
   const { username, email, password } = req.body;
 
   if (!username || !email || !password) {
-    return res.status(400).json({ message: 'Username, email, and password are required' });
+    res.status(400).json({ message: 'Username, email, and password are required' });
+    return;
   }
 
   try {
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+      res.status(400).json({ message: 'User already exists' });
+      return;
     }
     const newUser = new User({ username, email, password });
 
     await newUser.save();
     res.status(201).json({ message: 'User registered successfully' });
-  } catch (error) {
+  } catch (error: any) {
     if (error.code === 11000) {
-      return res.status(400).json({ message: 'Username or email already exists' });
+      res.status(400).json({ message: 'Username or email already exists' });
+      return;
     }
     res.status(500).json({ message: 'Internal server error' });
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', async (req: Request, res: Response) => {
   try {
     const { usernameOrEmail, password } = req.body;
     if (!usernameOrEmail || !password) {
-      return res.status(400).json({ message: 'Username/Email and password are required' });
+      res.status(400).json({ message: 'Username/Email and password are required' });
+      return;
     }
 
     const user = await User.findOne({ $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }] });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid username/password credentials' });
+      res.status(400).json({ message: 'Invalid username/password credentials' });
+      return;
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ message: 'Invalid username/password credentials' });
+      res.status(400).json({ message: 'Invalid username/password credentials' });
+      return;
     }
 
     const accessToken = generateAccessToken(user._id.toString());
@@ -66,7 +72,7 @@ router.post('/login', async (req, res) => {
       expiresAt: getRefreshTokenExpiresAt(),
     });
 
-    return res.json({
+    res.json({
       accessToken,
       refreshToken: rawToken,
       userId: user._id.toString(),
@@ -78,38 +84,38 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken || typeof refreshToken !== 'string') {
-      return res.status(401).json({ message: 'Refresh token is required' });
+      res.status(401).json({ message: 'Refresh token is required' });
+      return;
     }
 
     const incomingHash = hashToken(refreshToken);
     const storedToken = await RefreshToken.findOne({ tokenHash: incomingHash });
 
     if (!storedToken) {
-      return res.status(401).json({ message: 'Invalid refresh token' });
+      res.status(401).json({ message: 'Invalid refresh token' });
+      return;
     }
 
-    // Theft detection: token was already used — invalidate entire family
     if (storedToken.used) {
       logger.warn(`Refresh token reuse detected for family ${storedToken.family}, user ${storedToken.userId}. Invalidating family.`);
       await RefreshToken.deleteMany({ family: storedToken.family });
-      return res.status(401).json({ message: 'Refresh token reuse detected. Please log in again.' });
+      res.status(401).json({ message: 'Refresh token reuse detected. Please log in again.' });
+      return;
     }
 
-    // Check expiration (don't rely solely on TTL index)
     if (storedToken.expiresAt < new Date()) {
       await RefreshToken.deleteOne({ _id: storedToken._id });
-      return res.status(401).json({ message: 'Refresh token expired' });
+      res.status(401).json({ message: 'Refresh token expired' });
+      return;
     }
 
-    // Mark current token as used
     storedToken.used = true;
     await storedToken.save();
 
-    // Issue new token pair
     const newAccessToken = generateAccessToken(storedToken.userId.toString());
     const { rawToken: newRawToken, tokenHash: newHash } = generateRefreshToken();
 
@@ -120,7 +126,7 @@ router.post('/refresh', async (req, res) => {
       expiresAt: getRefreshTokenExpiresAt(),
     });
 
-    return res.json({
+    res.json({
       accessToken: newAccessToken,
       refreshToken: newRawToken,
     });
@@ -130,31 +136,31 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
-router.post('/logout', async (req, res) => {
+router.post('/logout', async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
 
     if (!refreshToken || typeof refreshToken !== 'string') {
-      return res.status(400).json({ message: 'Refresh token is required' });
+      res.status(400).json({ message: 'Refresh token is required' });
+      return;
     }
 
     const tokenHash = hashToken(refreshToken);
     const storedToken = await RefreshToken.findOne({ tokenHash });
 
     if (storedToken) {
-      // Delete the entire token family to invalidate all rotated tokens in this session
       await RefreshToken.deleteMany({ family: storedToken.family });
     }
 
-    return res.json({ message: 'Logged out successfully' });
+    res.json({ message: 'Logged out successfully' });
   } catch (error) {
     logger.error('Error during logout:', error);
     res.status(500).json({ message: 'Error logging out' });
   }
 });
 
-router.get('/protected', authenticateToken, (req, res) => {
-  res.json({ message: `Hello, user ${req.user.id}` });
+router.get('/protected', authenticateToken, (req: Request, res: Response) => {
+  res.json({ message: `Hello, user ${req.user!.id}` });
 });
 
 export { router as authRoutes };

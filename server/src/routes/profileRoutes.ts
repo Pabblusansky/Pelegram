@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import User from '../models/User.js';
 import authenticateToken from '../middleware/authenticateToken.js';
 import { uploadAvatar, getFileUrl, deleteFileFromCloudinary } from '../config/multer-config.js';
@@ -8,14 +8,15 @@ import logger from '../config/logger.js';
 
 const router = express.Router();
 
-router.get('/me', authenticateToken, async (req, res) => {
+router.get('/me', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
-    
+    const user = await User.findById(req.user!.id).select('-password');
+
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ message: 'User not found' });
+      return;
     }
-    
+
     res.json(user);
   } catch (err) {
     logger.error('Error fetching profile:', err);
@@ -23,15 +24,16 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
-router.get('/:userId', authenticateToken, async (req, res) => {
+router.get('/:userId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.params.userId)
       .select('username displayName bio avatar lastActive');
-    
+
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ message: 'User not found' });
+      return;
     }
-    
+
     res.json(user);
   } catch (err) {
     logger.error('Error fetching user profile:', err);
@@ -39,16 +41,16 @@ router.get('/:userId', authenticateToken, async (req, res) => {
   }
 });
 
-// Profile update
-router.patch('/me', authenticateToken, async (req, res) => {
+router.patch('/me', authenticateToken, async (req: Request, res: Response) => {
   try {
     const allowedUpdates = ['displayName', 'bio', 'phoneNumber', 'settings'];
-    const updates = {};
-    const validationErrors = {};
+    const updates: Record<string, any> = {};
+    const validationErrors: Record<string, string> = {};
 
-    const currentUserData = await User.findById(req.user.id);
+    const currentUserData = await User.findById(req.user!.id);
     if (!currentUserData) {
-      return res.status(404).json({ message: 'User not found for update' });
+      res.status(404).json({ message: 'User not found for update' });
+      return;
     }
 
     Object.keys(req.body).forEach(key => {
@@ -64,7 +66,7 @@ router.patch('/me', authenticateToken, async (req, res) => {
               } else {
                 updates[key] = value;
               }
-            } else if (value === '') { 
+            } else if (value === '') {
               updates[key] = null;
             }
             break;
@@ -73,7 +75,7 @@ router.patch('/me', authenticateToken, async (req, res) => {
             if (typeof value === 'object' && value !== null) {
               updates.settings = { ...(currentUserData.settings || {}) };
 
-              if (value.hasOwnProperty('theme')) {
+              if (Object.prototype.hasOwnProperty.call(value, 'theme')) {
                 const validThemes = ['light', 'dark', 'system'];
                 if (!validThemes.includes(value.theme)) {
                   validationErrors['settings.theme'] = 'Invalid theme value.';
@@ -81,49 +83,49 @@ router.patch('/me', authenticateToken, async (req, res) => {
                   updates.settings.theme = value.theme;
                 }
               }
-              if (value.hasOwnProperty('notifications')) {
+              if (Object.prototype.hasOwnProperty.call(value, 'notifications')) {
                 if (typeof value.notifications !== 'boolean') {
-                    validationErrors['settings.notifications'] = 'Notifications value must be a boolean.';
+                  validationErrors['settings.notifications'] = 'Notifications value must be a boolean.';
                 } else {
-                    updates.settings.notifications = value.notifications;
+                  updates.settings.notifications = value.notifications;
                 }
               }
-              if (value.hasOwnProperty('soundEnabled')) {
-                 if (typeof value.soundEnabled !== 'boolean') {
-                    validationErrors['settings.soundEnabled'] = 'Sound enabled value must be a boolean.';
+              if (Object.prototype.hasOwnProperty.call(value, 'soundEnabled')) {
+                if (typeof value.soundEnabled !== 'boolean') {
+                  validationErrors['settings.soundEnabled'] = 'Sound enabled value must be a boolean.';
                 } else {
-                    updates.settings.soundEnabled = value.soundEnabled;
+                  updates.settings.soundEnabled = value.soundEnabled;
                 }
               }
             } else if (value !== undefined) {
-                validationErrors[key] = 'Settings must be an object.';
+              validationErrors[key] = 'Settings must be an object.';
             }
             break;
 
           case 'displayName':
-            if (value != null) { 
-                const trimmedName = String(value).trim(); 
-                if (trimmedName.length === 0 && String(value).length > 0) {
-                    validationErrors[key] = 'Display name cannot consist only of spaces.';
-                } else if (trimmedName.length > 0 && trimmedName.length > 50) {
-                    validationErrors[key] = 'Display name cannot exceed 50 characters.';
-                } else if (trimmedName.length === 0 && currentUserData.displayName && String(value) === '') {
-                    updates[key] = '';
-                } else if (trimmedName.length > 0) {
-                    updates[key] = trimmedName;
-                } else if (String(value) === '') { 
-                    updates[key] = '';
-                }
+            if (value != null) {
+              const trimmedName = String(value).trim();
+              if (trimmedName.length === 0 && String(value).length > 0) {
+                validationErrors[key] = 'Display name cannot consist only of spaces.';
+              } else if (trimmedName.length > 0 && trimmedName.length > 50) {
+                validationErrors[key] = 'Display name cannot exceed 50 characters.';
+              } else if (trimmedName.length === 0 && currentUserData.displayName && String(value) === '') {
+                updates[key] = '';
+              } else if (trimmedName.length > 0) {
+                updates[key] = trimmedName;
+              } else if (String(value) === '') {
+                updates[key] = '';
+              }
             }
             break;
 
           case 'bio':
             if (value != null) {
-                if (String(value).length > 250) {
-                    validationErrors[key] = 'Bio cannot exceed 250 characters.';
-                } else {
-                    updates[key] = String(value); 
-                }
+              if (String(value).length > 250) {
+                validationErrors[key] = 'Bio cannot exceed 250 characters.';
+              } else {
+                updates[key] = String(value);
+              }
             }
             break;
 
@@ -135,65 +137,70 @@ router.patch('/me', authenticateToken, async (req, res) => {
     });
 
     if (Object.keys(validationErrors).length > 0) {
-      return res.status(400).json({ errors: validationErrors });
+      res.status(400).json({ errors: validationErrors });
+      return;
     }
 
     if (Object.keys(updates).length === 0) {
-      const userToReturn = await User.findById(req.user.id).select('-password');
-      return res.json(userToReturn);
+      const userToReturn = await User.findById(req.user!.id).select('-password');
+      res.json(userToReturn);
+      return;
     }
 
     updates.updatedAt = new Date();
 
     const updatedUser = await User.findByIdAndUpdate(
-      req.user.id,
+      req.user!.id,
       { $set: updates },
       { new: true, runValidators: true }
     ).select('-password');
 
     if (!updatedUser) {
-      return res.status(404).json({ message: 'User not found during final update step' });
+      res.status(404).json({ message: 'User not found during final update step' });
+      return;
     }
 
     res.json(updatedUser);
-
-  } catch (err) {
+  } catch (err: any) {
     logger.error('Error updating profile:', err);
-    if (err.name === 'ValidationError')  {
-      const errors = {};
+    if (err.name === 'ValidationError') {
+      const errors: Record<string, string> = {};
       for (const field in err.errors) {
         errors[field] = err.errors[field].message;
       }
-      return res.status(400).json({ errors });
+      res.status(400).json({ errors });
+      return;
     }
     res.status(500).json({ message: 'Server error' });
   }
 });
-  
-router.post('/avatar', authenticateToken, uploadAvatar.single('avatar'), async (req, res) => {
+
+router.post('/avatar', authenticateToken, uploadAvatar.single('avatar'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
+      res.status(400).json({ message: 'No file uploaded' });
+      return;
     }
-    
+
     const avatarUrl = getFileUrl(req.file);
-    
-    const user = await User.findById(req.user.id);
-    
+
+    const user = await User.findById(req.user!.id);
+
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ message: 'User not found' });
+      return;
     }
-    
+
     const oldAvatarUrl = user.avatar;
-    
+
     user.avatar = avatarUrl;
     user.updatedAt = new Date();
     await user.save();
-    
+
     if (oldAvatarUrl && oldAvatarUrl !== avatarUrl) {
       if (process.env.NODE_ENV !== 'production') {
         const oldAvatarPath = path.join(process.cwd(), oldAvatarUrl);
-        
+
         fs.access(oldAvatarPath, fs.constants.F_OK, (err) => {
           if (!err) {
             fs.unlink(oldAvatarPath, (unlinkErr) => {
@@ -207,11 +214,18 @@ router.post('/avatar', authenticateToken, uploadAvatar.single('avatar'), async (
         await deleteFileFromCloudinary(oldAvatarUrl);
       }
     }
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       avatar: avatarUrl,
-      user: user.toObject({ virtuals: true, versionKey: false, transform: (doc, ret) => { delete ret.password; return ret; }})
+      user: user.toObject({
+        virtuals: true,
+        versionKey: false,
+        transform: (_doc: any, ret: any) => {
+          delete ret.password;
+          return ret;
+        },
+      }),
     });
   } catch (err) {
     logger.error('Error uploading avatar:', err);
@@ -219,16 +233,17 @@ router.post('/avatar', authenticateToken, uploadAvatar.single('avatar'), async (
   }
 });
 
-router.delete('/avatar', authenticateToken, async (req, res) => {
+router.delete('/avatar', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user!.id);
     if (!user || !user.avatar) {
-      return res.status(400).json({ message: 'User does not have an avatar to delete' });
+      res.status(400).json({ message: 'User does not have an avatar to delete' });
+      return;
     }
 
     const avatarToDelete = user.avatar;
-    
-    user.avatar = null;
+
+    user.avatar = undefined;
     user.updatedAt = new Date();
     await user.save();
 
@@ -241,13 +256,12 @@ router.delete('/avatar', authenticateToken, async (req, res) => {
       await deleteFileFromCloudinary(avatarToDelete);
     }
 
-    const updatedUser = await User.findById(req.user.id).select('-password');
-    res.json({ 
-      success: true, 
+    const updatedUser = await User.findById(req.user!.id).select('-password');
+    res.json({
+      success: true,
       message: 'Avatar deleted successfully',
-      user: updatedUser
+      user: updatedUser,
     });
-
   } catch (err) {
     logger.error('Error deleting avatar:', err);
     res.status(500).json({ message: 'Server error while deleting avatar' });

@@ -1,48 +1,49 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
+import { Server } from 'socket.io';
 import Message from '../models/Message.js';
 import Chat from '../models/Chat.js';
 import User from '../models/User.js';
 import authenticateToken from '../middleware/authenticateToken.js';
-import { uploadMedia, getFileUrl } from '../config/multer-config.js';
-import { deleteFileFromCloudinary } from '../config/multer-config.js';
+import { uploadMedia, getFileUrl, deleteFileFromCloudinary } from '../config/multer-config.js';
 import logger from '../config/logger.js';
 import { MESSAGE_POPULATE, CHAT_POPULATE, applyPopulate } from '../config/populate.js';
 
-export default (io) => {
+export default (io: Server) => {
   const router = express.Router();
 
-  router.post('/upload/chat/:chatId', authenticateToken, uploadMedia.single('mediaFile'), async (req, res) => {
+  router.post('/upload/chat/:chatId', authenticateToken, uploadMedia.single('mediaFile'), async (req: Request, res: Response) => {
     if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded, or file was rejected by filter/size limit.' });
+      res.status(400).json({ message: 'No file uploaded, or file was rejected by filter/size limit.' });
+      return;
     }
 
     try {
       const { chatId } = req.params;
       const { messageType = 'file', caption = '' } = req.body;
       const duration = req.body.duration ? parseFloat(req.body.duration) : 0;
-      const userId = req.user.id;
-      let replyToInput = req.body.replyTo;
+      const userId = req.user!.id;
+      const replyToInput = req.body.replyTo;
 
-      let replyToData = null;
+      let replyToData: any = null;
 
       if (replyToInput) {
         try {
           const parsedReplyTo = JSON.parse(replyToInput);
 
           if (parsedReplyTo && parsedReplyTo._id) {
-            const originalRepliedMessage = await Message.findById(parsedReplyTo._id)
-            .select('_id content senderId senderName messageType filePatch')
-            .populate('senderId', 'username')
-            .lean();
+            const originalRepliedMessage: any = await Message.findById(parsedReplyTo._id)
+              .select('_id content senderId senderName messageType filePatch')
+              .populate('senderId', 'username')
+              .lean();
             if (originalRepliedMessage) {
               replyToData = {
                 _id: originalRepliedMessage._id,
                 content: originalRepliedMessage.content,
                 senderId: originalRepliedMessage.senderId ? originalRepliedMessage.senderId._id : null,
-                senderName: originalRepliedMessage.senderId ? 
-                  originalRepliedMessage.senderId.username : 
-                  originalRepliedMessage.senderName || 'Unknown User',
-                messageType: originalRepliedMessage.messageType
+                senderName: originalRepliedMessage.senderId
+                  ? originalRepliedMessage.senderId.username
+                  : originalRepliedMessage.senderName || 'Unknown User',
+                messageType: originalRepliedMessage.messageType,
               };
             }
           }
@@ -52,7 +53,7 @@ export default (io) => {
       }
 
       const user = await User.findById(userId);
-      const senderName = user ? (user.name || user.username) : 'Unknown User';
+      const senderName = user ? (user.displayName || user.username) : 'Unknown User';
 
       let determinedMessageType = messageType;
       if (!messageType || messageType === 'file') {
@@ -73,17 +74,11 @@ export default (io) => {
       } else {
         switch (determinedMessageType) {
           case 'image':
-            messageContent = '';
-            break;
           case 'video':
-            messageContent = '';
-            break;
           case 'audio':
             messageContent = '';
             break;
           case 'file':
-            messageContent = req.file.originalname;
-            break;
           default:
             messageContent = req.file.originalname;
         }
@@ -92,9 +87,9 @@ export default (io) => {
       const fileUrl = getFileUrl(req.file);
 
       const newMessage = new Message({
-        chatId: chatId,
+        chatId,
         senderId: userId,
-        senderName: senderName,
+        senderName,
         messageType: determinedMessageType,
         content: messageContent,
         filePath: fileUrl,
@@ -103,7 +98,7 @@ export default (io) => {
         fileSize: req.file.size,
         status: 'sent',
         replyTo: replyToData,
-        duration: duration
+        duration,
       });
 
       const savedMessage = await newMessage.save();
@@ -130,7 +125,7 @@ export default (io) => {
       (async () => {
         try {
           await new Promise(resolve => setTimeout(resolve, 500));
-          
+
           const chat = await Chat.findById(chatId).lean();
           if (!chat) return;
 
@@ -146,7 +141,7 @@ export default (io) => {
             if (updated) {
               io.to(chatId.toString()).emit('messageStatusUpdated', {
                 messageId: savedMessage._id,
-                status: 'delivered'
+                status: 'delivered',
               });
             }
           }
@@ -154,29 +149,29 @@ export default (io) => {
           logger.error(`Error updating file message status for ${savedMessage._id}:`, err);
         }
       })();
-      
-      res.status(201).json({ message: 'File uploaded successfully', savedMessage: populatedMessageForSocket });
 
-    } catch (error) {
-      logger.error('Error processing uploaded file in chat', req.params.chatId, 'by user', req.user.id, ':', error);
-      
+      res.status(201).json({ message: 'File uploaded successfully', savedMessage: populatedMessageForSocket });
+    } catch (error: any) {
+      logger.error('Error processing uploaded file in chat', req.params.chatId, 'by user', req.user!.id, ':', error);
+
       if (req.file) {
         if (process.env.NODE_ENV === 'production') {
           await deleteFileFromCloudinary(req.file.path);
         } else {
           try {
             const fs = await import('fs');
-            if (req.file.path && fs.default.existsSync(req.file.path)) {
-              fs.default.unlinkSync(req.file.path);
+            if (req.file!.path && fs.default.existsSync(req.file!.path)) {
+              fs.default.unlinkSync(req.file!.path);
             }
           } catch (e) {
-            logger.error("Error deleting file after DB error:", e);
+            logger.error('Error deleting file after DB error:', e);
           }
         }
       }
-      
+
       if (error.message && error.message.includes('Unsupported file type')) {
-        return res.status(400).json({ message: error.message });
+        res.status(400).json({ message: error.message });
+        return;
       }
       res.status(500).json({ message: 'Server error while processing file.' });
     }

@@ -10,48 +10,53 @@ import fs from 'fs';
 import path from 'path';
 
 import { fileURLToPath } from 'url';
+import { Server } from 'socket.io';
+import { Request, Response } from 'express';
+
 const __filename_messages = fileURLToPath(import.meta.url);
 const __dirname_messages = path.dirname(__filename_messages);
-const UPLOAD_BASE_DIR = path.resolve(__dirname_messages, '../uploads'); 
+const UPLOAD_BASE_DIR = path.resolve(__dirname_messages, '../../uploads');
 import { deleteFileFromCloudinary } from '../config/multer-config.js';
 
-export default (io) => {
+export default (io: Server) => {
   const router = express.Router();
 
     // Endpoint to get available chats for the user
-  router.get('/available-for-forward', authenticateToken, async (req, res) => {
+  router.get('/available-for-forward', authenticateToken, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.id;
-      
+      const userId = req.user!.id;
+
       const chats = await applyPopulate(
         Chat.find({ participants: userId }), CHAT_POPULATE
       ).sort({ updatedAt: -1 });
-      
+
       res.json(chats);
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error fetching available chats:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
 
-  router.get('/search/:chatId', authenticateToken, async (req, res) => {
+  router.get('/search/:chatId', authenticateToken, async (req: Request, res: Response) => {
     const { chatId } = req.params;
     const { query, limit = 50, page = 1 } = req.query;
-    const userId = req.user.id;
+    const userId = req.user!.id;
 
     if (!query) {
-      return res.status(400).json({ message: 'Search query is required' });
+      res.status(400).json({ message: 'Search query is required' });
+      return;
     }
 
     try {
       const chat = await Chat.findOne({ _id: chatId, participants: userId });
       if (!chat) {
-        return res.status(403).json({ message: 'Access denied to this chat or chat not found' });
+        res.status(403).json({ message: 'Access denied to this chat or chat not found' });
+        return;
       }
 
-      const searchRegex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); // 'i' for case-insensitive
+      const searchRegex = new RegExp((query as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); // 'i' for case-insensitive
 
-      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
 
       const messages = await applyPopulate(
         Message.find({
@@ -60,37 +65,39 @@ export default (io) => {
         })
         .sort({ timestamp: -1 })
         .skip(skip)
-        .limit(parseInt(limit)),
+        .limit(parseInt(limit as string)),
         MESSAGE_POPULATE
       ).lean();
 
       res.json(messages);
 
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error searching messages:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
 
-  router.get('/:chatId/context/:messageId', authenticateToken, async (req, res) => {
+  router.get('/:chatId/context/:messageId', authenticateToken, async (req: Request, res: Response) => {
     const { chatId, messageId: targetMessageId } = req.params;
-    const userId = req.user.id;
-    const contextLimit = parseInt(req.query.limit) || 15; 
+    const userId = req.user!.id;
+    const contextLimit = parseInt(req.query.limit as string) || 15;
 
     try {
       const chat = await Chat.findOne({ _id: chatId, participants: userId });
       if (!chat) {
-        return res.status(403).json({ message: 'Access denied or chat not found' });
+        res.status(403).json({ message: 'Access denied or chat not found' });
+        return;
       }
 
-      const targetMessage = await Message.findById(targetMessageId).lean();
+      const targetMessage: any = await Message.findById(targetMessageId).lean();
       if (!targetMessage) {
-        return res.status(404).json({ message: 'Target message not found' });
+        res.status(404).json({ message: 'Target message not found' });
+        return;
       }
 
       const targetTimestamp = targetMessage.createdAt || targetMessage.timestamp;
 
-      const messagesBefore = await applyPopulate(
+      const messagesBefore: any[] = await applyPopulate(
         Message.find({
           chatId: chatId,
           createdAt: { $lt: targetTimestamp }
@@ -100,7 +107,7 @@ export default (io) => {
         MESSAGE_POPULATE
       ).lean();
 
-      const messagesAfterAndTarget = await applyPopulate(
+      const messagesAfterAndTarget: any[] = await applyPopulate(
         Message.find({
           chatId: chatId,
           createdAt: { $gte: targetTimestamp }
@@ -115,35 +122,37 @@ export default (io) => {
         ...messagesBefore.reverse(),
         ...messagesAfterAndTarget
       ];
-      
+
       const uniqueMessages = Array.from(new Map(combinedMessages.map(msg => [msg._id.toString(), msg])).values());
-      
+
       // Sort by createdAt or timestamp to maintain chronological order
-      uniqueMessages.sort((a, b) => new Date(a.createdAt || a.timestamp) - new Date(b.createdAt || b.timestamp));
+      uniqueMessages.sort((a: any, b: any) => new Date(a.createdAt || a.timestamp).getTime() - new Date(b.createdAt || b.timestamp).getTime());
 
       res.json(uniqueMessages);
 
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error fetching message context:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
 
-  router.post('/forward-multiple', authenticateToken, async (req, res) => {
+  router.post('/forward-multiple', authenticateToken, async (req: Request, res: Response) => {
     const { messageIds, targetChatId } = req.body;
-    const userId = req.user.id;
+    const userId = req.user!.id;
 
     if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0 || !targetChatId) {
-      return res.status(400).json({ message: 'Invalid request data' });
+      res.status(400).json({ message: 'Invalid request data' });
+      return;
     }
 
     try {
       const user = await User.findById(userId);
-      const senderName = user ? (user.name || user.username) : 'Unknown User';
+      const senderName = user ? (user.displayName || user.username) : 'Unknown User';
 
-      const targetChat = await Chat.findById(targetChatId);
+      const targetChat: any = await Chat.findById(targetChatId);
       if (!targetChat || !targetChat.participants.includes(userId)) {
-        return res.status(403).json({ message: 'Access denied to target chat' });
+        res.status(403).json({ message: 'Access denied to target chat' });
+        return;
       }
 
       const originalMessages = await Message.find({ _id: { $in: messageIds } }).sort({ timestamp: 1 });
@@ -151,8 +160,8 @@ export default (io) => {
       if (originalMessages.length !== messageIds.length) {
         logger.warn('Not all messages for multiple forward were found or accessible.');
       }
-      
-      const forwardedMessagesData = [];
+
+      const forwardedMessagesData: any[] = [];
       for (const originalMessage of originalMessages) {
 
         forwardedMessagesData.push({
@@ -171,7 +180,8 @@ export default (io) => {
       }
 
       if (forwardedMessagesData.length === 0) {
-        return res.status(404).json({ message: 'No messages were forwarded.' });
+        res.status(404).json({ message: 'No messages were forwarded.' });
+        return;
       }
 
       const savedNewMessages = await Message.insertMany(forwardedMessagesData);
@@ -184,7 +194,7 @@ export default (io) => {
         const updatedTargetChatForEmit = await applyPopulate(
           Chat.findById(targetChatId), CHAT_POPULATE
         );
-        
+
         if (updatedTargetChatForEmit) {
             io.to(targetChatId).emit('chat_updated', updatedTargetChatForEmit);
         }
@@ -198,22 +208,23 @@ export default (io) => {
       }
       res.status(201).json({ message: `${savedNewMessages.length} messages forwarded.` });
 
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error forwarding multiple messages:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
-  
-  router.delete('/delete-multiple', authenticateToken, async (req, res) => {
+
+  router.delete('/delete-multiple', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { messageIds } = req.body;
-    const userId = req.user.id;
+    const userId = req.user!.id;
 
     if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
-      return res.status(400).json({ message: 'Message IDs are required as an array' });
+      res.status(400).json({ message: 'Message IDs are required as an array' });
+      return;
     }
 
-    const messagesToDelete = await Message.find({
+    const messagesToDelete: any[] = await Message.find({
       _id: { $in: messageIds },
       senderId: userId
     }).select('_id chatId filePath').lean();
@@ -222,7 +233,8 @@ export default (io) => {
     const chatIdsAffected = [...new Set(messagesToDelete.map(m => m.chatId.toString()))];
 
     if (deletableMessageIds.length === 0) {
-      return res.status(403).json({ message: 'No messages found that you can delete or messages do not exist.' });
+      res.status(403).json({ message: 'No messages found that you can delete or messages do not exist.' });
+      return;
     }
 
     for (const message of messagesToDelete) {
@@ -256,21 +268,21 @@ export default (io) => {
 
     const result = await Message.deleteMany({ _id: { $in: deletableMessageIds } });
     logger.info(`Deleted ${result.deletedCount} messages`);
-    
+
     // Update affected chats
     for (const chatId of chatIdsAffected) {
       const lastMsg = await Message.findOne({ chatId }).sort({ timestamp: -1 });
-      
-      const updateData = {
+
+      const updateData: any = {
         updatedAt: new Date()
       };
-      
+
       if (lastMsg) {
         updateData.lastMessage = lastMsg._id;
       } else {
         updateData.lastMessage = null;
       }
-      
+
       const updatedChat = await applyPopulate(
         Chat.findByIdAndUpdate(
           chatId,
@@ -283,7 +295,7 @@ export default (io) => {
       if (updatedChat) {
         io.to(chatId.toString()).emit('chat_updated', updatedChat);
       }
-      
+
       deletableMessageIds.forEach(deletedId => {
         const originalMessage = messagesToDelete.find(m => m._id.toString() === deletedId.toString());
         if (originalMessage && originalMessage.chatId.toString() === chatId) {
@@ -293,29 +305,31 @@ export default (io) => {
     }
 
     res.json({ message: `${result.deletedCount} messages deleted.`, deletedCount: result.deletedCount });
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error deleting multiple messages:', error);
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 });
   // Forward message
-  router.post('/:messageId/forward', authenticateToken, async (req, res) => {
+  router.post('/:messageId/forward', authenticateToken, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user!.id;
       const { messageId } = req.params;
       const { targetChatId } = req.body;
 
       const user = await User.findById(userId);
-      const senderName = user ? (user.name || user.username) : 'Unknown User';
+      const senderName = user ? (user.displayName || user.username) : 'Unknown User';
 
-      const originalMessage = await Message.findById(messageId);
+      const originalMessage: any = await Message.findById(messageId);
       if (!originalMessage) {
-        return res.status(404).json({ message: 'Message not found' });
+        res.status(404).json({ message: 'Message not found' });
+        return;
       }
 
       const chatForValidation = await Chat.findOne({ _id: targetChatId, participants: userId });
       if (!chatForValidation) {
-        return res.status(403).json({ message: 'Access denied to target chat' });
+        res.status(403).json({ message: 'Access denied to target chat' });
+        return;
       }
 
       const forwardedMessage = new Message({
@@ -347,7 +361,7 @@ export default (io) => {
       const updatedTargetChat = await applyPopulate(
         Chat.findById(targetChatId), CHAT_POPULATE
       );
-      
+
       if (updatedTargetChat) {
         io.to(targetChatId).emit('chat_updated', updatedTargetChat);
       }
@@ -355,25 +369,25 @@ export default (io) => {
       const populatedSavedMessage = await applyPopulate(
         Message.findById(savedMessage._id), MESSAGE_POPULATE
       ).lean();
-      
+
       io.to(targetChatId).emit('receive_message', populatedSavedMessage);
 
       (async () => {
         try {
-          const currentTargetChat = await Chat.findById(targetChatId).lean();
+          const currentTargetChat: any = await Chat.findById(targetChatId).lean();
           if (!currentTargetChat) return;
 
-          const recipients = currentTargetChat.participants.filter(p_id => p_id.toString() !== userId.toString());
+          const recipients = currentTargetChat.participants.filter((p_id: any) => p_id.toString() !== userId.toString());
 
           if (recipients.length > 0) {
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             const updatedMsg = await Message.findByIdAndUpdate(savedMessage._id, { status: 'delivered' }, { new: true });
-            
+
             if (updatedMsg) {
-              io.to(targetChatId).emit('messageStatusUpdated', { 
-                  messageId: savedMessage._id, 
-                  status: 'delivered' 
+              io.to(targetChatId).emit('messageStatusUpdated', {
+                  messageId: savedMessage._id,
+                  status: 'delivered'
               });
             }
           }
@@ -384,23 +398,25 @@ export default (io) => {
 
       res.status(201).json(savedMessage);
 
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error forwarding message:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
 
-  router.post('/', authenticateToken, async (req, res) => {
+  router.post('/', authenticateToken, async (req: Request, res: Response) => {
       const { chatId, content } = req.body;
 
       if (!content) {
-          return res.status(400).json({ message: 'Content is required' });
+          res.status(400).json({ message: 'Content is required' });
+          return;
       }
       try {
-          const newMessage = new Message({ 
+          const sender = await User.findById(req.user!.id).select('username').lean();
+          const newMessage = new Message({
               chatId,
-              senderId: req.user.id,
-              senderName: req.user.name,
+              senderId: req.user!.id,
+              senderName: sender?.username || 'Unknown User',
               content,
               status: 'sent',
           });
@@ -412,20 +428,20 @@ export default (io) => {
               updatedAt: Date.now(),
           });
 
-          res.status(201).json(newMessage); } catch (error) {
+          res.status(201).json(newMessage); } catch (error: any) {
               res.status(500).json({ message: 'Failed sending message' });
           }
   });
 
-  router.get('/:chatId', authenticateToken, async (req, res) => {
+  router.get('/:chatId', authenticateToken, async (req: Request, res: Response) => {
     const { chatId } = req.params;
     const { before, limit = 30 } = req.query;
 
     try {
-        let query = { chatId };
+        let query: any = { chatId };
 
       if (before) {
-        const beforeMessage = await Message.findById(before);
+        const beforeMessage: any = await Message.findById(before);
         if (beforeMessage) {
           query.createdAt = { $lt: new Date(beforeMessage.createdAt) };
         } else {
@@ -433,32 +449,34 @@ export default (io) => {
       }
         const messages = await Message.find(query)
         .sort({ createdAt: -1 })
-        .limit(parseInt(limit))
+        .limit(parseInt(limit as string))
         .exec();
 
         res.status(200).json(messages.reverse());
-      } catch (error) {
+      } catch (error: any) {
         logger.error('Error fetching messages:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
   });
   router.route('/:id')
-    .patch(authenticateToken, async (req, res) => {
+    .patch(authenticateToken, async (req: Request, res: Response) => {
       try {
         const now = new Date();
         const messageId = req.params.id;
-        
-        const existingMessage = await Message.findById(req.params.id);
-        
+
+        const existingMessage: any = await Message.findById(req.params.id);
+
         if (!existingMessage) {
-          return res.status(404).json({ message: 'Message not found' });
+          res.status(404).json({ message: 'Message not found' });
+          return;
         }
-        
-        if (existingMessage.senderId.toString() !== req.user.id) {
-          return res.status(403).json({ message: 'Not authorized to edit this message' });
+
+        if (existingMessage.senderId.toString() !== req.user!.id) {
+          res.status(403).json({ message: 'Not authorized to edit this message' });
+          return;
         }
-        
-        const updatedMessage = await applyPopulate(
+
+        const updatedMessage: any = await applyPopulate(
           Message.findByIdAndUpdate(
             messageId,
             {
@@ -472,14 +490,15 @@ export default (io) => {
         );
 
         if (!updatedMessage) {
-          return res.status(404).json({ message: 'Message not found' });
+          res.status(404).json({ message: 'Message not found' });
+          return;
         }
         io.to(updatedMessage.chatId.toString()).emit('message_edited', updatedMessage.toObject());
 
-        const chat = await Chat.findById(updatedMessage.chatId)
-        
+        const chat: any = await Chat.findById(updatedMessage.chatId)
+
         if (chat && chat.lastMessage &&  chat.lastMessage.toString() === updatedMessage._id.toString()) {
-          const updatedChatForEmit = await applyPopulate(
+          const updatedChatForEmit: any = await applyPopulate(
             Chat.findById(chat._id), CHAT_POPULATE
           );
             if (updatedChatForEmit) {
@@ -489,23 +508,25 @@ export default (io) => {
             }
           }
         res.json(updatedMessage.toObject());
-      } catch (err) {
+      } catch (err: any) {
         logger.error('Error editing message:', err);
         res.status(500).json({ message: err.message });
       }
     });
-  router.delete('/:id', authenticateToken, async (req, res) => {
+  router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
     try {
       const messageId = req.params.id;
-      
-      const message = await Message.findById(messageId);
-      
+
+      const message: any = await Message.findById(messageId);
+
       if (!message) {
-        return res.status(404).json({ message: 'Message not found' });
+        res.status(404).json({ message: 'Message not found' });
+        return;
       }
-      
-      if (message.senderId.toString() !== req.user.id) {
-        return res.status(403).json({ message: 'Not authorized to delete this message' });
+
+      if (message.senderId.toString() !== req.user!.id) {
+        res.status(403).json({ message: 'Not authorized to delete this message' });
+        return;
       }
 
       const chatId = message.chatId;
@@ -534,13 +555,13 @@ export default (io) => {
           }
         }
       }
-  
+
       await Message.findByIdAndDelete(messageId);
-      
+
       const lastMessage = await Message.find({ chatId })
       .sort({ createdAt: -1 })
       .limit(1);
-    
+
       let updatedChat;
 
       if (lastMessage.length > 0) {
@@ -562,15 +583,15 @@ export default (io) => {
           [populateChatParticipants]
         );
       }
-  
-      io.to(chatId.toString()).emit('message_deleted', { 
+
+      io.to(chatId.toString()).emit('message_deleted', {
         messageId,
         chatId,
         updatedChat
       });
-      
+
       res.status(200).json({ success: true, messageId });
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error deleting message:', err);
       res.status(500).json({ message: 'Server error' });
     }

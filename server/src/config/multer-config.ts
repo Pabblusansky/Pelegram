@@ -1,7 +1,8 @@
-import multer from 'multer';
+import multer, { FileFilterCallback } from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { Request } from 'express';
 import logger from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -9,7 +10,10 @@ const __dirname = path.dirname(__filename);
 
 const IS_PROD = process.env.NODE_ENV === 'production';
 
-let cloudinary, CloudinaryStorage;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cloudinary: any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let CloudinaryStorage: any;
 
 if (IS_PROD) {
   const cloudinaryModule = await import('cloudinary');
@@ -30,8 +34,7 @@ if (IS_PROD) {
   logger.info('Multer config: Using local disk storage (DEVELOPMENT)');
 }
 
-// Utility to ensure directory exists (local development)
-const ensureDirectoryExists = (dirPath) => {
+const ensureDirectoryExists = (dirPath: string): void => {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
     logger.info('Created directory:', dirPath);
@@ -39,7 +42,7 @@ const ensureDirectoryExists = (dirPath) => {
 };
 
 // AVATAR STORAGE
-let avatarStorage;
+let avatarStorage: multer.StorageEngine;
 if (IS_PROD) {
   avatarStorage = new CloudinaryStorage({
     cloudinary,
@@ -50,21 +53,21 @@ if (IS_PROD) {
     },
   });
 } else {
-  const avatarDir = path.resolve(__dirname, '../uploads/avatars');
+  const avatarDir = path.resolve(__dirname, '../../uploads/avatars');
   ensureDirectoryExists(avatarDir);
 
   avatarStorage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, avatarDir),
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    destination: (_req, _file, cb) => cb(null, avatarDir),
+    filename: (req: Request, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
       const ext = path.extname(file.originalname);
-      cb(null, `user-${req.user.id}-${uniqueSuffix}${ext}`);
-    }
+      cb(null, `user-${req.user!.id}-${uniqueSuffix}${ext}`);
+    },
   });
 }
 
 // GROUP AVATAR STORAGE
-let groupAvatarStorage;
+let groupAvatarStorage: multer.StorageEngine;
 if (IS_PROD) {
   groupAvatarStorage = new CloudinaryStorage({
     cloudinary,
@@ -75,103 +78,96 @@ if (IS_PROD) {
     },
   });
 } else {
-  const groupAvatarDir = path.resolve(__dirname, '../uploads/group-avatars');
+  const groupAvatarDir = path.resolve(__dirname, '../../uploads/group-avatars');
   ensureDirectoryExists(groupAvatarDir);
 
   groupAvatarStorage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, groupAvatarDir),
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    destination: (_req, _file, cb) => cb(null, groupAvatarDir),
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
       const ext = path.extname(file.originalname);
       cb(null, `group-${uniqueSuffix}${ext}`);
-    }
+    },
   });
 }
 
 // MEDIA STORAGE
-let mediaStorage;
+let mediaStorage: multer.StorageEngine;
 if (IS_PROD) {
   mediaStorage = new CloudinaryStorage({
     cloudinary,
     params: {
       folder: 'pelegram/media',
-      resource_type: 'auto', // auto-detect: image, video, raw
+      resource_type: 'auto',
       allowed_formats: [
-        // Images
         'jpeg', 'jpg', 'png', 'gif', 'webp',
-        // Videos
         'mp4', 'webm', 'mov',
-        // Audio formats
         'mp3', 'wav', 'ogg', 'opus', 'm4a', 'aac', 'flac',
-        // Documents
-        'pdf', 'doc', 'docx', 'txt'
+        'pdf', 'doc', 'docx', 'txt',
       ],
     },
   });
 } else {
-  const mediaDir = path.resolve(__dirname, '../uploads/media');
+  const mediaDir = path.resolve(__dirname, '../../uploads/media');
   ensureDirectoryExists(mediaDir);
 
   mediaStorage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, mediaDir),
-    filename: (req, file, cb) => {
+    destination: (_req, _file, cb) => cb(null, mediaDir),
+    filename: (req: Request, file, cb) => {
       const userId = req.user ? req.user.id : 'anonymous';
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
       cb(null, `user-${userId}-${uniqueSuffix}${path.extname(file.originalname)}`);
-    }
+    },
   });
 }
 
 // File filters
-const imageFilter = (req, file, cb) => {
+const imageFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCallback): void => {
   const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed'), false);
+    cb(new Error('Only image files are allowed'));
   }
 };
 
-const mediaFilter = (req, file, cb) => {
+const mediaFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCallback): void => {
   const allowedTypes = [
     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
     'video/mp4', 'video/webm', 'video/quicktime',
     'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm', 'audio/opus', 'audio/mp4', 'audio/aac', 'audio/flac',
     'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'text/plain'
+    'text/plain',
   ];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Unsupported file type'), false);
+    cb(new Error('Unsupported file type'));
   }
 };
 
-// Multer upload instances
 export const uploadAvatar = multer({
   storage: avatarStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-  fileFilter: imageFilter
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: imageFilter,
 });
 
 export const uploadGroupAvatar = multer({
   storage: groupAvatarStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-  fileFilter: imageFilter
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: imageFilter,
 });
 
 export const uploadMedia = multer({
   storage: mediaStorage,
-  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
-  fileFilter: mediaFilter
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: mediaFilter,
 });
 
-// Get file URL helper
-export const getFileUrl = (file) => {
+export const getFileUrl = (file: Express.Multer.File): string => {
   if (IS_PROD) {
-    return file.path; // Cloudinary returns full HTTPS URL
+    return (file as Express.Multer.File & { path: string }).path;
   } else {
-    // For local development, return relative path
     if (file.destination.includes('avatars')) {
       return `/uploads/avatars/${file.filename}`;
     } else if (file.destination.includes('group-avatars')) {
@@ -183,8 +179,7 @@ export const getFileUrl = (file) => {
   }
 };
 
-// Function to delete file from Cloudinary
-export const deleteFileFromCloudinary = async (fileUrl) => {
+export const deleteFileFromCloudinary = async (fileUrl: string): Promise<void> => {
   if (process.env.NODE_ENV !== 'production' || !fileUrl || !cloudinary) {
     return;
   }
@@ -205,7 +200,7 @@ export const deleteFileFromCloudinary = async (fileUrl) => {
       }
 
       const result = await cloudinary.uploader.destroy(publicId, {
-        resource_type: resourceType
+        resource_type: resourceType,
       });
 
       if (result.result !== 'ok' && result.result !== 'not found') {
@@ -215,7 +210,7 @@ export const deleteFileFromCloudinary = async (fileUrl) => {
   } catch (error) {
     logger.error('Failed to delete from Cloudinary:', error);
 
-    if (error.message && error.message.includes('resource_type')) {
+    if ((error as Error).message && (error as Error).message.includes('resource_type')) {
       try {
         const matches = fileUrl.match(/\/v\d+\/(.+?)(\.[^.]*)?$/);
         if (matches && matches[1]) {
@@ -225,12 +220,12 @@ export const deleteFileFromCloudinary = async (fileUrl) => {
           for (const resType of resourceTypes) {
             try {
               const result = await cloudinary.uploader.destroy(publicId, {
-                resource_type: resType
+                resource_type: resType,
               });
               if (result.result === 'ok') {
                 return;
               }
-            } catch (typeError) {
+            } catch {
               // Continue trying other resource types
             }
           }

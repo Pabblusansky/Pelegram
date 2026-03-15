@@ -1,22 +1,23 @@
+import { Server } from 'socket.io';
 import { differenceInMinutes } from 'date-fns';
 import User from '../models/User.js';
 import logger from '../config/logger.js';
 
-const onlineUsers = new Set();
-const userLastActive = new Map();
+const onlineUsers = new Set<string>();
+const userLastActive = new Map<string, string>();
 
-let ioInstance = null;
+let ioInstance: Server | null = null;
 
-export function initUserStatus(io) {
+export function initUserStatus(io: Server): void {
   ioInstance = io;
   loadInitialUserStatuses();
   setInterval(cleanupInactiveUsers, 60 * 1000);
 }
 
-export function broadcastUserStatuses() {
+export function broadcastUserStatuses(): void {
   if (!ioInstance) return;
 
-  const statusesObject = {};
+  const statusesObject: Record<string, { lastActive: string; online: boolean }> = {};
 
   for (const [userId, lastActive] of userLastActive.entries()) {
     let validLastActive = lastActive;
@@ -40,13 +41,13 @@ export function broadcastUserStatuses() {
   ioInstance.emit('user_status_update', statusesObject);
 }
 
-export function updateUserStatus(userId, isOnline = true) {
+export function updateUserStatus(userId: string, isOnline: boolean = true): void {
   const now = new Date();
   const isoString = now.toISOString();
 
   userLastActive.set(userId, isoString);
 
-  if (isOnline === true) {
+  if (isOnline) {
     onlineUsers.add(userId);
   } else {
     onlineUsers.delete(userId);
@@ -55,11 +56,11 @@ export function updateUserStatus(userId, isOnline = true) {
   broadcastUserStatuses();
 }
 
-export function getStatusSnapshot() {
+export function getStatusSnapshot(): { onlineUsers: Set<string>; userLastActive: Map<string, string> } {
   return { onlineUsers, userLastActive };
 }
 
-function cleanupInactiveUsers() {
+function cleanupInactiveUsers(): void {
   const now = new Date();
   const inactiveThreshold = 5;
 
@@ -81,7 +82,7 @@ function cleanupInactiveUsers() {
   }
 }
 
-async function loadInitialUserStatuses() {
+async function loadInitialUserStatuses(): Promise<void> {
   try {
     const users = await User.find(
       { lastActive: { $ne: null } },

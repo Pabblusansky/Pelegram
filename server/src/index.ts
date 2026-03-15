@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import path from 'path';
@@ -12,7 +12,7 @@ import {
   generalLimiter,
   authLimiter,
   uploadLimiter,
-  messageLimiter
+  messageLimiter,
 } from './middleware/limiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -34,6 +34,7 @@ import logger from './config/logger.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { initUserStatus, getStatusSnapshot, updateUserStatus } from './socket/userStatus.js';
 import { registerSocketHandlers } from './socket/socketHandlers.js';
+import type { AuthUser } from './middleware/authenticateToken.js';
 
 const app = express();
 
@@ -58,7 +59,8 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+    res.sendStatus(200);
+    return;
   }
   next();
 });
@@ -67,10 +69,10 @@ app.use(cors({
   origin: CORS_ORIGIN,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: true,
 }));
 
-mongoose.connection.on('error', err => {
+mongoose.connection.on('error', (err: Error) => {
   logger.error('MongoDB connection error:', err);
   process.exit(1);
 });
@@ -82,33 +84,35 @@ process.on('unhandledRejection', (reason, promise) => {
 // Initialize user status tracking and connect to MongoDB
 initUserStatus(io);
 
-mongoose.connect(MONGO_URI, {
-}).then(() => logger.info('MongoDB connected successfully.'))
-  .catch(err => logger.error('FATAL: MongoDB connection error:', err));
+mongoose.connect(MONGO_URI)
+  .then(() => logger.info('MongoDB connected successfully.'))
+  .catch((err: Error) => logger.error('FATAL: MongoDB connection error:', err));
 
 // --- Socket.IO ---
 io.on('connection', (socket) => {
-  const token = socket.handshake.auth.token;
+  const token = socket.handshake.auth.token as string | undefined;
   if (!token) {
-    return socket.disconnect(true);
+    socket.disconnect(true);
+    return;
   }
   try {
-    const decoded = jwt.verify(token, SECRET_KEY);
-    socket.user = decoded;
-    if (socket.user && socket.user.id) {
-      socket.join(socket.user.id.toString());
-      updateUserStatus(socket.user.id, true);
+    const decoded = jwt.verify(token, SECRET_KEY) as AuthUser;
+    (socket as any).user = decoded;
+    if (decoded.id) {
+      socket.join(decoded.id.toString());
+      updateUserStatus(decoded.id, true);
     }
   } catch (err) {
-    logger.error('Error verifying token:', err.message);
-    return socket.disconnect(true);
+    logger.error('Error verifying token:', (err as Error).message);
+    socket.disconnect(true);
+    return;
   }
 
-  registerSocketHandlers(io, socket);
+  registerSocketHandlers(io, socket as any);
 });
 
 // --- REST Routes ---
-app.get('/users', async (_req, res) => {
+app.get('/users', async (_req: Request, res: Response) => {
   try {
     const users = await User.find();
     res.json(users);
@@ -128,22 +132,23 @@ app.use('/uploads', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+    res.sendStatus(200);
+    return;
   }
   next();
-}, express.static(path.join(__dirname, 'uploads')));
+}, express.static(path.join(__dirname, '../uploads')));
 
 app.use('/uploads/avatars', (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
   next();
-}, express.static(path.join(__dirname, 'uploads/avatars')));
+}, express.static(path.join(__dirname, '../uploads/avatars')));
 
 app.use('/media', (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
   next();
-}, express.static(path.join(__dirname, 'uploads/media')));
+}, express.static(path.join(__dirname, '../uploads/media')));
 
 app.use(authenticateToken);
 
@@ -152,20 +157,20 @@ app.use('/messages', messageLimiter, messageRoutes(io));
 app.use('/api/files', uploadLimiter, fileRoutes(io));
 app.use('/api/profile', profileRoutes);
 
-app.get('/api/users/status', authenticateToken, async (req, res) => {
+app.get('/api/users/status', authenticateToken, async (req: Request, res: Response) => {
   try {
     const users = await User.find(
       { lastActive: { $ne: null } },
       '_id lastActive'
     );
 
-    const statusesObject = {};
+    const statusesObject: Record<string, { lastActive: string; online: boolean }> = {};
     const { onlineUsers, userLastActive } = getStatusSnapshot();
 
     users.forEach(user => {
       const userId = user._id.toString();
 
-      let lastActiveStr;
+      let lastActiveStr: string;
       try {
         if (user.lastActive instanceof Date && !isNaN(user.lastActive.getTime())) {
           lastActiveStr = user.lastActive.toISOString();
@@ -180,7 +185,7 @@ app.get('/api/users/status', authenticateToken, async (req, res) => {
 
       statusesObject[userId] = {
         lastActive: lastActiveStr,
-        online: onlineUsers.has(userId)
+        online: onlineUsers.has(userId),
       };
     });
 
@@ -191,19 +196,19 @@ app.get('/api/users/status', authenticateToken, async (req, res) => {
           const testDate = new Date(lastActive);
           if (!isNaN(testDate.getTime())) {
             statusesObject[userId] = {
-              lastActive: lastActive,
-              online: true
+              lastActive,
+              online: true,
             };
           } else {
             statusesObject[userId] = {
               lastActive: new Date().toISOString(),
-              online: true
+              online: true,
             };
           }
-        } catch (e) {
+        } catch {
           statusesObject[userId] = {
             lastActive: new Date().toISOString(),
-            online: true
+            online: true,
           };
         }
       }
