@@ -26,8 +26,11 @@ export const authenticateToken = (req, res, next) => {
     req.user = decoded; // Attach user data to the request object
     next();
   } catch (error) {
-    logger.error('Invalid or expired token:', error.message);
-    return res.status(403).json({ message: 'Invalid or expired token.' });
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token expired', code: 'TOKEN_EXPIRED' });
+    }
+    logger.error('Invalid token:', error.message);
+    return res.status(401).json({ message: 'Invalid token', code: 'TOKEN_INVALID' });
   }
 };
 

@@ -20,15 +20,27 @@ export class TokenService {
     return localStorage.getItem('tokenExpiration');
   }
 
-  setAuthData(token: string, userId: string, username: string, expirationMs: number): void {
-    localStorage.setItem('token', token);
+  getRefreshToken(): string | null {
+    return localStorage.getItem('refreshToken');
+  }
+
+  setAuthData(accessToken: string, refreshToken: string, userId: string, username: string, expirationMs: number): void {
+    localStorage.setItem('token', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('userId', userId);
     localStorage.setItem('username', username);
     localStorage.setItem('tokenExpiration', expirationMs.toString());
   }
 
+  updateTokens(accessToken: string, refreshToken: string, expirationMs: number): void {
+    localStorage.setItem('token', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('tokenExpiration', expirationMs.toString());
+  }
+
   clearAuthData(): void {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('userId');
     localStorage.removeItem('username');
     localStorage.removeItem('tokenExpiration');
