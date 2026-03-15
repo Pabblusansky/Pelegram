@@ -1712,6 +1712,14 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.messageActionsService.unpinCurrentMessage();
   }
 
+  canUnpin(): boolean {
+    if (!this.isGroupChat) return true;
+    const adminId = typeof this.chatDetails?.admin === 'object'
+      ? (this.chatDetails.admin as any)?._id
+      : this.chatDetails?.admin;
+    return adminId === this.userId;
+  }
+
 
   scrollToPinnedMessage(): void {
     if (this.pinnedMessageDetails && this.pinnedMessageDetails._id) {

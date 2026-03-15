@@ -97,32 +97,39 @@ html, body {
 .pinned-message-bar {
   display: flex;
   align-items: center;
-  padding: 10px 14px;
-  background-color: var(--pinned-message-bg, rgba(var(--primary-color-rgb, 74, 118, 168), 0.1));
+  padding: 8px 14px;
+  background-color: var(--pinned-message-bg, rgba(var(--primary-color-rgb, 74, 118, 168), 0.08));
   border-bottom: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm, 4px);
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: background-color 0.2s ease;
   animation: fadeInPinnedBar 0.3s ease-out;
-  margin: 0 8px 8px;
+  margin: 0;
   flex-shrink: 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  position: relative;
 
   &:hover {
-    background-color: var(--pinned-message-hover-bg, rgba(var(--primary-color-rgb, 74, 118, 168), 0.15));
-    transform: translateY(-1px);
+    background-color: var(--pinned-message-hover-bg, rgba(var(--primary-color-rgb, 74, 118, 168), 0.14));
+  }
+
+  .pinned-accent-line {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--primary-color, #4a76a8);
+    border-radius: 0 2px 2px 0;
   }
 
   .pinned-icon {
     margin-right: 10px;
     color: var(--primary-color, #4a76a8);
     flex-shrink: 0;
-    
+
     svg {
       display: block;
       width: 16px;
       height: 16px;
-      filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
     }
   }
 
@@ -130,29 +137,40 @@ html, body {
     flex-grow: 1;
     overflow: hidden;
     margin-right: 8px;
+    min-width: 0;
 
-    .pinned-sender {
+    .pinned-label {
+      font-size: 12px;
       font-weight: 600;
-      font-size: 13px;
-      color: var(--text-color);
-      margin-bottom: 3px;
-      display: flex;
-      align-items: center;
+      color: var(--primary-color, #4a76a8);
+      line-height: 1.3;
     }
 
-    .pinned-text {
+    .pinned-preview {
       font-size: 13px;
       color: var(--text-secondary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       line-height: 1.4;
-      max-width: 100%;
-      
-      .highlighted-search-term {
-        background-color: var(--search-highlight-bg, yellow);
-        color: var(--search-highlight-text, black);
-        font-weight: normal;
+
+      .pinned-sender {
+        font-weight: 600;
+        color: var(--text-color);
+        margin-right: 4px;
+      }
+
+      .pinned-media-type {
+        font-style: italic;
+        color: var(--primary-color, #4a76a8);
+      }
+
+      .pinned-text {
+        .highlighted-search-term {
+          background-color: var(--search-highlight-bg, yellow);
+          color: var(--search-highlight-text, black);
+          font-weight: normal;
+        }
       }
     }
   }
@@ -171,14 +189,13 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    
+
     &:hover {
       background-color: var(--hover-background, rgba(0, 0, 0, 0.07));
       color: var(--danger-color, #ff5252);
       opacity: 1;
-      transform: scale(1.05);
     }
-    
+
     &:active {
       transform: scale(0.95);
     }
@@ -596,6 +613,19 @@ cdk-virtual-scroll-viewport.messages {
         font-size: 14px;
       }
     }
+  }
+}
+
+.pin-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  color: var(--primary-color, #4a76a8);
+  opacity: 0.7;
+  z-index: 4;
+
+  svg {
+    display: block;
   }
 }
 
