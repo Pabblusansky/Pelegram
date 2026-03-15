@@ -45,17 +45,6 @@ html, body {
   }
 }
 
-@keyframes fadeInSearchBar {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes fadeInPinnedBar {
   from { 
     opacity: 0; 
@@ -103,84 +92,6 @@ html, body {
   min-height: 0;
   background-color: var(--background-color);
   color: var(--text-color);
-}
-
-.message-search-bar {
-  display: flex;
-  align-items: center;
-  padding: 8px 12px;
-  background-color: var(--card-background);
-  border-bottom: 1px solid var(--border-color);
-  gap: 8px;
-  flex-shrink: 0;
-  height: 56px;
-  animation: fadeInSearchBar 0.3s ease-out;
-
-  .search-input {
-    flex-grow: 1;
-    padding: 8px 12px;
-    border: 1px solid var(--border-color-input, #ccc);
-    border-radius: var(--border-radius-medium, 6px);
-    font-size: 14px;
-    background-color: var(--background-color-input, #fff);
-    color: var(--text-color-input, #000);
-
-    &:focus {
-      outline: none;
-      border-color: var(--primary-color, #4a76a8);
-      box-shadow: 0 0 0 2px var(--focus-ring-color, rgba(74, 118, 168, 0.2));
-    }
-  }
-
-  .search-results-info {
-    font-size: 13px;
-    color: var(--text-secondary);
-    white-space: nowrap;
-  }
-
-  .search-navigation {
-    display: flex;
-    align-items: center;
-
-    .nav-button {
-      background: none;
-      border: none;
-      color: var(--text-secondary);
-      cursor: pointer;
-      padding: 6px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      &:hover:not(:disabled) {
-        background-color: var(--hover-background, rgba(0, 0, 0, 0.05));
-        color: var(--text-color);
-      }
-
-      &:disabled {
-        color: var(--disabled-color, #bdbdbd);
-        cursor: not-allowed;
-      }
-    }
-  }
-
-  .close-search-button {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 6px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:hover {
-      background-color: var(--hover-background, rgba(0, 0, 0, 0.05));
-      color: var(--text-color);
-    }
-  }
 }
 
 .pinned-message-bar {

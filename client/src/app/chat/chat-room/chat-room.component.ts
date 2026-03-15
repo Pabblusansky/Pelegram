@@ -1,4 +1,3 @@
-import { animate,  style, transition, trigger } from '@angular/animations';
 import { Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
@@ -23,13 +22,14 @@ import { LightboxComponent } from '../../shared/lightbox/lightbox.component';
 import { ScrollingModule } from '@angular/cdk/scrolling'; 
 import { AfterViewInit } from '@angular/core';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
-import { ObserveContentSizeDirective } from '../observe-content-size.directive';
-import { AudioPlayerComponent } from "../../shared/components/audio-player/audio-player.component";   
+import { AudioPlayerComponent } from "../../shared/components/audio-player/audio-player.component";
 import DOMPurify from 'dompurify';
 import { MessageContextMenuComponent } from '../message-context-menu/message-context-menu.component';
 import { ChatHeaderComponent } from '../chat-header/chat-header.component';
+import { ChatSearchBarComponent } from '../chat-search-bar/chat-search-bar.component';
 import { LoggerService } from '../../services/logger.service';
 import { TokenService } from '../../services/token.service';
+import { ToastService } from '../../utils/toast-service';
 
 @Component({
   selector: 'app-chat-room',
@@ -49,7 +49,8 @@ import { TokenService } from '../../services/token.service';
     ScrollingModule,
     AudioPlayerComponent,
     MessageContextMenuComponent,
-    ChatHeaderComponent
+    ChatHeaderComponent,
+    ChatSearchBarComponent
   ],
 
 })
@@ -124,12 +125,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   private isScrollingToBottom: boolean = false;
   // Search functionality
   isSearchActive: boolean = false;
-  searchQuery: string = '';
   searchResults: Message[] = [];
-  currentSearchResultIndex: number = 0;
-  isSearching: boolean = false;
-  @ViewChild('searchInputEl') searchInputEl!: ElementRef;
-  private searchDebounce = new Subject<string>();
+  @ViewChild(ChatSearchBarComponent) searchBar?: ChatSearchBarComponent;
   isLoadingContext: boolean = false;
   private isScrollingProgrammatically: boolean = false;
   // Group chat functionality
@@ -151,7 +148,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     private soundService: SoundService,
     private confirmationService: ConfirmationService,
     private logger: LoggerService,
-    private tokenService: TokenService
+    private tokenService: TokenService,
+    private toastService: ToastService
   ) {
     this.markAsReadDebounce.pipe(debounceTime(500)).subscribe(() => {
       this.markMessagesAsRead();
@@ -167,18 +165,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       this.executeLoadMoreMessages();
     });
     
-    this.searchDebounce.pipe(
-      debounceTime(400),
-      takeUntil(this.destroy$)
-    ).subscribe(query => {
-      if (this.isSearchActive && query.trim().length > 0) {
-        this.performActualSearch(query.trim());
-      } else if (this.isSearchActive && query.trim().length === 0) {
-        this.clearSearchResultsLocally(false);
-      }
-    });
-  
-
     this.socketService.chatDeletedGlobally$
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
@@ -463,13 +449,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.showGroupInfoModal = false;
   }
 
-  getSenderDisplay(message: { messageType: string; senderName: string; }) {
-    if (message.messageType === 'event') {
-      return message.senderName;
-    }
-  
-    return message.senderName;
-  }
   updateMessagesWithDividers(): void {
     const newMessagesWithDividers = [];
     let lastDate = null;
@@ -1153,20 +1132,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         return 'assets/images/default-avatar.png';
   }
 
-  get getOtherParticipantAvatarUrl(): string {
-    if (!this.otherParticipant || !this.otherParticipant.avatar) {
-        return 'assets/images/default-avatar.png';
-      }
-    
-      if (this.otherParticipant.avatar.startsWith('/uploads')) {
-        return `${this.chatApiService.getApiUrl()}${this.otherParticipant.avatar}`;
-      }
-
-      return this.otherParticipant.avatar.startsWith('/uploads')
-      ? `${this.chatApiService.getApiUrl()}${this.otherParticipant.avatar}`
-      : this.otherParticipant.avatar;
-  }
-
   handleAvatarError(event: Event): void {
     const img = event.target as HTMLImageElement;
     this.logger.error(`Failed to load avatar image: ${img.src}`);
@@ -1250,99 +1215,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   public showToast(message: string, duration: number = 3000): void {
-    
-    const existingToasts = document.querySelectorAll('.toast-notification');
-    existingToasts.forEach(toast => {
-      if (toast.parentNode) {
-        document.body.removeChild(toast);
-      }
-    });
-  
-    const toast = document.createElement('div');
-    toast.className = 'toast-notification';
-    
-    const iconSpan = document.createElement('span');
-    iconSpan.className = 'toast-icon';
-    iconSpan.innerHTML = '✓';
-    
-    const messageSpan = document.createElement('span');
-    messageSpan.className = 'toast-message';
-    messageSpan.textContent = message;
-    
-    toast.appendChild(iconSpan);
-    toast.appendChild(messageSpan);
-    
-    Object.assign(toast.style, {
-      position: 'fixed',
-      bottom: '20px',
-      left: '50%',
-      transform: 'translateX(-50%) translateY(100px)',
-      backgroundColor: '#4a76a8', 
-      color: 'white',
-      padding: '12px 16px',
-      borderRadius: '10px',
-      fontSize: '14px',
-      fontWeight: '500',
-      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-      zIndex: '10000',
-      opacity: '0',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      transition: 'transform 0.3s ease, opacity 0.3s ease',
-      minWidth: '200px',
-      maxWidth: '80%',
-      textAlign: 'center',
-      justifyContent: 'center'
-    });
-    
-    Object.assign(iconSpan.style, {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: '20px',
-      height: '20px',
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      borderRadius: '50%',
-      fontSize: '12px'
-    });
-    
-    document.body.appendChild(toast);
-    
-    void toast.offsetWidth;
-    
-    requestAnimationFrame(() => {
-      Object.assign(toast.style, {
-        opacity: '1',
-        transform: 'translateX(-50%) translateY(0)'
-      });
-      
-      iconSpan.animate(
-        [
-          { transform: 'scale(0)', opacity: 0 },
-          { transform: 'scale(1.2)', opacity: 1, offset: 0.7 },
-          { transform: 'scale(1)', opacity: 1 }
-        ],
-        { 
-          duration: 400,
-          easing: 'ease-out',
-          fill: 'forwards'
-        }
-      );
-      
-      setTimeout(() => {
-        Object.assign(toast.style, {
-          opacity: '0',
-          transform: 'translateX(-50%) translateY(100px)'
-        });
-        
-        setTimeout(() => {
-          if (toast.parentNode) {
-            document.body.removeChild(toast);
-          }
-        }, 300);
-      }, duration);
-    });
+    this.toastService.showToast(message, duration);
   }
 
   @HostListener('document:click', ['$event'])
@@ -1372,26 +1245,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     const isInputField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
     
     if (isInputField && this.isSearchActive && target.classList.contains('search-input')) {
-      if (this.searchResults.length > 0) {
-        if (event.key === 'ArrowDown' || event.key === 'F3') {
-          event.preventDefault();
-          this.nextSearchResult();
-          return;
-        }
-        
-        if (event.key === 'ArrowUp' || (event.shiftKey && event.key === 'F3')) {
-          event.preventDefault();
-          this.prevSearchResult();
-          return;
-        }
-      }
-      
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        this.closeSearch();
-        return;
-      }
-      
       return;
     }
 
@@ -1452,7 +1305,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (event.key === 'Home') {
       event.preventDefault();
-      this.scrollToTop();
+      this.scrollViewport?.scrollToIndex(0, 'smooth');
       return;
     }
 
@@ -1931,104 +1784,36 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }, 3000);
   }
 
-  // Search functionality
-  onSearchQueryChange(): void {
-    this.searchQuery = this.searchQuery.trim();
-    
-    if (!this.searchQuery) {
-      this.clearSearchResultsLocally(true);
-      return;
-    }
-    
-    this.searchDebounce.next(this.searchQuery);
-  }
-
-  performActualSearch(query: string): void {
-    if (!this.chatId) return;
-    this.isSearching = true;
-    this.resetMessageHighlights(); 
-    
-    this.chatApiService.searchMessages(this.chatId!, query).pipe(
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: (results) => {
-        this.isSearching = false;
-        this.searchResults = results.sort((a, b) => 
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        );
-        this.isSearchActive = true;
-        
-        if (this.searchResults.length > 0) {
-          this.currentSearchResultIndex = 0;
-          this.applyHighlightsToMessages(); 
-          this.navigateToSearchResult(this.currentSearchResultIndex, true);
-        } else {
-          this.currentSearchResultIndex = -1;
-          this.showToast('No messages found', 3000);
-        }
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.isSearching = false;
-        this.logger.error('Search error:', err);
-        this.searchResults = [];
-        this.currentSearchResultIndex = -1;
-        this.showToast('Search failed, please try again', 3000);
-        this.resetMessageHighlights();
-        this.cdr.detectChanges();
-      }
-    });
-  }
-
-  clearSearchResultsLocally(resetQuery: boolean = true): void {
-    this.searchResults = [];
-    this.currentSearchResultIndex = -1;
-    if (resetQuery) {
-      this.searchQuery = '';
-    }
-    if (!this.isSearchActive) { 
-      this.resetMessageHighlights();
-    }
+  // Search event handlers (logic moved to ChatSearchBarComponent)
+  onSearchResultsChanged(results: Message[]): void {
+    this.searchResults = results;
+    this.applyHighlightsToMessages();
     this.cdr.detectChanges();
   }
 
-  clearSearch(): void {
-    this.searchQuery = '';
-    this.isSearchActive = false;
+  onSearchResultsCleared(): void {
     this.searchResults = [];
-    this.currentSearchResultIndex = 0;
     this.resetMessageHighlights();
-    this.scrollToBottom();
+    this.cdr.detectChanges();
   }
 
-  onSearchInputFocus(): void {
-    this.isSearching = true;
-  }
-
-  onSearchInputBlur(): void {
-    setTimeout(() => {
-      this.isSearching = false;
-    }, 200);
-  }
-
-
-  async navigateToSearchResult(index: number, isInitialSearch: boolean = false): Promise<void> {
-    if (index < 0 || index >= this.searchResults.length) return;
-
-    const targetMessage = this.searchResults[index];
-    if (!targetMessage?._id) return;
-
-    this.currentSearchResultIndex = index;
-
-    this.messages.forEach(m => m.isCurrentSearchResult = (m._id === targetMessage._id));
+  async onSearchResultNavigated(event: { messageId: string; isInitial: boolean }): Promise<void> {
+    this.messages.forEach(m => m.isCurrentSearchResult = (m._id === event.messageId));
     this.updateMessagesWithDividers();
 
     this.isScrollingProgrammatically = true;
-    await this.scrollToMessage(targetMessage._id, 'center', true);
+    await this.scrollToMessage(event.messageId, 'center', true);
 
     setTimeout(() => {
-        this.isScrollingProgrammatically = false;
+      this.isScrollingProgrammatically = false;
     }, 1000);
+  }
+
+  onSearchClosed(): void {
+    this.isSearchActive = false;
+    this.searchResults = [];
+    this.resetMessageHighlights();
+    this.scrollToBottom();
   }
 
   private mergeMessages(newMessages: Message[]): void {
@@ -2058,41 +1843,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       }
   }
 
-  scrollToSearchResult(index: number): void {
-    if (index < 0 || index >= this.searchResults.length) return;
-    
-    const messageId = this.searchResults[index]._id;
-    if (messageId) {
-      this.scrollToMessage(messageId, 'center', true);
-    }
-  }
-
-  nextSearchResult(): void {
-    if (this.searchResults.length === 0) {
-      if (this.searchQuery.trim()) this.performActualSearch(this.searchQuery.trim());
-      return;
-    }
-    
-    if (this.currentSearchResultIndex < this.searchResults.length - 1) {
-      this.currentSearchResultIndex++;
-    } else {
-      this.currentSearchResultIndex = 0; // Loop back to first result
-    }
-    
-    this.navigateToSearchResult(this.currentSearchResultIndex);
-  }
-
-  prevSearchResult(): void {
-    if (this.searchResults.length === 0) return;
-    
-    if (this.currentSearchResultIndex > 0) {
-      this.currentSearchResultIndex--;
-    } else {
-      this.currentSearchResultIndex = this.searchResults.length - 1; // Loop to last result
-    }
-    
-    this.navigateToSearchResult(this.currentSearchResultIndex);
-  }
 
   // Methods for text highlighting
   private escapeRegExp(string: string): string {
@@ -2119,22 +1869,19 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private applyHighlightsToMessages(): void {
-    const query = this.searchQuery.trim();
-    
     this.messages.forEach(msg => {
       msg.isSearchResult = false;
     });
-    
-    if (query && this.searchResults.length > 0) {
+
+    if (this.searchResults.length > 0) {
       const searchResultIds = new Set(this.searchResults.map(sr => sr._id));
       this.messages.forEach(msg => {
         if (msg._id && searchResultIds.has(msg._id)) {
           msg.isSearchResult = true;
         }
       });
-
     }
-    
+
     this.updateMessagesWithDividers();
     this.cdr.detectChanges();
   }
@@ -2213,39 +1960,22 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     }
   }
-  // Search functionality methods
+  get searchQuery(): string {
+    return this.searchBar?.searchQuery ?? '';
+  }
+
   toggleSearch(): void {
     this.isSearchActive = !this.isSearchActive;
-    
-    if (this.isSearchActive) {
-      this.searchQuery = '';
-      this.clearSearchResultsLocally(true);
-      
-      // Focus the search input after the DOM updates
-      setTimeout(() => {
-        if (this.searchInputEl) {
-          this.searchInputEl.nativeElement.focus();
-        }
-      }, 0);
-    } else {
-      this.clearSearch();
+
+    if (!this.isSearchActive) {
+      this.onSearchClosed();
     }
   }
-  
+
   closeSearch(): void {
     this.isSearchActive = false;
-    this.searchQuery = '';
     this.searchResults = [];
-    this.currentSearchResultIndex = -1;
     this.resetMessageHighlights();
-  }
-  
-  navigateToNextSearchResult(): void {
-    this.nextSearchResult();
-  }
-  
-  navigateToPreviousSearchResult(): void {
-    this.prevSearchResult();
   }
 
 
@@ -2621,14 +2351,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     document.addEventListener('keydown', handleEscape);
   }
 
-  isRepliedMessageAvailable(messageId: string): boolean {
-    if (!messageId) {
-      return false;
-    }
-    return this.messages.some(msg => msg._id === messageId);
-  }
-
-  // For future use(maybe)
   getRepliedMessage(messageId: string): Message | null {
     if (!messageId) return null;
     return this.messages.find(msg => msg._id === messageId) || null;
@@ -2656,23 +2378,12 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.showToast(`Selected ${this.selectedMessagesMap.size} messages`, 2000);
   }
 
-  scrollToTop(): void {
-      if (this.scrollViewport) {
-        this.scrollViewport.scrollToIndex(0, 'smooth');
-      }
-  }
-
   toggleKeyboardHelp(): void {
     this.showKeyboardHelp = !this.showKeyboardHelp;
   }
 
   closeKeyboardHelp(): void {
     this.showKeyboardHelp = false;
-  }
-
-  openMediaGallery(): void {
-    this.showMediaGallery = true;
-    // document.body.style.overflow = 'hidden'; 
   }
 
   closeMediaGallery(): void {
