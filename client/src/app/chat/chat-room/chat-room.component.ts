@@ -611,9 +611,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
             requestAnimationFrame(() => {
                 this.scrollToBottom(true, 'auto');
-                this.setupResizeObserver(); 
+                this.setupResizeObserver();
             });
-          
+
             this.triggerMarkAsRead();
         },
         error: (error) => {
@@ -641,28 +641,56 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     this.isScrollingToBottom = true;
     this.clearUnreadMessagesIndicator();
 
-    const el = this.scrollViewport.elementRef.nativeElement;
-    if (behavior === 'auto') {
-      el.scrollTop = el.scrollHeight;
+    const dataLength = this.scrollViewport.getDataLength();
+    if (dataLength === 0) {
       this.isAtBottom = true;
       this.isScrollingToBottom = false;
-      this.cdr.detectChanges();
-      this.triggerMarkAsRead();
-    } else {
-      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-      setTimeout(() => {
-        // Ensure we actually reached the bottom after smooth scroll
-        if (this.scrollViewport) {
-          const remaining = this.scrollViewport.measureScrollOffset('bottom');
-          if (remaining > 1) {
-            el.scrollTop = el.scrollHeight;
-          }
+      return;
+    }
+
+    // Step 1: Tell CDK to render items near the end of the list.
+    // This is essential — CDK only renders items it thinks are in/near the viewport.
+    // Without this, the last items may not exist in the DOM at all.
+    this.scrollViewport.scrollToIndex(dataLength - 1, 'auto');
+
+    if (behavior === 'auto') {
+      // Step 2: After CDK renders the tail items, snap to the true pixel bottom.
+      // We retry across several frames because CDK may still be measuring/rendering.
+      let attempts = 0;
+      const snap = () => {
+        const el = this.scrollViewport?.elementRef.nativeElement;
+        if (!el) { this.isScrollingToBottom = false; return; }
+        el.scrollTop = el.scrollHeight;
+        attempts++;
+        if (attempts < 5) {
+          requestAnimationFrame(snap);
+        } else {
+          this.isAtBottom = true;
+          this.isScrollingToBottom = false;
+          this.cdr.detectChanges();
+          this.triggerMarkAsRead();
         }
-        this.isAtBottom = true;
-        this.isScrollingToBottom = false;
-        this.cdr.detectChanges();
-        this.triggerMarkAsRead();
-      }, 400);
+      };
+      requestAnimationFrame(snap);
+    } else {
+      // Smooth: let CDK position us near the end, then smooth-scroll to true bottom.
+      setTimeout(() => {
+        const el = this.scrollViewport?.elementRef.nativeElement;
+        if (!el) { this.isScrollingToBottom = false; return; }
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+        setTimeout(() => {
+          if (this.scrollViewport) {
+            const remaining = this.scrollViewport.measureScrollOffset('bottom');
+            if (remaining > 1) {
+              el.scrollTop = el.scrollHeight;
+            }
+          }
+          this.isAtBottom = true;
+          this.isScrollingToBottom = false;
+          this.cdr.detectChanges();
+          this.triggerMarkAsRead();
+        }, 400);
+      }, 50);
     }
   }
 
