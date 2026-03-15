@@ -91,3 +91,31 @@ export interface Message {
   }
   isSelected?: boolean;
 }
+
+export interface MessageDeletedEvent {
+  messageId: string;
+  chatId: string;
+  updatedChat: Chat;
+}
+
+export interface MediaGalleryResponse {
+  media: Message[];
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+}
+
+export interface ChatDeletedGloballyData {
+  chatId: string;
+  deletedBy?: string;
+}
+
+export interface NewChatCreatedData {
+  _id: string;
+  participants: User[];
+  messages: string[];
+  type: string;
+  createdAt?: string;
+  updatedAt?: string;
+  lastMessage?: Message | string | null;
+}
