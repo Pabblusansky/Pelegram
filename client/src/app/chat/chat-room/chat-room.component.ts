@@ -123,6 +123,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   showMediaGallery: boolean = false;
   private resizeObserver: ResizeObserver | undefined;
   private isScrollingToBottom: boolean = false;
+  private cancelStabilization: (() => void) | null = null;
   // Search functionality
   isSearchActive: boolean = false;
   searchResults: Message[] = [];
@@ -321,11 +322,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   ngAfterViewInit(): void {
-    setTimeout(() => {
-        this.scrollToBottom(true, 'auto');
-        this.setupResizeObserver();
-        this.forceVirtualScrollRefresh();
-    }, 100);
+    this.setupResizeObserver();
   }
   triggerMarkAsRead(): void {
     this.markAsReadDebounce.next();
@@ -370,6 +367,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
+    }
+    if (this.cancelStabilization) {
+      this.cancelStabilization();
+      this.cancelStabilization = null;
     }
     this.editAnimationTimeouts.forEach(timeout => clearTimeout(timeout));
     this.editAnimationTimeouts.clear();
@@ -480,9 +481,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.cdr.detectChanges();
 
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       this.forceVirtualScrollRefresh();
-    }, 0);
+    });
   }
   
   loadChatDetails(): void {
@@ -649,49 +650,102 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     // Step 1: Tell CDK to render items near the end of the list.
-    // This is essential — CDK only renders items it thinks are in/near the viewport.
-    // Without this, the last items may not exist in the DOM at all.
     this.scrollViewport.scrollToIndex(dataLength - 1, 'auto');
 
-    if (behavior === 'auto') {
-      // Step 2: After CDK renders the tail items, snap to the true pixel bottom.
-      // We retry across several frames because CDK may still be measuring/rendering.
-      let attempts = 0;
-      const snap = () => {
-        const el = this.scrollViewport?.elementRef.nativeElement;
-        if (!el) { this.isScrollingToBottom = false; return; }
-        el.scrollTop = el.scrollHeight;
-        attempts++;
-        if (attempts < 5) {
-          requestAnimationFrame(snap);
-        } else {
-          this.isAtBottom = true;
-          this.isScrollingToBottom = false;
-          this.cdr.detectChanges();
-          this.triggerMarkAsRead();
-        }
-      };
-      requestAnimationFrame(snap);
-    } else {
-      // Smooth: let CDK position us near the end, then smooth-scroll to true bottom.
-      setTimeout(() => {
-        const el = this.scrollViewport?.elementRef.nativeElement;
-        if (!el) { this.isScrollingToBottom = false; return; }
-        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-        setTimeout(() => {
-          if (this.scrollViewport) {
-            const remaining = this.scrollViewport.measureScrollOffset('bottom');
-            if (remaining > 1) {
-              el.scrollTop = el.scrollHeight;
-            }
-          }
-          this.isAtBottom = true;
-          this.isScrollingToBottom = false;
-          this.cdr.detectChanges();
-          this.triggerMarkAsRead();
-        }, 400);
-      }, 50);
+    // Step 2: Immediate first snap to bottom.
+    const el = this.scrollViewport.elementRef.nativeElement;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
     }
+
+    // Step 3: Use MutationObserver-based stabilizer to wait for rendering to settle.
+    this.stabilizeAtBottom(() => {
+      if (behavior === 'smooth') {
+        // Smooth-scroll the last few pixels for a polished feel
+        const scrollEl = this.scrollViewport?.elementRef.nativeElement;
+        if (scrollEl) {
+          const remaining = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
+          if (remaining > 1) {
+            scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: 'smooth' });
+          }
+        }
+      }
+      this.isAtBottom = true;
+      this.isScrollingToBottom = false;
+      this.cdr.detectChanges();
+      this.triggerMarkAsRead();
+    });
+  }
+
+  /**
+   * Uses a MutationObserver on the CDK content wrapper to deterministically detect
+   * when rendering is done, then snaps to the true pixel bottom.
+   * Debounces DOM mutations (150ms quiet period) with a 1.5s hard timeout safety net.
+   */
+  private stabilizeAtBottom(onComplete: () => void): void {
+    // Cancel any previous stabilization
+    if (this.cancelStabilization) {
+      this.cancelStabilization();
+      this.cancelStabilization = null;
+    }
+
+    const el = this.scrollViewport?.elementRef.nativeElement;
+    if (!el) {
+      onComplete();
+      return;
+    }
+
+    const contentWrapper = el.querySelector('.cdk-virtual-scroll-content-wrapper');
+    if (!contentWrapper) {
+      onComplete();
+      return;
+    }
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let hardTimeout: ReturnType<typeof setTimeout> | null = null;
+    let observer: MutationObserver | null = null;
+    let cleaned = false;
+
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      if (observer) { observer.disconnect(); observer = null; }
+      if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
+      if (hardTimeout) { clearTimeout(hardTimeout); hardTimeout = null; }
+      if (this.cancelStabilization === cleanup) {
+        this.cancelStabilization = null;
+      }
+    };
+
+    const finish = () => {
+      // Final snap to true bottom
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+      }
+      cleanup();
+      onComplete();
+    };
+
+    const resetDebounce = () => {
+      // Snap on every mutation
+      el.scrollTop = el.scrollHeight;
+      if (debounceTimer) { clearTimeout(debounceTimer); }
+      debounceTimer = setTimeout(finish, 150);
+    };
+
+    observer = new MutationObserver(() => {
+      resetDebounce();
+    });
+
+    observer.observe(contentWrapper, { childList: true, subtree: true });
+
+    // Hard timeout safety net — finish after 1.5s regardless
+    hardTimeout = setTimeout(finish, 1500);
+
+    // Start the debounce (in case no mutations happen at all)
+    resetDebounce();
+
+    this.cancelStabilization = cleanup;
   }
 
   formatTimestamp(timestamp: string): string {
@@ -1731,7 +1785,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       
       if (contentWrapper) {
           this.resizeObserver = new ResizeObserver(entries => {
-            if (this.isAtBottom && !this.isScrollingProgrammatically) {
+            if (this.isAtBottom && !this.isScrollingProgrammatically && !this.isScrollingToBottom) {
                 this.scrollToBottom(true, 'auto');
             }
           });
