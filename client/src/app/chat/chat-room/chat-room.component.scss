@@ -1115,6 +1115,71 @@ cdk-virtual-scroll-viewport.messages {
   }
 }
 
+// Lazy-load blur-up container
+.media-lazy-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--border-radius-message-media, 8px);
+  min-height: 80px;
+  background-color: var(--media-placeholder-bg, #333);
+
+  .media-thumbnail {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(20px);
+    transform: scale(1.1);
+    z-index: 1;
+  }
+
+  .media-skeleton {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      110deg,
+      var(--media-placeholder-bg, #333) 8%,
+      rgba(255, 255, 255, 0.08) 18%,
+      var(--media-placeholder-bg, #333) 33%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    z-index: 1;
+
+    &.video-skeleton {
+      min-height: 200px;
+    }
+  }
+
+  .media-full {
+    position: relative;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+
+  &.media-loaded {
+    .media-thumbnail,
+    .media-skeleton {
+      display: none;
+    }
+
+    .media-full {
+      opacity: 1;
+    }
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 .no-messages {
   display: flex;
   align-items: center;

@@ -207,15 +207,25 @@
           <div class="message-body-container">
             <ng-container [ngSwitch]="item.messageType">
               <div *ngSwitchCase="'image'" class="media-content image-attachment">
-                <img 
-                  *ngIf="item.filePath"
-                  [src]="getMediaUrl(item.filePath)" 
-                  [alt]="item.originalFileName || 'Image attachment'"
-                  (load)="onMediaLoad(item, $event)" 
-                  (error)="onMediaError(item, $event)"
-                  (click)="openMediaModal(item)"
-                  loading="lazy"
-                >
+                <div *ngIf="item.filePath" class="media-lazy-container" [class.media-loaded]="item.mediaLoaded">
+                  <img
+                    *ngIf="getThumbnailUrl(item.filePath) as thumbUrl"
+                    [src]="thumbUrl"
+                    class="media-thumbnail"
+                    alt=""
+                    aria-hidden="true"
+                  >
+                  <div *ngIf="!getThumbnailUrl(item.filePath)" class="media-skeleton"></div>
+                  <img
+                    [src]="getMediaUrl(item.filePath)"
+                    [alt]="item.originalFileName || 'Image attachment'"
+                    (load)="onMediaLoad(item, $event)"
+                    (error)="onMediaError(item, $event)"
+                    (click)="openMediaModal(item)"
+                    loading="lazy"
+                    class="media-full"
+                  >
+                </div>
                 <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
                   <span>Failed to load image</span>
                   <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>
@@ -224,15 +234,19 @@
 
               <!-- VIDEO -->
               <div *ngSwitchCase="'video'" class="media-content video-attachment">
-                <video 
-                  *ngIf="item.filePath"
-                  controls 
-                  [src]="getMediaUrl(item.filePath)"
-                  (loadedmetadata)="onMediaLoad(item, $event)" 
-                  (error)="onMediaError(item, $event)"
-                  preload="metadata"
-                  loading="lazy"
-                > Your browser does not support the video tag. </video>
+                <div *ngIf="item.filePath" class="media-lazy-container" [class.media-loaded]="item.mediaLoaded">
+                  <div *ngIf="!getVideoPosterUrl(item.filePath)" class="media-skeleton video-skeleton"></div>
+                  <video
+                    controls
+                    [src]="getMediaUrl(item.filePath)"
+                    [poster]="getVideoPosterUrl(item.filePath)"
+                    (loadedmetadata)="onMediaLoad(item, $event)"
+                    (error)="onMediaError(item, $event)"
+                    preload="metadata"
+                    loading="lazy"
+                    class="media-full"
+                  > Your browser does not support the video tag. </video>
+                </div>
                 <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
                   <span>Failed to load video</span>
                   <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>

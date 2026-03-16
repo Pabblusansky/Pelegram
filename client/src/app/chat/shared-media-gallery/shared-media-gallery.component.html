@@ -32,10 +32,11 @@
     
     <div *ngFor="let item of mediaItems; let i = index" class="grid-item" (click)="onMediaClick(item, i)">
       <ng-container *ngIf="item.fileMimeType?.startsWith('image/'); else filePlaceholder">
-        <img 
-          [src]="getFullUrl(item.filePath)" 
-          [alt]="item.originalFileName || 'Shared image'" 
+        <img
+          [src]="getGalleryThumbnailUrl(item.filePath)"
+          [alt]="item.originalFileName || 'Shared image'"
           (error)="handleImageError($event, item)"
+          loading="lazy"
         >
       </ng-container>
 

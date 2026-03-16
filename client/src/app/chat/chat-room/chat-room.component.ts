@@ -2022,6 +2022,35 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     return `${this.chatApiService.getApiUrl()}/${filePath}`;
   }
 
+  getThumbnailUrl(filePath: string | null | undefined): string {
+    if (!filePath) {
+      return '';
+    }
+
+    // For Cloudinary URLs, insert transformation params for a tiny blurred placeholder
+    if (filePath.includes('cloudinary.com') && filePath.includes('/upload/')) {
+      return filePath.replace('/upload/', '/upload/w_40,q_10,e_blur:1000/');
+    }
+
+    // For local dev URLs, no thumbnail available — return empty (skeleton will show)
+    return '';
+  }
+
+  getVideoPosterUrl(filePath: string | null | undefined): string {
+    if (!filePath) {
+      return '';
+    }
+
+    // For Cloudinary video URLs, generate a poster image from the first frame
+    if (filePath.includes('cloudinary.com') && filePath.includes('/upload/')) {
+      return filePath
+        .replace('/video/upload/', '/video/upload/w_400,q_auto,so_0/')
+        .replace(/\.[^.]+$/, '.jpg');
+    }
+
+    return '';
+  }
+
   retryLoadMedia(message: Message): void {
     message.mediaLoadError = false;
     message.mediaLoaded = false;

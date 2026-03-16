@@ -87,7 +87,7 @@ export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
     if (!filePath) {
       return 'assets/images/file-placeholder.png';
     }
-    
+
     if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
       return filePath;
     }
@@ -97,8 +97,22 @@ export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
     if (filePath.startsWith('/')) {
       return `${baseUrl}${filePath}`;
     }
-    
+
     return `${baseUrl}/${filePath}`;
+  }
+
+  getGalleryThumbnailUrl(filePath: string | null | undefined): string {
+    if (!filePath) {
+      return '';
+    }
+
+    // For Cloudinary URLs, use a small cropped thumbnail for the grid
+    if (filePath.includes('cloudinary.com') && filePath.includes('/upload/')) {
+      return filePath.replace('/upload/', '/upload/c_fill,w_200,h_200,q_auto/');
+    }
+
+    // For local dev, use full URL (no server-side thumbnails)
+    return this.getFullUrl(filePath);
   }
 
   onScroll(event: Event): void {
