@@ -150,8 +150,17 @@ export class MessageActionsService {
     this.ctx.detectChanges();
   }
 
+  private reactionDebounceMap = new Map<string, number>();
+
   onReactionClick(messageId: string | undefined | null, reactionType: string): void {
     if (!messageId) return;
+
+    const key = `${messageId}:${reactionType}`;
+    const now = Date.now();
+    const lastClick = this.reactionDebounceMap.get(key) || 0;
+    if (now - lastClick < 300) return;
+    this.reactionDebounceMap.set(key, now);
+
     this.ctx.socketService.toggleReaction(messageId, reactionType);
     this.activeContextMenuId = null;
     this.selectedMessageId = null;

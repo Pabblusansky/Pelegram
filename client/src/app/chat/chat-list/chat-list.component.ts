@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, OnDestroy, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, OnInit, OnDestroy, Output } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ChatApiService } from '../services/chat-api.service';
 import { SocketService } from '../services/socket.service';
@@ -25,7 +25,8 @@ import { ConfirmationService } from '../../shared/services/confirmation.service'
   styleUrls: ['./chat-list.component.scss'],
   standalone: true,
   imports: [FormsModule, CommonModule, RouterModule, CreateGroupChatComponent],
-  providers: []
+  providers: [],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatListComponent implements OnInit, OnDestroy {
   @Output() chatSelected = new EventEmitter<string>();

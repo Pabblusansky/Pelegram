@@ -1,6 +1,6 @@
 import { Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { debounceTime, Observable, Subject, takeUntil } from 'rxjs';
@@ -55,6 +55,7 @@ import { MessageActionsService } from './services/message-actions.service';
     ChatSearchBarComponent
   ],
   providers: [SelectionService, MessageActionsService],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 
 
