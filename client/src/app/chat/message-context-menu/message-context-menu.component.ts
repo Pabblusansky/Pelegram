@@ -1,14 +1,16 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Message } from '../chat.model';
 import { animate, style, transition, trigger } from '@angular/animations';
+import 'emoji-picker-element';
 
 @Component({
   selector: 'app-message-context-menu',
   standalone: true,
   imports: [CommonModule],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   template: `
-    <div 
+    <div
       *ngIf="isVisible && menuPosition"
       class="context-menu"
       [style.left.px]="menuPosition.x"
@@ -17,14 +19,23 @@ import { animate, style, transition, trigger } from '@angular/animations';
     >
       <div class="menu-top-bar">
         <div class="reaction-bar-above-menu">
-          <span 
-            *ngFor="let emoji of availableReactions" 
+          <span
+            *ngFor="let emoji of availableReactions"
             class="reaction-emoji-option"
             (click)="onReactionClick(emoji)"
             [title]="'React: ' + emoji">
             {{ emoji }}
           </span>
+          <span
+            class="reaction-emoji-option reaction-expand-btn"
+            (click)="showReactionPicker = !showReactionPicker"
+            title="More reactions">
+            +
+          </span>
         </div>
+      </div>
+      <div class="reaction-picker-panel" *ngIf="showReactionPicker">
+        <emoji-picker (emoji-click)="onReactionPickerSelect($event)"></emoji-picker>
       </div>
       <div class="menu-header">
         <div class="menu-close" (click)="onClose()">×</div>
@@ -126,6 +137,8 @@ export class MessageContextMenuComponent {
   @Input() availableReactions: string[] = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
   @Input() isGroupChat: boolean = false;
 
+  showReactionPicker: boolean = false;
+
   @Output() close = new EventEmitter<void>();
   @Output() viewReadReceipts = new EventEmitter<Message>();
   @Output() reactionClick = new EventEmitter<string>();
@@ -138,11 +151,21 @@ export class MessageContextMenuComponent {
   @Output() delete = new EventEmitter<Message>();
 
   onClose(): void {
+    this.showReactionPicker = false;
     this.close.emit();
   }
 
   onReactionClick(emoji: string): void {
+    this.showReactionPicker = false;
     this.reactionClick.emit(emoji);
+  }
+
+  onReactionPickerSelect(event: any): void {
+    const emoji = event.detail?.unicode;
+    if (emoji) {
+      this.reactionClick.emit(emoji);
+    }
+    this.showReactionPicker = false;
   }
 
   onReply(): void {

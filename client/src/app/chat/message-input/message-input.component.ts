@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, Input, ViewChild, ElementRef, HostListener, OnDestroy, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef, AfterViewInit, NgZone } from '@angular/core';
+import { Component, EventEmitter, Output, Input, ViewChild, ElementRef, HostListener, OnDestroy, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef, AfterViewInit, NgZone, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
@@ -6,15 +6,17 @@ import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
 import { ToastService } from '../../utils/toast-service';
 import { LoggerService } from '../../services/logger.service';
 import { Message } from '../chat.model';
+import 'emoji-picker-element';
 
 @Component({
   selector: 'app-message-input',
   standalone: true,
   imports: [
-    CommonModule, 
-    FormsModule, 
-    FileSizePipe 
+    CommonModule,
+    FormsModule,
+    FileSizePipe
   ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   styleUrls: ['./message-input.component.scss'],
   templateUrl: './message-input.component.html',
 })
@@ -38,6 +40,7 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
   private isCurrentlyTyping: boolean = false;
 
   isDragOver: boolean = false;
+  isEmojiPickerOpen: boolean = false;
   private boundOnPaste: (event: ClipboardEvent) => void;
 
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
@@ -154,6 +157,7 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
     this.selectedFile = null;
     this.filePreviewUrl = null;
     this.isPreviewLoading = false;
+    this.isEmojiPickerOpen = false;
     if (this.fileInput && this.fileInput.nativeElement) {
         this.fileInput.nativeElement.value = '';
     }
@@ -421,6 +425,51 @@ adjustTextareaHeight(): void {
         this.focusInput();
       }
       this.onInput();
+    }
+  }
+
+  toggleEmojiPicker(): void {
+    this.isEmojiPickerOpen = !this.isEmojiPickerOpen;
+    this.cdr.detectChanges();
+  }
+
+  onEmojiClick(event: any): void {
+    const emoji = event.detail?.unicode;
+    if (!emoji) return;
+
+    const textarea = this.messageTextarea?.nativeElement;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      this.newMessage = this.newMessage.substring(0, start) + emoji + this.newMessage.substring(end);
+      this.cdr.detectChanges();
+
+      setTimeout(() => {
+        const newPos = start + emoji.length;
+        textarea.setSelectionRange(newPos, newPos);
+        textarea.focus();
+        this.adjustTextareaHeight();
+      }, 0);
+    } else {
+      this.newMessage += emoji;
+    }
+    this.onInput();
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.isEmojiPickerOpen) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('.emoji-picker-container') || target.closest('.emoji-button')) return;
+    this.isEmojiPickerOpen = false;
+    this.cdr.detectChanges();
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.isEmojiPickerOpen) {
+      this.isEmojiPickerOpen = false;
+      this.cdr.detectChanges();
     }
   }
 

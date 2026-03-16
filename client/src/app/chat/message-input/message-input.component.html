@@ -35,15 +35,28 @@
     </div>
     
     <div class="main-input-area">
-      <button 
+      <button
       *ngIf="!isRecording"
-      class="attach-file-button" 
-      (click)="fileInput.click()" 
+      class="attach-file-button"
+      (click)="fileInput.click()"
       title="Attach file">
         <svg width="800px" height="800px" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
           <path d="M24,48A15,15,0,0,1,9,33V11a11,11,0,0,1,22,0V31c-0.06,4.42-3.24,8-7.09,8a6.45,6.45,0,0,1-4.61-2A8.43,8.43,0,0,1,17,31V16.87a2,2,0,0,1,2-2h0a2,2,0,0,1,2,2V31a4.44,4.44,0,0,0,1.16,3.19,2.48,2.48,0,0,0,1.76.79C25.55,35,27,33.16,27,31V11a7,7,0,0,0-14,0V33a11,11,0,0,0,22,0V16.6a2,2,0,0,1,4,0V33A15,15,0,0,1,24,48Z" fill="#876cb7"/>
         </svg>
       </button>
+      <button
+        *ngIf="!isRecording"
+        class="emoji-button"
+        (click)="toggleEmojiPicker()"
+        title="Emoji"
+        [class.active]="isEmojiPickerOpen">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-4-8c.78 0 1.41-.63 1.41-1.41S8.78 9.18 8 9.18s-1.41.63-1.41 1.41S7.22 12 8 12zm8 0c.78 0 1.41-.63 1.41-1.41S16.78 9.18 16 9.18s-1.41.63-1.41 1.41S15.22 12 16 12zm-4 5.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
+        </svg>
+      </button>
+      <div class="emoji-picker-container" *ngIf="isEmojiPickerOpen">
+        <emoji-picker (emoji-click)="onEmojiClick($event)"></emoji-picker>
+      </div>
       <input type="file" #fileInput hidden (change)="onFileSelected($event)">
 
       <div class="input-field-wrapper">

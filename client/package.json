@@ -21,6 +21,7 @@
     "@angular/router": "^20.0.6",
     "date-fns": "^4.1.0",
     "dompurify": "^3.2.6",
+    "emoji-picker-element": "^1.29.1",
     "esbuild": "^0.25.5",
     "express": "^5.1.0",
     "multer": "^2.0.1",
