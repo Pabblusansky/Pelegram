@@ -52,5 +52,8 @@ const chatSchema = new mongoose.Schema<IChat>(
   }
 );
 
+chatSchema.index({ participants: 1, updatedAt: -1 });
+chatSchema.index({ 'unreadCounts.userId': 1 });
+
 const Chat: Model<IChat> = mongoose.model<IChat>('Chat', chatSchema);
 export default Chat;

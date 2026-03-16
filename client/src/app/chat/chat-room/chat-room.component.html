@@ -272,8 +272,18 @@
               <div *ngSwitchCase="'file'" class="media-content file-attachment">
                 <a *ngIf="item.filePath" [href]="getMediaUrl(item.filePath)" target="_blank" download="{{ item.originalFileName }}">
                   <div class="file-icon-wrapper">
-                    <!-- TODO: Change to SVG icon based on item.fileMimeType -->
-                    <span class="file-icon-placeholder">📄</span> 
+                    <svg *ngIf="item.fileMimeType === 'application/pdf'" class="file-type-icon pdf" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                      <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v7h6v9H6zm2-4h2.5c.83 0 1.5-.67 1.5-1.5S11.33 13 10.5 13H8v4h1v-1.5h1.5c.28 0 .5-.22.5-.5s-.22-.5-.5-.5H9V14zm5 0h1.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5H13v-3zm1 2h.5c.28 0 .5-.22.5-.5s-.22-.5-.5-.5H14v1zm3-2h2v1h-1v.5h1v1h-1V18h-1v-4z"/>
+                    </svg>
+                    <svg *ngIf="item.fileMimeType?.startsWith('text/')" class="file-type-icon text" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                      <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v7h6v9H6zm2-6h8v1H8v-1zm0 2h8v1H8v-1zm0 2h5v1H8v-1z"/>
+                    </svg>
+                    <svg *ngIf="item.fileMimeType?.includes('word') || item.fileMimeType?.includes('document')" class="file-type-icon doc" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                      <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v7h6v9H6zm2-6h8v1H8v-1zm0 2h8v1H8v-1zm0 2h5v1H8v-1z"/>
+                    </svg>
+                    <svg *ngIf="!item.fileMimeType || (!item.fileMimeType.startsWith('text/') && item.fileMimeType !== 'application/pdf' && !item.fileMimeType.includes('word') && !item.fileMimeType.includes('document'))" class="file-type-icon generic" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                      <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v7h6v9H6z"/>
+                    </svg>
                   </div>
                   <div class="file-details">
                     <span class="file-name-link">{{ item.originalFileName || 'Download file' }}</span>
@@ -324,8 +334,8 @@
           <div class="message-footer">
             <div class="message-reactions-wrapper">
               <div class="message-reactions" *ngIf="item.type === 'message' && item.reactions && item.reactions.length > 0">
-                <span 
-                  *ngFor="let group of (item.reactions | groupReactions : userId)"
+                <span
+                  *ngFor="let group of (item.reactions | groupReactions : userId); trackBy: trackByReactionType"
                   class="reaction-tag"
                   [class.reacted-by-me]="group.reactedByMe"
                   (click)="onReactionClick(item._id, group.type)"
@@ -372,7 +382,7 @@
                 <span class="read-receipts-close" (click)="readReceiptsMessageId = null; $event.stopPropagation()">×</span>
               </div>
               <div class="read-receipts-list">
-                <div *ngFor="let receipt of item.readBy" class="read-receipt-item">
+                <div *ngFor="let receipt of item.readBy; trackBy: trackByReceiptUserId" class="read-receipt-item">
                   <img [src]="getUserAvatar(receipt.userId)" class="read-receipt-avatar" />
                   <span class="read-receipt-name">{{ getUserName(receipt.userId) }}</span>
                   <span class="read-receipt-time">{{ formatTimestamp(receipt.readAt) }}</span>

@@ -1040,6 +1040,24 @@ cdk-virtual-scroll-viewport.messages {
       }
     }
 
+    .file-icon-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+
+    .file-type-icon {
+      width: 28px;
+      height: 28px;
+
+      &.pdf { color: #e53935; }
+      &.doc { color: #1976d2; }
+      &.text { color: #757575; }
+      &.generic { color: var(--primary-color, #4a76a8); }
+    }
+
     .file-icon {
       font-size: 24px;
       margin-right: 8px;

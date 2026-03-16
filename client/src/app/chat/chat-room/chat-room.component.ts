@@ -628,6 +628,14 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     return item._id || `index-${index}`;
   }
 
+  trackByReactionType(index: number, group: { type: string }): string {
+    return group.type;
+  }
+
+  trackByReceiptUserId(index: number, receipt: { userId: string }): string {
+    return receipt.userId;
+  }
+
   loadMessages(): void {
     if (!this.chatId) return;
 

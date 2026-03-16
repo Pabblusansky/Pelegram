@@ -766,6 +766,14 @@ loadRegularChats(): void {
   }
 
 
+  trackByChatId(index: number, chat: Chat): string {
+    return chat._id;
+  }
+
+  trackByUserId(index: number, user: User): string {
+    return user._id;
+  }
+
   isMyLastMessage(chat: any): boolean {
       if (!chat || !chat.lastMessage || !chat.lastMessage.senderId || !this.currentUserId) {
           return false;

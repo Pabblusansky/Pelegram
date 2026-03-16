@@ -23,7 +23,7 @@
     
     <div *ngIf="searchQuery && searchResults.length > 0" class="search-results-container user-search-results">
       <div class="results-header">Start a new chat:</div>
-      <div *ngFor="let user of searchResults" 
+      <div *ngFor="let user of searchResults; trackBy: trackByUserId"
           class="search-result-item"
           (click)="startChatWithUser(user)" 
           title="Start chat with {{ user.username }}">
@@ -64,7 +64,7 @@
     <p class="no-chats-subtitle">Use the search above to find friends and start chatting!</p>
   </div>
   <div
-    *ngFor="let chat of filteredChats"
+    *ngFor="let chat of filteredChats; trackBy: trackByChatId"
     class="chat-item"
     [class.active]="router.url.includes(chat._id)"
     [class.has-unread]="getUnreadCountForChat(chat) > 0"
