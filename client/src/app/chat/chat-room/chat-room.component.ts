@@ -82,6 +82,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   isTyping = false;
   @Input() selectedChatId: string | null = null;
   typingUsers: Set<string> = new Set();
+  private typingTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
   chatId: string | null = null;
   messages: Message[] = [];
   messagesWithDividers: any = [];
@@ -231,12 +232,28 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.socketService.onTyping().subscribe((data: { chatId: string; senderId: string; isTyping: boolean }) => {
       if (data.chatId === this.chatId) {
-        this.isTyping = data.isTyping;
+        // Clear any existing timeout for this user
+        const existingTimeout = this.typingTimeouts.get(data.senderId);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+          this.typingTimeouts.delete(data.senderId);
+        }
+
         if (data.isTyping) {
           this.typingUsers.add(data.senderId);
+          // Auto-clear after 5 seconds if no "stop typing" arrives
+          const timeout = setTimeout(() => {
+            this.typingUsers.delete(data.senderId);
+            this.typingTimeouts.delete(data.senderId);
+            this.isTyping = this.typingUsers.size > 0;
+            this.cdr.detectChanges();
+          }, 5000);
+          this.typingTimeouts.set(data.senderId, timeout);
         } else {
           this.typingUsers.delete(data.senderId);
         }
+
+        this.isTyping = this.typingUsers.size > 0;
         this.cdr.detectChanges();
         if (this.isTyping && this.isAtBottom) {
           setTimeout(() => this.scrollToBottom(), 100);
@@ -412,7 +429,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
          this.chatStateService.setActiveChatId(null);
     }
     this.destroy$.next();
-    this.destroy$.complete();    
+    this.destroy$.complete();
+
+    this.typingTimeouts.forEach(timeout => clearTimeout(timeout));
+    this.typingTimeouts.clear();
 
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
