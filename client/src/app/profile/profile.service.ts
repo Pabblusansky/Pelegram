@@ -186,10 +186,11 @@ export class ProfileService {
 
   private getUploadEventData(event: HttpEvent<{ avatar: string; user: UserProfile; success?: boolean }>): { avatar: string; user: UserProfile } | null {
     switch (event.type) {
-      case HttpEventType.UploadProgress:
+      case HttpEventType.UploadProgress: {
         const progress = Math.round((100 * event.loaded) / (event.total || 1));
         this.avatarUploadProgress.next(progress);
         return null;
+      }
         
       case HttpEventType.Response:
         if (event.body && event.body.user) {

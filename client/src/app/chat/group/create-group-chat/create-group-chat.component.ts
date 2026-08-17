@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, OnInit, Output, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, OnInit, Output, ViewChild, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, filter, switchMap, takeUntil, tap, map } from 'rxjs/operators';
@@ -22,7 +22,7 @@ import { TokenService } from '../../../services/token.service';
   templateUrl: './create-group-chat.component.html',
   styleUrls: ['./create-group-chat.component.scss']
 })
-export class CreateGroupChatComponent implements OnInit {
+export class CreateGroupChatComponent implements OnInit, OnDestroy {
   @Output() closeDialog = new EventEmitter<void>();
   @Output() groupCreated = new EventEmitter<Chat>();
   @ViewChild('userSearchInput') userSearchInput!: ElementRef<HTMLInputElement>;

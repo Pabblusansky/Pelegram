@@ -22,7 +22,7 @@
       <div class="file-details">
         <div class="file-primary-info">
           <span class="file-name-preview">{{ selectedFile.name }}</span>
-          <span class="file-size-preview" *ngIf="selectedFile && selectedFile.size != null">
+          <span class="file-size-preview" *ngIf="selectedFile && selectedFile.size !== null">
             ({{ selectedFile.size | fileSize }})
           </span>
         </div>

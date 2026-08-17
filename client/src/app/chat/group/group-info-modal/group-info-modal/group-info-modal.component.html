@@ -44,7 +44,7 @@
                 (keydown.enter)="saveGroupName()"
                 (keydown.escape)="cancelEditName()"
                 [disabled]="isSavingName"
-                autofocus
+               
               >
               <div class="edit-actions">
                 <button class="action-button save-button" (click)="saveGroupName()" [disabled]="isSavingName || !newGroupName.trim()">
@@ -144,7 +144,7 @@
             (input)="onSearchChange($event)"
             placeholder="Search users to add..."
             class="search-input"
-            autofocus
+           
           />
         </div>
         

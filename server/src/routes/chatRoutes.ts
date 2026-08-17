@@ -77,7 +77,7 @@ export default (io: Server) => {
       res.status(500).json({ message: 'Server error' });
       return;
     }
-  }),
+  });
 
   router.patch('/:chatId/group/avatar', authenticateToken, uploadGroupAvatar.single('avatar'), async (req: Request, res: Response) => {
     const { chatId } = req.params;
@@ -240,7 +240,6 @@ export default (io: Server) => {
   router.delete('/:chatId/group/participants/:participantId', authenticateToken, validate({ params: chatIdWithParticipantParam }), async (req: Request, res: Response) => {
     const { chatId, participantId } = req.params;
     const userId = req.user!.id;
-    const adminUserId = req.user!.id;
 
     try {
       const chat: any = await Chat.findById(chatId);
@@ -840,7 +839,7 @@ export default (io: Server) => {
         }
       }
 
-      const deleteMessagesResult = await Message.deleteMany({ chatId: chat._id });
+      await Message.deleteMany({ chatId: chat._id });
 
       await Chat.findByIdAndDelete(chatId);
 

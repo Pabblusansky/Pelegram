@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
-import { interval } from 'rxjs';
+import {} from 'rxjs';
 
 @Component({
   selector: 'app-register-success',

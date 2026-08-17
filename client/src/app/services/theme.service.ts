@@ -32,7 +32,7 @@ export class ThemeService implements OnDestroy{
   }
   
 
-  private handleSystemThemeChange = (e: MediaQueryListEvent): void => {
+  private handleSystemThemeChange = (_e: MediaQueryListEvent): void => {
     if (this.themeSubject.value === 'system') {
       this.applyTheme('system');
     }

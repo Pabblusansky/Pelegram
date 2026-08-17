@@ -78,7 +78,7 @@ function handleTokenExpired(
   authService.refreshToken$.next(null);
 
   return authService.refreshAccessToken().pipe(
-    switchMap(response => {
+    switchMap(_response => {
       authService.isRefreshingToken = false;
       const newToken = tokenService.getToken()!;
       authService.refreshToken$.next(newToken);

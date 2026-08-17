@@ -355,7 +355,7 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
 
     if (confirmed) {
       this.chatApiService.leaveGroup(this.chatDetails._id).subscribe({
-        next: (response) => {
+        next: (_response) => {
           this.ToastService.showToast('You have left the group.', 3000, 'success');
           this.closeModal();
           this.router.navigate(['/home']);

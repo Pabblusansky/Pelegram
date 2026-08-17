@@ -320,7 +320,7 @@
               [(ngModel)]="item.editedContent"
               #editTextarea
               (keydown)="onEditTextareaKeydown($event, item)"
-              autofocus
+             
             ></textarea>
             <div class="edit-actions">
               <div class="edit-keyboard-hints">
@@ -383,7 +383,7 @@
               </div>
               <div class="read-receipts-list">
                 <div *ngFor="let receipt of item.readBy; trackBy: trackByReceiptUserId" class="read-receipt-item">
-                  <img [src]="getUserAvatar(receipt.userId)" class="read-receipt-avatar" />
+                  <img [src]="getUserAvatar(receipt.userId)" [alt]="getUserName(receipt.userId)" class="read-receipt-avatar" />
                   <span class="read-receipt-name">{{ getUserName(receipt.userId) }}</span>
                   <span class="read-receipt-time">{{ formatTimestamp(receipt.readAt) }}</span>
                 </div>

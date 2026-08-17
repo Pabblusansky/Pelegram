@@ -20,8 +20,8 @@ import { deleteFileFromCloudinary } from '../config/multer-config.js';
 import { validate } from '../middleware/validate.js';
 import {
   sendMessageSchema, forwardMessageSchema, forwardMultipleSchema,
-  deleteMultipleSchema, editMessageSchema, chatIdParam, messageIdParam,
-  messageForwardParam, contextParam, searchQuerySchema, messagesQuerySchema,
+  deleteMultipleSchema, chatIdParam,
+  messageForwardParam, contextParam, searchQuerySchema,
 } from '../schemas/message.schema.js';
 
 export default (io: Server) => {
@@ -119,7 +119,7 @@ export default (io: Server) => {
       ).lean();
 
       // Combine messages before the target and the target message with messages after it
-      let combinedMessages = [
+      const combinedMessages = [
         ...messagesBefore.reverse(),
         ...messagesAfterAndTarget
       ];
@@ -415,7 +415,7 @@ export default (io: Server) => {
               updatedAt: Date.now(),
           });
 
-          res.status(201).json(newMessage); } catch (error: any) {
+          res.status(201).json(newMessage); } catch {
               res.status(500).json({ message: 'Failed sending message' });
           }
   });
@@ -425,13 +425,12 @@ export default (io: Server) => {
     const { before, limit = 30 } = req.query;
 
     try {
-        let query: any = { chatId };
+        const query: any = { chatId };
 
       if (before) {
         const beforeMessage: any = await Message.findById(before);
         if (beforeMessage) {
           query.createdAt = { $lt: new Date(beforeMessage.createdAt) };
-        } else {
         }
       }
         const messages = await Message.find(query)

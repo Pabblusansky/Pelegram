@@ -161,7 +161,7 @@ loadInitialChats(): void {
 loadRegularChats(): void {
   this.chatApiService.getChats()?.subscribe({
     next: (regularChatsData: Chat[]) => {
-      let regularChats: Chat[] = Array.isArray(regularChatsData) ? regularChatsData : [];
+      const regularChats: Chat[] = Array.isArray(regularChatsData) ? regularChatsData : [];
 
       this.chats = regularChats
         .filter(chat => {
@@ -200,7 +200,7 @@ loadRegularChats(): void {
 
   formatChatForDisplay(chat: Chat, isSelf: boolean): Chat {
     const formatted = { ...chat };
-    const id = chat._id;
+    const _id = chat._id;
 
     if (chat.isGroupChat) {
       formatted.participantsString = chat.name || 'Group Chat';
@@ -381,7 +381,7 @@ loadRegularChats(): void {
   }
 
   private handleChatUpdate(updatedChatFromServer: Chat): void {
-    const id = updatedChatFromServer._id || 'unknown_id';
+    const _id = updatedChatFromServer._id || 'unknown_id';
     const chatIndex = this.chats.findIndex(chat => chat._id === updatedChatFromServer._id);
     if (chatIndex !== -1) {
       const isSelf = this.chats[chatIndex].isSelfChat; 
@@ -628,7 +628,7 @@ loadRegularChats(): void {
     if (confirmed) {
       this.loading = true;
       this.chatApiService.deleteChat(chatToDelete._id).subscribe({
-        next: (response) => {
+        next: (_response) => {
           this.loading = false;
           
           // Manually remove the chat from the lists to prevent waiting for the server event
@@ -643,7 +643,7 @@ loadRegularChats(): void {
     }
   }
 
-  private removeChatFromList(chatIdToRemove: string, deletedBy?: string): void {
+  private removeChatFromList(chatIdToRemove: string, _deletedBy?: string): void {
     const index = this.chats.findIndex(chat => chat._id === chatIdToRemove);
     if (index > -1) {
       const removedChat = this.chats.splice(index, 1)[0];
@@ -708,7 +708,7 @@ loadRegularChats(): void {
     this.isCreateGroupDialogOpen = false;
   }
 
-  onGroupCreated(newGroup: Chat): void {
+  onGroupCreated(_newGroup: Chat): void {
     this.closeCreateGroupDialog();
   }
 

@@ -97,31 +97,23 @@ cd Pelegram
 
 ## 2. Setup Environment Variables (Backend)
 
-The server requires a `.env` file for configuration, such as your JWT secret key.
+The server reads its configuration from `server/.env`. Copy the template:
 
-- Navigate into the server directory:
 ```bash
-cd server
+cp server/.env.example server/.env
 ```
 
-- Create a new file named `.env`.
+Then open `server/.env` and set `SECRET_KEY`. It is **required** and must be at
+least 32 characters — the server validates this at startup and refuses to run
+with a missing or weak value. Generate one with:
 
-- Open the `.env` file and add the following, replacing the placeholder with your own long, random string:
-```env
-# Used for signing JSON Web Tokens
-SECRET_KEY=your_very_long_and_super_secret_text_here
-
-# Optional: If your MongoDB is not on the default localhost:27017
-# MONGO_URI=mongodb://user:password@host:port/database
-
-# Optional: The base URL for constructing full file paths
-# BASE_URL=http://localhost:3000
-```
-
-- Navigate back to the root project directory:
 ```bash
-cd ..
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
+
+Every other variable has a sensible development default. See the comments in
+[`server/.env.example`](server/.env.example) for the full list, including the
+Cloudinary credentials required only in production.
 
 ## 3. Install All Dependencies
 
@@ -146,20 +138,25 @@ Open your browser and navigate to **http://localhost:4200** to start using Peleg
 
 ## Other Useful Commands
 
-All commands should be run from the root directory.
+All commands run from the root directory.
 
-**Build the frontend for production:**
 ```bash
-npm run build-client
+npm run build        # production build of server and client
+npm run build-client # production build of the frontend only
+npm test             # frontend unit tests (headless Chrome)
+npm run lint         # lint server and client
+npm run typecheck    # type check the server
 ```
-The build artifacts will be stored in the `client/dist/` directory.
 
-**Run frontend unit tests:**
-```bash
-# Make sure you are in the client directory for this
-cd client
-npm test
-```
+Frontend build artifacts are written to `client/dist/`.
+
+# 🤝 Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup,
+project layout, coding conventions, and the checks CI runs on every pull request.
+Participation is covered by the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+Found a security issue? Please report it privately — see [SECURITY.md](SECURITY.md).
 
 # 📜 License
 

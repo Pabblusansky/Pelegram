@@ -5,7 +5,7 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
 import { ToastService } from '../../utils/toast-service';
 import { LoggerService } from '../../services/logger.service';
-import { Message } from '../chat.model';
+import {} from '../chat.model';
 import 'emoji-picker-element';
 
 @Component({
@@ -20,7 +20,7 @@ import 'emoji-picker-element';
   styleUrls: ['./message-input.component.scss'],
   templateUrl: './message-input.component.html',
 })
-export class MessageInputComponent implements OnDestroy, OnInit, OnChanges {
+export class MessageInputComponent implements OnDestroy, OnInit, OnChanges, AfterViewInit {
   @Input() chatId: string | null = null;
   @Input() replyingToMessage: any | null = null;
   @Output() sendMessageEvent = new EventEmitter<{
@@ -545,9 +545,8 @@ adjustTextareaHeight(): void {
                 lastModified: Date.now()
             });
 
-            if (audioFile.size > 1000) { 
+            if (audioFile.size > 1000) {
               this.sendMessageEvent.emit({ content: '', file: audioFile, duration: recordedDuration });
-            } else {
             }
         }
         this.resetRecordingState();

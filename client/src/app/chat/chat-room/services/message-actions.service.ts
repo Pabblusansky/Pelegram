@@ -415,7 +415,7 @@ export class MessageActionsService {
           this.selectionService.cancel();
           this.cancelForward();
         },
-        error: (error) => {
+        error: (_error) => {
           this.ctx.showToast('Failed to forward message');
           this.cancelForward();
         }
@@ -433,7 +433,7 @@ export class MessageActionsService {
     const chatId = this.ctx.chatId();
     if (messageToPin && messageToPin._id && chatId) {
       this.ctx.chatApiService.pinMessage(chatId, messageToPin._id).subscribe({
-        next: (updatedChat) => {
+        next: (_updatedChat) => {
           this.ctx.showToast('Message pinned!');
           this.activeContextMenuId = null;
         },
@@ -450,7 +450,7 @@ export class MessageActionsService {
     const chatDetails = this.ctx.chatDetails();
     if (chatId && chatDetails?.pinnedMessage) {
       this.ctx.chatApiService.unpinMessage(chatId).subscribe({
-        next: (updatedChat) => {
+        next: (_updatedChat) => {
           this.ctx.showToast('Message unpinned!');
         },
         error: (err) => {

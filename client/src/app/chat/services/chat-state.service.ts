@@ -1,5 +1,5 @@
 import { Injectable, OnDestroy } from '@angular/core';
-import { BehaviorSubject, Observable, Subject, first, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, first, takeUntil } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Chat, Message } from '../chat.model';
 import { TokenService } from '../../services/token.service';

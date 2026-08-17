@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 import Chat from '../models/Chat.js';
 import logger from '../config/logger.js';
-import type { IChat } from '../models/Chat.js';
 
 export function isValidObjectId(id: unknown): id is string {
   return typeof id === 'string' && mongoose.Types.ObjectId.isValid(id);

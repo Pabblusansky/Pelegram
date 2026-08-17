@@ -1,5 +1,8 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { NgModule } from '@angular/core';
+import {} from '@angular/core';
 
 import { BrowserModule } from '@angular/platform-browser';
 
@@ -17,7 +20,8 @@ describe('RegisterComponent', () => {
         BrowserModule,
 
         FormsModule,
-      ]
+      ],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     })
     .compileComponents();
 

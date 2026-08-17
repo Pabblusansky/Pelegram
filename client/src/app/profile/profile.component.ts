@@ -62,9 +62,10 @@ export class ProfileComponent implements OnInit {
     switch (this.profile.settings.theme) {
       case 'light': return 'Light';
       case 'dark': return 'Dark';
-      case 'system': 
+      case 'system': {
         const applied = this.currentAppliedTheme;
         return `System (${applied === 'dark' ? 'Dark' : 'Light'})`;
+      }
       default: return this.profile.settings.theme || 'System';
     }
   }
@@ -170,8 +171,8 @@ export class ProfileComponent implements OnInit {
     this.authService.logout();
   }
   uploadAvatar(fileOrEvent: File | Event): void {
-    let file: File | null = null;
-    
+    let file: File | null;
+
     if (fileOrEvent instanceof Event) {
       const target = fileOrEvent.target as HTMLInputElement;
       if (target && target.files && target.files.length > 0) {

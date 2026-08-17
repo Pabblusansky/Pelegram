@@ -20,7 +20,7 @@ import { GroupReactionsPipe } from '../../pipes/fileSize/groupReactions/group-re
 import { SharedMediaGalleryComponent } from "../shared-media-gallery/shared-media-gallery.component";
 import { LightboxComponent } from '../../shared/lightbox/lightbox.component';
 import { ScrollingModule } from '@angular/cdk/scrolling';
-import { AfterViewInit } from '@angular/core';
+import { AfterViewInit, AfterViewChecked } from '@angular/core';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { AudioPlayerComponent } from "../../shared/components/audio-player/audio-player.component";
 import DOMPurify from 'dompurify';
@@ -60,10 +60,10 @@ import { MessageActionsService } from './services/message-actions.service';
 
 
 
-export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
+export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, AfterViewChecked {
   private componentIsCurrentlyFocused: boolean = document.hasFocus(); 
   @HostListener('window:focus', ['$event'])
-  onWindowFocus(event: FocusEvent): void {
+  onWindowFocus(_event: FocusEvent): void {
     if (!this.componentIsCurrentlyFocused) {
       if (this.chatId && this.isChatCurrentlyOpenAndVisible()) {
         this.triggerMarkAsRead();
@@ -74,7 +74,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   @HostListener('window:blur', ['$event'])
-  onWindowBlur(event: FocusEvent): void {
+  onWindowBlur(_event: FocusEvent): void {
     this.componentIsCurrentlyFocused = false;
     this.isWindowFocused = false;
   }
@@ -521,13 +521,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
   updateMessagesWithDividers(): void {
     const newMessagesWithDividers = [];
     let lastDate = null;
-    let systemMessagesProcessedInLoop = 0;
 
     for (const message of this.messages) {
-      if (message.category === 'system_event') {
-        systemMessagesProcessedInLoop++;
-      }
-
       const messageDate = this.formatDate(new Date(message.timestamp));
 
       if (messageDate !== lastDate) {
@@ -1437,7 +1432,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       this.socketService.sendMessage(this.chatId, textOrCaption, replyToPayload)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
-          next: (sentMessage) => {
+          next: (_sentMessage) => {
             this.scrollToBottom(true);
           },
           error: (err) => {
@@ -1446,7 +1441,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
             this.showToast(`Failed to send message: ${errorMessage}`);
           }
         });
-    } else {
     }
 
     if (this.messageActionsService.replyingToMessage) {
@@ -1517,8 +1511,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
     );
 
     const isSearchResult = this.isSearchActive && this.messages.some(m => m._id === messageId && m.isCurrentSearchResult);
-    if (isSearchResult) {
-    } else {
+    if (!isSearchResult) {
       messageElement.classList.add('highlighted-reply');
 
       messageElement.animate([
@@ -1545,7 +1538,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
       const contentWrapper = this.scrollViewport.elementRef.nativeElement.querySelector('.cdk-virtual-scroll-content-wrapper');
       
       if (contentWrapper) {
-          this.resizeObserver = new ResizeObserver(entries => {
+          this.resizeObserver = new ResizeObserver(_entries => {
             if (this.isAtBottom && !this.isScrollingProgrammatically && !this.isScrollingToBottom) {
                 this.scrollToBottom(true, 'auto');
             }
@@ -1731,8 +1724,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit {
         if (!this.pinnedMessageDetails) {
             if (this.isSearchActive && this.searchResults.length > 0) {
                 this.pinnedMessageDetails = this.searchResults.find(m => m._id === this.chatDetails!.pinnedMessage) || null;
-            }
-            if (!this.pinnedMessageDetails) {
             }
         }
       } else {

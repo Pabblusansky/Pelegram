@@ -1,0 +1,46 @@
+name: Feature request
+description: Suggest a feature or improvement for Pelegram
+labels: ['enhancement']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the need rather than jumping to a solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to see?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the app?
+      options:
+        - Messaging / real-time
+        - Authentication
+        - Chats and groups
+        - Media and uploads
+        - Profiles
+        - UI / theming
+        - Developer experience
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have considered
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Would you like to work on this?
+      options:
+        - label: I would be willing to open a pull request for this

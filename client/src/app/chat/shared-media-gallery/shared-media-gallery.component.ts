@@ -122,7 +122,7 @@ export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
     }
   }
 
-  onMediaClick(item: Message, index: number): void {
+  onMediaClick(item: Message, _index: number): void {
     if (item.fileMimeType?.startsWith('image/')) {
       const imageItems = this.mediaItems.filter(m => m.fileMimeType?.startsWith('image/'));
       const startIndex = imageItems.findIndex(m => m._id === item._id);
