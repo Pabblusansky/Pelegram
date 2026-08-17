@@ -16,10 +16,14 @@
                 <div *ngIf="!isGroupChat && (isOtherParticipantOnline$ | async)" class="online-indicator"></div>
         </div>
         <div class="chat-header-info">
-            <div 
+            <div
             class="chat-name"
+            role="button"
+            tabindex="0"
             [class.clickable]="isGroupChat || (!isGroupChat && otherParticipant && chatDetails?.participants?.length === 2)"
             (click)="onChatNameClick($event)"
+            (keydown.enter)="onChatNameClick($event)"
+            (keydown.space)="$event.preventDefault(); onChatNameClick($event)"
             [title]="isGroupChat ? 'View group info' : (otherParticipant ? 'View ' + otherParticipant.username + '\'s profile' : '')"
             >
                 {{ getChatName }}

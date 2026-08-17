@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, OnInit, Output, ViewChild, OnDestroy, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, OnInit, Output, ViewChild, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, filter, switchMap, takeUntil, tap, map } from 'rxjs/operators';
@@ -183,6 +183,11 @@ export class CreateGroupChatComponent implements OnInit, OnDestroy {
           this.errorMessage = (error['error'] as Record<string, unknown>)?.['message'] as string || (error['message'] as string) || 'Failed to create group. Please try again.';
         }
       });
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.close();
   }
 
   close(): void {

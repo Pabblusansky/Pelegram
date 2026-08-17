@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { trigger, transition, style, animate } from '@angular/animations';
 
@@ -40,6 +40,11 @@ export class ConfirmationDialogComponent {
 
   onConfirm(): void {
     this.confirmed.emit();
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.onCancel();
   }
 
   onCancel(): void {

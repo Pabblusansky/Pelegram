@@ -68,7 +68,7 @@
           <h3>Participants</h3>
           <ul class="participants-list" *ngIf="chatDetails.participants && chatDetails.participants.length > 0">
             <li *ngFor="let participant of chatDetails.participants" class="participant-item">
-              <div class="participant-info" (click)="navigateToUserProfile(participant._id, $event)">
+              <div class="participant-info" role="button" tabindex="0" (click)="navigateToUserProfile(participant._id, $event)" (keydown.enter)="navigateToUserProfile(participant._id, $event)" (keydown.space)="$event.preventDefault(); navigateToUserProfile(participant._id, $event)">
                 <img [src]="getUserAvatarUrl(participant)" [alt]="participant.username" class="participant-avatar-small">
                 <span class="participant-name">{{ participant.username }}</span>
                 <span 
@@ -157,11 +157,16 @@
             No users found matching "{{ searchQuery }}"
           </div>
           
-          <ul *ngIf="!isSearching && searchResults.length > 0" class="user-list">
-            <li *ngFor="let user of searchResults" 
-              class="user-item" 
+          <ul *ngIf="!isSearching && searchResults.length > 0" class="user-list" role="listbox" aria-multiselectable="true" aria-label="Search results">
+            <li *ngFor="let user of searchResults"
+              class="user-item"
+              role="option"
+              tabindex="0"
+              [attr.aria-selected]="isUserSelected(user._id)"
               [class.selected]="isUserSelected(user._id)"
               (click)="toggleUserSelection(user)"
+              (keydown.enter)="toggleUserSelection(user)"
+              (keydown.space)="$event.preventDefault(); toggleUserSelection(user)"
             >
               <div class="user-info">
                 <img [src]="getUserAvatarUrl(user)" [alt]="user.username" class="user-avatar">

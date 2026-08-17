@@ -30,7 +30,7 @@
       No {{ currentFilter }} found in this chat.
     </div>
     
-    <div *ngFor="let item of mediaItems; let i = index" class="grid-item" (click)="onMediaClick(item, i)">
+    <div *ngFor="let item of mediaItems; let i = index" class="grid-item" role="button" tabindex="0" (click)="onMediaClick(item, i)" (keydown.enter)="onMediaClick(item, i)" (keydown.space)="$event.preventDefault(); onMediaClick(item, i)">
       <ng-container *ngIf="item.fileMimeType?.startsWith('image/'); else filePlaceholder">
         <img
           [src]="getGalleryThumbnailUrl(item.filePath)"

@@ -44,7 +44,7 @@
   ></app-chat-search-bar>
 
   <!-- Pinned Message Bar -->
-  <div class="pinned-message-bar" *ngIf="pinnedMessageDetails" (click)="scrollToPinnedMessage()">
+  <div class="pinned-message-bar" *ngIf="pinnedMessageDetails" role="button" tabindex="0" (click)="scrollToPinnedMessage()" (keydown.enter)="scrollToPinnedMessage()" (keydown.space)="$event.preventDefault(); scrollToPinnedMessage()">
     <div class="pinned-accent-line"></div>
     <div class="pinned-icon">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -119,6 +119,9 @@
             'selection-mode-active': isSelectionModeActive,
             'current-search-result': item.isCurrentSearchResult
           }"
+          [attr.role]="isSelectionModeActive ? 'button' : null"
+          [attr.tabindex]="isSelectionModeActive ? 0 : null"
+          [attr.aria-pressed]="isSelectionModeActive ? !!item.isSelected : null"
           (contextmenu)="showContextMenu($event, item)"
           (mousedown)="onMessageMouseDown($event, item)"
           (touchstart)="startLongPress($event, item)"
@@ -126,6 +129,8 @@
           (touchmove)="endLongPress()"
           (touchcancel)="endLongPress()"
           (click)="onMessageClick(item, $event)"
+          (keydown.enter)="isSelectionModeActive && onMessageClick(item)"
+          (keydown.space)="$event.preventDefault(); isSelectionModeActive && onMessageClick(item)"
         >
 
           <!-- Pin badge -->
@@ -139,11 +144,15 @@
             type="button"
             (click)="showContextMenu($event, item)"
           >⋮</button>
-          <span 
-            class="sender" 
+          <span
+            class="sender"
             *ngIf="item.category !== 'system_event' || item.senderName === 'System'"
             [class.clickable]="item.senderId && !isSelectionModeActive"
+            [attr.role]="item.senderId && !isSelectionModeActive ? 'button' : null"
+            [attr.tabindex]="item.senderId && !isSelectionModeActive ? 0 : null"
             (click)="item.senderId &&  !isSelectionModeActive && navigateToUserProfile(item.senderId, $event)"
+            (keydown.enter)="item.senderId && !isSelectionModeActive && navigateToUserProfile(item.senderId, $event)"
+            (keydown.space)="$event.preventDefault(); item.senderId && !isSelectionModeActive && navigateToUserProfile(item.senderId, $event)"
             [title]="item.senderId &&  !isSelectionModeActive ? 'View profile' : ''"
           >
             {{ item.senderName }}
@@ -152,9 +161,13 @@
             <span class="forwarded-icon">↪️</span>
             <span class="forwarded-text">
               Forwarded from 
-              <strong 
-                class="clickable-sender-name" 
+              <strong
+                class="clickable-sender-name"
+                role="button"
+                tabindex="0"
                 (click)="navigateToUserProfile(item.originalSenderId, $event)"
+                (keydown.enter)="navigateToUserProfile(item.originalSenderId, $event)"
+                (keydown.space)="$event.preventDefault(); navigateToUserProfile(item.originalSenderId, $event)"
                 [title]="'View ' + item.originalSenderName + '\'s profile'"
                 *ngIf="item.originalSenderId"
               >
@@ -169,7 +182,7 @@
             
             <ng-container *ngIf="getRepliedMessage(item.replyTo._id) as repliedMessage; else deletedMessageTemplate">
               
-              <div class="reply-quote-block" (click)="onQuoteClick(item.replyTo._id, item._id)"> 
+              <div class="reply-quote-block" role="button" tabindex="0" (click)="onQuoteClick(item.replyTo._id, item._id)" (keydown.enter)="onQuoteClick(item.replyTo._id, item._id)" (keydown.space)="$event.preventDefault(); onQuoteClick(item.replyTo._id, item._id)">
                 <div class="reply-quote-sender">{{ repliedMessage.senderName }}</div>
                 
                 <div class="reply-quote-content">
@@ -219,9 +232,13 @@
                   <img
                     [src]="getMediaUrl(item.filePath)"
                     [alt]="item.originalFileName || 'Image attachment'"
+                    role="button"
+                    tabindex="0"
                     (load)="onMediaLoad(item, $event)"
                     (error)="onMediaError(item, $event)"
                     (click)="openMediaModal(item)"
+                    (keydown.enter)="openMediaModal(item)"
+                    (keydown.space)="$event.preventDefault(); openMediaModal(item)"
                     loading="lazy"
                     class="media-full"
                   >
@@ -337,8 +354,13 @@
                 <span
                   *ngFor="let group of (item.reactions | groupReactions : userId); trackBy: trackByReactionType"
                   class="reaction-tag"
+                  role="button"
+                  tabindex="0"
+                  [attr.aria-pressed]="group.reactedByMe"
                   [class.reacted-by-me]="group.reactedByMe"
                   (click)="onReactionClick(item._id, group.type)"
+                  (keydown.enter)="onReactionClick(item._id, group.type)"
+                  (keydown.space)="$event.preventDefault(); onReactionClick(item._id, group.type)"
                   title="{{ group.reactedByMe ? 'Remove Reaction' : 'Put Reaction ' + group.type }}">
                   {{ group.type }}<span class="reaction-count">{{ group.count }}</span>
                 </span>
@@ -362,8 +384,13 @@
             <span
               *ngIf="item.ismyMessage"
               class="status"
+              role="button"
+              tabindex="0"
+              aria-label="Show read receipts"
               [class.has-read-receipts]="item.readBy?.length > 0"
               (click)="toggleReadReceipts(item, $event)"
+              (keydown.enter)="toggleReadReceipts(item, $event)"
+              (keydown.space)="$event.preventDefault(); toggleReadReceipts(item, $event)"
             >
               <img
                 [src]="getMessageStatusIcon(item.status ?? 'sent')"
@@ -379,7 +406,7 @@
             >
               <div class="read-receipts-header">
                 Read by {{ item.readBy.length }}
-                <span class="read-receipts-close" (click)="readReceiptsMessageId = null; $event.stopPropagation()">×</span>
+                <span class="read-receipts-close" role="button" tabindex="0" aria-label="Close read receipts" (click)="readReceiptsMessageId = null; $event.stopPropagation()" (keydown.enter)="readReceiptsMessageId = null; $event.stopPropagation()" (keydown.space)="$event.preventDefault(); readReceiptsMessageId = null; $event.stopPropagation()">×</span>
               </div>
               <div class="read-receipts-list">
                 <div *ngFor="let receipt of item.readBy; trackBy: trackByReceiptUserId" class="read-receipt-item">

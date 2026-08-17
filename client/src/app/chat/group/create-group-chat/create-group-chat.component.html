@@ -44,7 +44,7 @@
           </div>
           
           <ul *ngIf="hasSearchQuery && !isLoadingUsers && userSearchResults.length > 0">
-            <li *ngFor="let user of userSearchResults" (click)="selectParticipant(user)" title="Add {{user.username}}">
+            <li *ngFor="let user of userSearchResults" role="button" tabindex="0" (click)="selectParticipant(user)" (keydown.enter)="selectParticipant(user)" (keydown.space)="$event.preventDefault(); selectParticipant(user)" title="Add {{user.username}}">
               <img [src]="getAvatar(user)" alt="{{user.username}}" class="avatar-small">
               <span>{{ user.username }}</span>
               <span class="add-icon">+</span>

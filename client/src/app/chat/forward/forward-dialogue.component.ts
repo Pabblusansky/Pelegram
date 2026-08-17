@@ -1,5 +1,5 @@
 // forward-dialog.component.ts
-import { Component, OnInit, Input, Output, EventEmitter, inject } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChatApiService } from '../services/chat-api.service';
@@ -39,16 +39,21 @@ import { TokenService } from '../../services/token.service';
             >
           </div>
           
-          <div class="chats-list" *ngIf="!loading; else loadingTemplate">
+          <div class="chats-list" role="listbox" aria-label="Chats" *ngIf="!loading; else loadingTemplate">
             <div *ngIf="filteredChats.length === 0" class="no-chats">
               No chats available
             </div>
             
-            <div 
-              *ngFor="let chat of filteredChats" 
+            <div
+              *ngFor="let chat of filteredChats"
               class="chat-item"
+              role="option"
+              tabindex="0"
+              [attr.aria-selected]="selectedChatId === chat._id"
               [class.selected]="selectedChatId === chat._id"
               (click)="selectChat(chat._id)"
+              (keydown.enter)="selectChat(chat._id)"
+              (keydown.space)="$event.preventDefault(); selectChat(chat._id)"
             >
               <div class="chat-avatar">
                 <img 
@@ -474,6 +479,11 @@ export class ForwardDialogComponent implements OnInit {
     this.selectedChatId = chatId;
   }
   
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.onCancel();
+  }
+
   onCancel(): void {
     this.cancel.emit();
   }

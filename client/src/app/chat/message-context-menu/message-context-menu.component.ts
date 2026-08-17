@@ -22,13 +22,22 @@ import 'emoji-picker-element';
           <span
             *ngFor="let emoji of availableReactions"
             class="reaction-emoji-option"
+            role="button"
+            tabindex="0"
             (click)="onReactionClick(emoji)"
+            (keydown.enter)="onReactionClick(emoji)"
+            (keydown.space)="$event.preventDefault(); onReactionClick(emoji)"
             [title]="'React: ' + emoji">
             {{ emoji }}
           </span>
           <span
             class="reaction-emoji-option reaction-expand-btn"
+            role="button"
+            tabindex="0"
+            [attr.aria-expanded]="showReactionPicker"
             (click)="showReactionPicker = !showReactionPicker"
+            (keydown.enter)="showReactionPicker = !showReactionPicker"
+            (keydown.space)="$event.preventDefault(); showReactionPicker = !showReactionPicker"
             title="More reactions">
             +
           </span>
@@ -38,7 +47,7 @@ import 'emoji-picker-element';
         <emoji-picker (emoji-click)="onReactionPickerSelect($event)"></emoji-picker>
       </div>
       <div class="menu-header">
-        <div class="menu-close" (click)="onClose()">×</div>
+        <div class="menu-close" role="button" tabindex="0" aria-label="Close menu" (click)="onClose()" (keydown.enter)="onClose()" (keydown.space)="$event.preventDefault(); onClose()">×</div>
       </div>
       <div class="menu-items">
         <button class="menu-item" (click)="onReply()">

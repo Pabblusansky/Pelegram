@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output, OnChanges, SimpleChanges, inject } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, OnInit, Output, OnChanges, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Chat, User } from '../../../chat.model';
 import { ChatApiService } from '../../../services/chat-api.service';
@@ -145,6 +145,15 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
     return 'assets/images/default-avatar.png';
   }
   
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.showAddParticipantsModal) {
+      this.closeAddParticipantsModal();
+      return;
+    }
+    this.closeModal();
+  }
+
   closeModal(): void {
     this.close.emit();
   }
