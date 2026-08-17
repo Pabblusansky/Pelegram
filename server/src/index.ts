@@ -1,10 +1,11 @@
+import express from 'express';
 import mongoose from 'mongoose';
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { createServer } from 'http';
 
 import { env } from './config/env.js';
-import { createApp } from './app.js';
+import { configureApp } from './app.js';
 import logger from './config/logger.js';
 import { initUserStatus, updateUserStatus } from './socket/userStatus.js';
 import { registerSocketHandlers } from './socket/socketHandlers.js';
@@ -12,7 +13,8 @@ import type { AuthUser } from './middleware/authenticateToken.js';
 
 const { SECRET_KEY, MONGO_URI, CORS_ORIGIN, PORT } = env;
 
-const httpServer = createServer();
+const app = express();
+const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
@@ -22,8 +24,7 @@ const io = new Server(httpServer, {
   },
 });
 
-const app = createApp(io);
-httpServer.on('request', app);
+configureApp(app, io);
 
 mongoose.connection.on('error', (err: Error) => {
   logger.error('MongoDB connection error:', err);

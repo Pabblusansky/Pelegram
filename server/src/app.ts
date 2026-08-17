@@ -27,9 +27,16 @@ const __dirname = path.dirname(__filename);
 
 const { CORS_ORIGIN } = env;
 
-export function createApp(io: Server): express.Express {
-  const app = express();
-
+/**
+ * Registers middleware and routes on an existing app.
+ *
+ * index.ts must hand the app to createServer() before Socket.IO attaches to
+ * that server, because attach() captures the request listeners already present
+ * and delegates non-socket traffic to them. An app added afterwards runs in
+ * addition to Socket.IO rather than behind it, and both write to the same
+ * response.
+ */
+export function configureApp(app: express.Express, io: Server): express.Express {
   app.set('trust proxy', 1);
 
   app.use(generalLimiter);
@@ -168,6 +175,10 @@ export function createApp(io: Server): express.Express {
   app.use(globalErrorHandler);
 
   return app;
+}
+
+export function createApp(io: Server): express.Express {
+  return configureApp(express(), io);
 }
 
 export default createApp;

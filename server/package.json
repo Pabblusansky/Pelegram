@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node scripts/run-tests.mjs"
+    "test": "npm run build && node scripts/run-tests.mjs && node scripts/smoke.mjs",
+    "smoke": "npm run build && node scripts/smoke.mjs"
   },
   "keywords": [],
   "author": "",
