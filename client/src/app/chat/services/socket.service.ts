@@ -1,5 +1,5 @@
-import { Injectable, OnDestroy } from '@angular/core';
-import {} from '@angular/common/http';
+import { Injectable, OnDestroy, inject } from '@angular/core';
+
 import { io, Socket } from 'socket.io-client';
 import { Observable, Subject, BehaviorSubject, interval, map } from 'rxjs';
 import { shareReplay, takeUntil } from 'rxjs/operators';
@@ -13,6 +13,10 @@ import { environment } from '../../../environments/environment';
   providedIn: 'root',
 })
 export class SocketService implements OnDestroy {
+  private logger = inject(LoggerService);
+  private tokenService = inject(TokenService);
+  private chatApiService = inject(ChatApiService);
+
   private apiUrl = environment.apiUrl;
   private socket: Socket | undefined;
   private destroySocket$ = new Subject<void>();
@@ -46,11 +50,7 @@ export class SocketService implements OnDestroy {
   private connectedSubject = new Subject<void>();
   public connected$ = this.connectedSubject.asObservable();
 
-  constructor(
-    private logger: LoggerService,
-    private tokenService: TokenService,
-    private chatApiService: ChatApiService
-  ) {
+  constructor() {
     this.initializeSocket();
   }
 

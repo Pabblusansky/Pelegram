@@ -1,4 +1,4 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UserProfile, ProfileUpdateDto } from '../profile.model';
@@ -18,6 +18,13 @@ import { LoggerService } from '../../services/logger.service';
   imports: [CommonModule, FormsModule]
 })
 export class ProfileEditComponent implements OnInit {
+  private themeService = inject(ThemeService);
+  private notificationService = inject(NotificationService);
+  private soundService = inject(SoundService);
+  private profileService = inject(ProfileService);
+  private confirmationService = inject(ConfirmationService);
+  private logger = inject(LoggerService);
+
   @Input() profile: UserProfile | null = null;
   @Output() save = new EventEmitter<ProfileUpdateDto>();
   @Output() cancel = new EventEmitter<void>();
@@ -34,15 +41,6 @@ export class ProfileEditComponent implements OnInit {
   };
   
   previewAvatarUrl: string | null = null;
-  
-  constructor(
-    private themeService: ThemeService,
-    private notificationService: NotificationService,
-    private soundService: SoundService,
-    private profileService: ProfileService,
-    private confirmationService: ConfirmationService,
-    private logger: LoggerService
-  ) {}
   
   ngOnInit(): void {
     this.initializeEditableProfile();

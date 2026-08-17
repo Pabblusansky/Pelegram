@@ -1,4 +1,4 @@
-import { Injectable, ApplicationRef, createComponent, EnvironmentInjector } from '@angular/core';
+import { Injectable, ApplicationRef, createComponent, EnvironmentInjector, inject } from '@angular/core';
 import { ConfirmationDialogComponent } from '../components/confirmation-dialogue/confirmation-dialogue.component';
 
 interface ConfirmationOptions {
@@ -12,11 +12,9 @@ interface ConfirmationOptions {
   providedIn: 'root'
 })
 export class ConfirmationService {
+  private appRef = inject(ApplicationRef);
+  private injector = inject(EnvironmentInjector);
 
-  constructor(
-    private appRef: ApplicationRef,
-    private injector: EnvironmentInjector
-  ) { }
 
   public confirm(options: ConfirmationOptions): Promise<boolean> {
     return new Promise<boolean>(resolve => {

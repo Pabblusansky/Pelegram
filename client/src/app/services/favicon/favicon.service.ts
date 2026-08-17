@@ -1,21 +1,23 @@
-import { Injectable, Renderer2, RendererFactory2, DOCUMENT } from '@angular/core';
+import { Injectable, Renderer2, RendererFactory2, DOCUMENT, inject } from '@angular/core';
 
-import { Inject } from '@angular/core';
+
 import { LoggerService } from '../logger.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class FaviconService {
+  private rendererFactory = inject(RendererFactory2);
+  private document = inject<Document>(DOCUMENT);
+  private logger = inject(LoggerService);
+
   private linkElement: HTMLLinkElement | null = null;
   private originalFaviconHref: string | null = null;
   private renderer: Renderer2;
 
-  constructor(
-    private rendererFactory: RendererFactory2,
-    @Inject(DOCUMENT) private document: Document,
-    private logger: LoggerService
-  ) {
+  constructor() {
+    const rendererFactory = this.rendererFactory;
+
     this.renderer = rendererFactory.createRenderer(null, null);
     this.initializeFavicon();
   }

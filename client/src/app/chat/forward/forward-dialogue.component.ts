@@ -1,5 +1,5 @@
 // forward-dialog.component.ts
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChatApiService } from '../services/chat-api.service';
@@ -422,6 +422,10 @@ import { TokenService } from '../../services/token.service';
   `]
 })
 export class ForwardDialogComponent implements OnInit {
+  private chatApiService = inject(ChatApiService);
+  private logger = inject(LoggerService);
+  private tokenService = inject(TokenService);
+
   @Input() message: any;
   @Output() cancel = new EventEmitter<void>();
   @Output() forward = new EventEmitter<string>();
@@ -432,8 +436,6 @@ export class ForwardDialogComponent implements OnInit {
   selectedChatId: string | null = null;
   loading: boolean = true;
   currentUserId: string | null = null;
-  
-  constructor(private chatApiService: ChatApiService, private logger: LoggerService, private tokenService: TokenService) {}
   
   ngOnInit(): void {
     this.currentUserId = this.tokenService.getUserId();

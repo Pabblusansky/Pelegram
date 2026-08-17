@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, inject } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
@@ -13,13 +13,15 @@ import { SocketService } from '../../chat/services/socket.service';
   imports: [CommonModule, FormsModule]
 })
 export class LoginComponent {
+  private authService = inject(AuthService);
+  private router = inject(Router);
+  private socketService = inject(SocketService);
+
   @ViewChild('loginForm') loginForm!: NgForm;
   credentials = { usernameOrEmail: '', password: '' };
   passwordFieldType: string = 'password';
   isLoading: boolean = false;
   errorMessage: string = '';
-
-  constructor(private authService: AuthService, private router: Router, private socketService: SocketService) {}
 
   onSubmit() {
     if (!this.credentials.usernameOrEmail || !this.credentials.password) return;

@@ -1,4 +1,4 @@
-import { Injectable, OnDestroy, Renderer2, RendererFactory2 } from '@angular/core';
+import { Injectable, OnDestroy, Renderer2, RendererFactory2, inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 
 export type ThemeType = 'light' | 'dark' | 'system';
@@ -14,7 +14,9 @@ export class ThemeService implements OnDestroy{
   
   private prefersDarkMediaQuery: MediaQueryList;
   
-  constructor(rendererFactory: RendererFactory2) {
+  constructor() {
+    const rendererFactory = inject(RendererFactory2);
+
     this.renderer = rendererFactory.createRenderer(null, null);
     
     this.prefersDarkMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');

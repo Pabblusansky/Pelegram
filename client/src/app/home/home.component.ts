@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { ChatListComponent } from "../chat/chat-list/chat-list.component";
 import { ChatRoomComponent } from "../chat/chat-room/chat-room.component";
 import { ActivatedRoute, NavigationEnd, Router, RouterModule } from '@angular/router';
@@ -25,19 +25,17 @@ import { LoggerService } from '../services/logger.service';
   ],
 })
 export class HomeComponent implements OnInit, OnDestroy {
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private profileService = inject(ProfileService);
+  private chatStateService = inject(ChatStateService);
+  private faviconService = inject(FaviconService);
+  private logger = inject(LoggerService);
+
   selectedChatId: string | null = null;
   isProfileRoute: boolean = false;
   userProfile: UserProfile | null = null;
   private destroy$ = new Subject<void>();
-
-  constructor(
-    private router: Router, 
-    private route: ActivatedRoute,
-    private profileService: ProfileService,
-    private chatStateService: ChatStateService,
-    private faviconService: FaviconService,
-    private logger: LoggerService
-  ) {}
 
   ngOnInit(): void {
     this.loadUserProfile();

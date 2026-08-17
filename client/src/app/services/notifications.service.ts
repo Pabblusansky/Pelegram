@@ -1,4 +1,4 @@
-import { Injectable, OnDestroy } from '@angular/core';
+import { Injectable, OnDestroy, inject } from '@angular/core';
 import { BehaviorSubject, Subject, fromEvent, takeUntil } from 'rxjs';
 import { LoggerService } from './logger.service';
 
@@ -7,6 +7,8 @@ import { LoggerService } from './logger.service';
 })
 
 export class NotificationService implements OnDestroy {
+  private logger = inject(LoggerService);
+
   private notificationsEnabledSubject = new BehaviorSubject<boolean>(this.getInitialNotificationState());
   public notificationsEnabled$ = this.notificationsEnabledSubject.asObservable();
 
@@ -14,7 +16,7 @@ export class NotificationService implements OnDestroy {
   public isAppVisible$ = this.isAppVisibleSubject.asObservable();
   private destroy$ = new Subject<void>();
 
-  constructor(private logger: LoggerService) {
+  constructor() {
     fromEvent(document, 'visibilitychange')
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {

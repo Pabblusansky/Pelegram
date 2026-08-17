@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Chat, Message, Reaction } from '../../chat.model';
 import { ChatApiService } from '../../services/chat-api.service';
 import { SocketService } from '../../services/socket.service';
@@ -25,6 +25,8 @@ export interface MessageActionsContext {
 
 @Injectable()
 export class MessageActionsService {
+  private selectionService = inject(SelectionService);
+
   activeContextMenuId: string | null = null;
   menuPosition: { x: number; y: number } = { x: 0, y: 0 };
   selectedMessageId: string | null = null;
@@ -36,8 +38,6 @@ export class MessageActionsService {
   availableReactions: string[] = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
   private ctx!: MessageActionsContext;
-
-  constructor(private selectionService: SelectionService) {}
 
   init(context: MessageActionsContext): void {
     this.ctx = context;

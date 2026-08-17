@@ -1,6 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
-import {} from 'rxjs';
+
 
 @Component({
   selector: 'app-register-success',
@@ -11,8 +11,9 @@ import {} from 'rxjs';
   styleUrl: './register-success.component.scss'
 })
 export class RegisterSuccessComponent implements OnInit {
+  private router = inject(Router);
+
   countdown: number = 7 ;
-  constructor(private router: Router) {}
 
   ngOnInit(): void {
     this.countdown -=1;

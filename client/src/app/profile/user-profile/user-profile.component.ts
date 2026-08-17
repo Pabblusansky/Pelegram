@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ProfileService } from '../profile.service';
@@ -18,6 +18,14 @@ import { environment } from '../../../environments/environment';
   imports: [CommonModule]
 })
 export class UserProfileComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private profileService = inject(ProfileService);
+  private socketService = inject(SocketService);
+  private chatApiService = inject(ChatApiService);
+  private location = inject(Location);
+  private logger = inject(LoggerService);
+
   userId: string | null = null;
   profile: UserProfile | null = null;
   isLoading = true;
@@ -25,15 +33,6 @@ export class UserProfileComponent implements OnInit {
   userStatus$: Observable<string> | null = null;
   isOnline$: Observable<boolean> | null = null;
   private apiUrl = environment.apiUrl
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private profileService: ProfileService,
-    private socketService: SocketService,
-    private chatApiService: ChatApiService,
-    private location: Location,
-    private logger: LoggerService
-  ) {}
   
   ngOnInit(): void {
     this.route.paramMap.subscribe(params => {

@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { SocketService } from '../chat/services/socket.service';
 import { BehaviorSubject, Observable, tap, catchError, throwError } from 'rxjs';
@@ -23,6 +23,12 @@ interface RefreshResponse {
   providedIn: 'root',
 })
 export class AuthService {
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private socketService = inject(SocketService);
+  private logger = inject(LoggerService);
+  private tokenService = inject(TokenService);
+
   private apiUrl = `${environment.apiUrl}/api/auth`;
   private readonly ACCESS_TOKEN_LIFETIME_MS = 15 * 60 * 1000; // 15 minutes, matches server
 
@@ -32,12 +38,7 @@ export class AuthService {
   private isRefreshing = false;
   private refreshSubject = new BehaviorSubject<string | null>(null);
 
-  constructor(
-    private http: HttpClient,
-    private router: Router,
-    private socketService: SocketService,
-    private logger: LoggerService,
-    private tokenService: TokenService)
+  constructor()
     {
       this.isAuthenticatedSubject.next(this.tokenService.isTokenValid());
     }

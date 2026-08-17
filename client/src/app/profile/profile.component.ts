@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProfileService } from './profile.service';
@@ -19,6 +19,13 @@ import { environment } from '../../environments/environment';
   imports: [CommonModule, FormsModule, ProfileEditComponent]
 })
 export class ProfileComponent implements OnInit {
+  private profileService = inject(ProfileService);
+  themeService = inject(ThemeService);
+  private notificationService = inject(NotificationService);
+  private soundService = inject(SoundService);
+  private authService = inject(AuthService);
+  private logger = inject(LoggerService);
+
   isLoading = true;
   error: string | null = null;
   isEditing = false;
@@ -69,15 +76,6 @@ export class ProfileComponent implements OnInit {
       default: return this.profile.settings.theme || 'System';
     }
   }
-  
-  constructor(
-    private profileService: ProfileService,
-    public themeService: ThemeService,
-    private notificationService: NotificationService,
-    private soundService: SoundService,
-    private authService: AuthService,
-    private logger: LoggerService
-  ) {}
 
   ngOnInit(): void {
     if (!this.profile) {

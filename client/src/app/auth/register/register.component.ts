@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
@@ -12,6 +12,10 @@ import { LoggerService } from '../../services/logger.service';
   imports: [CommonModule, FormsModule],
 })
 export class RegisterComponent {
+  private authService = inject(AuthService);
+  private router = inject(Router);
+  private logger = inject(LoggerService);
+
   formData: { username: string; email: string; password: string } = {
     username: '',
     email: '',
@@ -20,8 +24,6 @@ export class RegisterComponent {
   passwordFieldType: string = 'password';
   isSubmitting: boolean = false
   errors: Record<string, string> = {};
-
-  constructor(private authService: AuthService, private router: Router, private logger: LoggerService) {}
 
   hasErrors(): boolean {
     return Object.values(this.errors).some((error) => !!error);

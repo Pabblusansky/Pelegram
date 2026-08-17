@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, throwError, catchError, map} from 'rxjs';
@@ -12,14 +12,12 @@ import { environment } from '../../../environments/environment';
   providedIn: 'root',
 })
 export class ChatApiService {
-  private apiUrl = environment.apiUrl;
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private logger = inject(LoggerService);
+  private tokenService = inject(TokenService);
 
-  constructor(
-    private http: HttpClient,
-    private router: Router,
-    private logger: LoggerService,
-    private tokenService: TokenService
-  ) {}
+  private apiUrl = environment.apiUrl;
 
   public getApiUrl(): string {
     return this.apiUrl;

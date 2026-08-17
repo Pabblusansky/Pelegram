@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, OnChanges, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Chat, User } from '../../../chat.model';
 import { ChatApiService } from '../../../services/chat-api.service';
@@ -18,6 +18,13 @@ import { TokenService } from '../../../../services/token.service';
   styleUrls: ['./group-info-modal.component.scss']
 })
 export class GroupInfoModalComponent implements OnInit, OnChanges {
+  chatApiService = inject(ChatApiService);
+  private router = inject(Router);
+  private ToastService = inject(ToastService);
+  private confirmationService = inject(ConfirmationService);
+  private logger = inject(LoggerService);
+  private tokenService = inject(TokenService);
+
   @Input() chatDetails: Chat | null = null;
   @Output() close = new EventEmitter<void>(); 
   @ViewChild('avatarFileInput') avatarFileInput!: ElementRef<HTMLInputElement>;
@@ -37,15 +44,6 @@ export class GroupInfoModalComponent implements OnInit, OnChanges {
   newGroupName: string = '';
   isSavingName: boolean = false;
   isDeletingAvatar: boolean = false;
-
-  constructor(
-    public chatApiService: ChatApiService,
-    private router: Router,
-    private ToastService: ToastService,
-    private confirmationService: ConfirmationService,
-    private logger: LoggerService,
-    private tokenService: TokenService
-  ) {}
 
   ngOnInit(): void {
     this.currentUserId = this.tokenService.getUserId();

@@ -1,11 +1,11 @@
-import { Component, EventEmitter, Output, Input, ViewChild, ElementRef, HostListener, OnDestroy, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef, AfterViewInit, NgZone, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, EventEmitter, Output, Input, ViewChild, ElementRef, HostListener, OnDestroy, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef, AfterViewInit, NgZone, CUSTOM_ELEMENTS_SCHEMA, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
 import { ToastService } from '../../utils/toast-service';
 import { LoggerService } from '../../services/logger.service';
-import {} from '../chat.model';
+
 import 'emoji-picker-element';
 
 @Component({
@@ -21,6 +21,12 @@ import 'emoji-picker-element';
   templateUrl: './message-input.component.html',
 })
 export class MessageInputComponent implements OnDestroy, OnInit, OnChanges, AfterViewInit {
+  private sanitizer = inject(DomSanitizer);
+  private cdr = inject(ChangeDetectorRef);
+  private ToastService = inject(ToastService);
+  private ngZone = inject(NgZone);
+  private logger = inject(LoggerService);
+
   @Input() chatId: string | null = null;
   @Input() replyingToMessage: any | null = null;
   @Output() sendMessageEvent = new EventEmitter<{
@@ -113,13 +119,7 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges, Afte
       this.stopRecording(isPointerOverButton);
     }
   }
-  constructor(
-    private sanitizer: DomSanitizer,
-    private cdr: ChangeDetectorRef,
-    private ToastService: ToastService,
-    private ngZone: NgZone,
-    private logger: LoggerService
-  ) {
+  constructor() {
     this.boundOnPaste = this.onPaste.bind(this);
   }
 

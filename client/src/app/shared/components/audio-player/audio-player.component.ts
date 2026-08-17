@@ -1,4 +1,4 @@
-import { Component, Input, ViewChild, ElementRef, ChangeDetectorRef, NgZone, OnChanges, SimpleChanges, OnDestroy, AfterViewInit, Output, EventEmitter } from '@angular/core';
+import { Component, Input, ViewChild, ElementRef, ChangeDetectorRef, NgZone, OnChanges, SimpleChanges, OnDestroy, AfterViewInit, Output, EventEmitter, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { LoggerService } from '../../../services/logger.service';
@@ -11,6 +11,11 @@ import { LoggerService } from '../../../services/logger.service';
   standalone: true
 })
 export class AudioPlayerComponent implements OnChanges, AfterViewInit, OnDestroy {
+  private http = inject(HttpClient);
+  private cdr = inject(ChangeDetectorRef);
+  private ngZone = inject(NgZone);
+  private logger = inject(LoggerService);
+
   @Input() src: string = '';
   @Input() preloadedDuration: number = 0;
 
@@ -32,12 +37,7 @@ export class AudioPlayerComponent implements OnChanges, AfterViewInit, OnDestroy
   private audioBuffer: AudioBuffer | null = null;
   private animationFrameId?: number;
 
-  constructor(
-    private http: HttpClient,
-    private cdr: ChangeDetectorRef,
-    private ngZone: NgZone,
-    private logger: LoggerService,
-  ) {
+  constructor() {
     if (!this.audioContext) {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     }

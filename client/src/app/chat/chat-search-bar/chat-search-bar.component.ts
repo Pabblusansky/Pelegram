@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil, debounceTime } from 'rxjs';
@@ -14,6 +14,9 @@ import { LoggerService } from '../../services/logger.service';
   styleUrl: './chat-search-bar.component.scss'
 })
 export class ChatSearchBarComponent implements OnInit, OnDestroy {
+  private chatApiService = inject(ChatApiService);
+  private logger = inject(LoggerService);
+
   @Input() chatId: string | null = null;
 
   @Output() closed = new EventEmitter<void>();
@@ -30,11 +33,6 @@ export class ChatSearchBarComponent implements OnInit, OnDestroy {
 
   private searchDebounce = new Subject<string>();
   private destroy$ = new Subject<void>();
-
-  constructor(
-    private chatApiService: ChatApiService,
-    private logger: LoggerService
-  ) {}
 
   ngOnInit(): void {
     this.searchDebounce.pipe(

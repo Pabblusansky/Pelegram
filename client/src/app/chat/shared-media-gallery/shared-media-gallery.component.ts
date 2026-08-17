@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy, Output, EventEmitter } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChatApiService } from '../services/chat-api.service';
 import { MediaGalleryResponse } from '../chat.model';
@@ -15,6 +15,9 @@ import { LoggerService } from '../../services/logger.service';
   imports: [CommonModule],
 })
 export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
+  private chatApiService = inject(ChatApiService);
+  private logger = inject(LoggerService);
+
   @Input() chatId!: string; 
   @Output() imageSelected = new EventEmitter<{ items: Message[], startIndex: number }>();
 
@@ -28,8 +31,6 @@ export class SharedMediaGalleryComponent implements OnInit, OnDestroy {
   hasMoreToLoad: boolean = true;
 
   private destroy$ = new Subject<void>();
-
-  constructor(private chatApiService: ChatApiService, private logger: LoggerService) {}
 
   ngOnInit(): void {
     if (!this.chatId) {

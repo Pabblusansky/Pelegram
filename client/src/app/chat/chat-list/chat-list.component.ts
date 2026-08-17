@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, OnInit, OnDestroy, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, OnInit, OnDestroy, Output, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ChatApiService } from '../services/chat-api.service';
 import { SocketService } from '../services/socket.service';
@@ -29,6 +29,18 @@ import { ConfirmationService } from '../../shared/services/confirmation.service'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatListComponent implements OnInit, OnDestroy {
+  private chatApiService = inject(ChatApiService);
+  private socketService = inject(SocketService);
+  private chatStateService = inject(ChatStateService);
+  router = inject(Router);
+  private http = inject(HttpClient);
+  private cdr = inject(ChangeDetectorRef);
+  private profileService = inject(ProfileService);
+  private ToastService = inject(ToastService);
+  private confirmationService = inject(ConfirmationService);
+  private logger = inject(LoggerService);
+  private tokenService = inject(TokenService);
+
   @Output() chatSelected = new EventEmitter<string>();
   chats: any[] = [];
   filteredChats: any[] = [];
@@ -49,20 +61,6 @@ export class ChatListComponent implements OnInit, OnDestroy {
   savedMessagesChat: Chat | null = null; 
 
   isCreateGroupDialogOpen = false;
-  
-  constructor(
-    private chatApiService: ChatApiService,
-    private socketService: SocketService,
-    private chatStateService: ChatStateService,
-    public router: Router, 
-    private http: HttpClient,
-    private cdr: ChangeDetectorRef,
-    private profileService: ProfileService,
-    private ToastService: ToastService,
-    private confirmationService: ConfirmationService,
-    private logger: LoggerService,
-    private tokenService: TokenService
-  ) {}
 
   ngOnInit(): void {
     this.currentUserId = this.tokenService.getUserId();

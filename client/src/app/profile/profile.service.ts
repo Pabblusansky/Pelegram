@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpEvent, HttpEventType } from '@angular/common/http';
 import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, tap, map, finalize, filter } from 'rxjs/operators';
@@ -12,6 +12,11 @@ import { environment } from '../../environments/environment';
 })
 
 export class ProfileService {
+  private http = inject(HttpClient);
+  private themeService = inject(ThemeService);
+  private logger = inject(LoggerService);
+  private tokenService = inject(TokenService);
+
   private apiUrl = `${environment.apiUrl}/api/profile`;
   private currentProfileSubject = new BehaviorSubject<UserProfile | null>(null);
   
@@ -20,12 +25,7 @@ export class ProfileService {
   private avatarUploadProgress = new BehaviorSubject<number>(0);
   public avatarUploadProgress$ = this.avatarUploadProgress.asObservable();
   
-  constructor(
-    private http: HttpClient,
-    private themeService: ThemeService,
-    private logger: LoggerService,
-    private tokenService: TokenService
-  ) {
+  constructor() {
     this.getMyProfile().subscribe({
       next: (profile) => this.currentProfileSubject.next(profile),
       error: () => {} 

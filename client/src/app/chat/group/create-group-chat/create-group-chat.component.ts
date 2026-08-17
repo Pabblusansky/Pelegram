@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, OnInit, Output, ViewChild, OnDestroy } from '@angular/core';
+import { Component, ElementRef, EventEmitter, OnInit, Output, ViewChild, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, filter, switchMap, takeUntil, tap, map } from 'rxjs/operators';
@@ -23,6 +23,13 @@ import { TokenService } from '../../../services/token.service';
   styleUrls: ['./create-group-chat.component.scss']
 })
 export class CreateGroupChatComponent implements OnInit, OnDestroy {
+  private fb = inject(FormBuilder);
+  private chatApiService = inject(ChatApiService);
+  private http = inject(HttpClient);
+  private profileService = inject(ProfileService);
+  private logger = inject(LoggerService);
+  private tokenService = inject(TokenService);
+
   @Output() closeDialog = new EventEmitter<void>();
   @Output() groupCreated = new EventEmitter<Chat>();
   @ViewChild('userSearchInput') userSearchInput!: ElementRef<HTMLInputElement>;
@@ -40,14 +47,7 @@ export class CreateGroupChatComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private userProfilesCache = new Map<string, { avatar?: string }>();
 
-  constructor(
-    private fb: FormBuilder,
-    private chatApiService: ChatApiService,
-    private http: HttpClient,
-    private profileService: ProfileService,
-    private logger: LoggerService,
-    private tokenService: TokenService
-  ) {
+  constructor() {
     this.createGroupForm = this.fb.group({
       groupName: ['', [Validators.required, Validators.minLength(3)]]
     });

@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy, OnInit, ChangeDetectorRef, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, ChangeDetectorRef, OnChanges, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { UserProfile } from '../profile.model';
 import { RouterModule } from '@angular/router';
@@ -15,6 +15,9 @@ import { environment } from '../../../environments/environment';
   imports: [CommonModule, RouterModule]
 })
 export class ProfileCardComponent implements OnInit, OnChanges, OnDestroy {
+  private profileService = inject(ProfileService);
+  private cdr = inject(ChangeDetectorRef);
+
   @Input() profile: UserProfile | null = null;
   @Input() isCurrentUser: boolean = true;
   @Input() compact: boolean = false;
@@ -23,12 +26,7 @@ export class ProfileCardComponent implements OnInit, OnChanges, OnDestroy {
   private destroy$ = new Subject<void>();
 
   private readonly defaultAvatarPath = 'assets/images/default-avatar.png';
-  private apiUrl = environment.apiUrl;
-
-  constructor(
-    private profileService: ProfileService,
-    private cdr: ChangeDetectorRef
-  ) {} 
+  private apiUrl = environment.apiUrl; 
 
   ngOnInit(): void {
     if (this.isCurrentUser) {

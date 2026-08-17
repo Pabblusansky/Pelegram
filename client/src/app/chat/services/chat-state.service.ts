@@ -1,4 +1,4 @@
-import { Injectable, OnDestroy } from '@angular/core';
+import { Injectable, OnDestroy, inject } from '@angular/core';
 import { BehaviorSubject, Subject, first, takeUntil } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Chat, Message } from '../chat.model';
@@ -13,20 +13,20 @@ import { ChatApiService } from './chat-api.service';
   providedIn: 'root',
 })
 export class ChatStateService implements OnDestroy {
+  private tokenService = inject(TokenService);
+  private soundService = inject(SoundService);
+  private notificationService = inject(NotificationService);
+  private logger = inject(LoggerService);
+  private socketService = inject(SocketService);
+  private chatApiService = inject(ChatApiService);
+
   private currentActiveChatId: string | null = null;
   private destroy$ = new Subject<void>();
 
   private totalUnreadCountSubject = new BehaviorSubject<number>(0);
   public totalUnreadCount$ = this.totalUnreadCountSubject.asObservable();
 
-  constructor(
-    private tokenService: TokenService,
-    private soundService: SoundService,
-    private notificationService: NotificationService,
-    private logger: LoggerService,
-    private socketService: SocketService,
-    private chatApiService: ChatApiService
-  ) {
+  constructor() {
     this.setupSubscriptions();
   }
 

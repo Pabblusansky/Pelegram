@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { LoggerService } from './logger.service';
 
@@ -6,12 +6,14 @@ import { LoggerService } from './logger.service';
   providedIn: 'root'
 })
 export class SoundService {
+  private logger = inject(LoggerService);
+
   private soundEnabledSubject = new BehaviorSubject<boolean>(this.getInitialSoundState());
   public soundEnabled$ = this.soundEnabledSubject.asObservable();
   
   private sounds: {[key: string]: HTMLAudioElement} = {};
   
-  constructor(private logger: LoggerService) {
+  constructor() {
     this.preloadSounds();
   }
   

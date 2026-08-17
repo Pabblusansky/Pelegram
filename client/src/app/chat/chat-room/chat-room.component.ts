@@ -1,4 +1,4 @@
-import { Input } from '@angular/core';
+import { Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -61,6 +61,20 @@ import { MessageActionsService } from './services/message-actions.service';
 
 
 export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, AfterViewChecked {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private chatApiService = inject(ChatApiService);
+  private socketService = inject(SocketService);
+  private chatStateService = inject(ChatStateService);
+  private cdr = inject(ChangeDetectorRef);
+  private soundService = inject(SoundService);
+  private confirmationService = inject(ConfirmationService);
+  private logger = inject(LoggerService);
+  private tokenService = inject(TokenService);
+  private toastService = inject(ToastService);
+  selectionService = inject(SelectionService);
+  messageActionsService = inject(MessageActionsService);
+
   private componentIsCurrentlyFocused: boolean = document.hasFocus(); 
   @HostListener('window:focus', ['$event'])
   onWindowFocus(_event: FocusEvent): void {
@@ -146,21 +160,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   get showForwardDialogue(): boolean { return this.messageActionsService.showForwardDialogue; }
   get availableReactions(): string[] { return this.messageActionsService.availableReactions; }
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private chatApiService: ChatApiService,
-    private socketService: SocketService,
-    private chatStateService: ChatStateService,
-    private cdr: ChangeDetectorRef,
-    private soundService: SoundService,
-    private confirmationService: ConfirmationService,
-    private logger: LoggerService,
-    private tokenService: TokenService,
-    private toastService: ToastService,
-    public selectionService: SelectionService,
-    public messageActionsService: MessageActionsService
-  ) {
+  constructor() {
     this.markAsReadDebounce.pipe(debounceTime(500)).subscribe(() => {
       this.markMessagesAsRead();
     });
