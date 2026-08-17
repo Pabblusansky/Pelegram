@@ -58,7 +58,7 @@
       </div>
 
       <div class="selected-participants-container" *ngIf="selectedParticipants.length > 0">
-        <label>Selected Participants:</label>
+        <span class="field-label">Selected Participants:</span>
         <ul class="selected-participants-list">
           <li *ngFor="let participant of selectedParticipants">
             <img [src]="getAvatar(participant)" alt="{{participant.username}}" class="avatar-small">

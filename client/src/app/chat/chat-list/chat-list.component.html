@@ -25,7 +25,11 @@
       <div class="results-header">Start a new chat:</div>
       <div *ngFor="let user of searchResults; trackBy: trackByUserId"
           class="search-result-item"
-          (click)="startChatWithUser(user)" 
+          role="button"
+          tabindex="0"
+          (click)="startChatWithUser(user)"
+          (keydown.enter)="startChatWithUser(user)"
+          (keydown.space)="$event.preventDefault(); startChatWithUser(user)"
           title="Start chat with {{ user.username }}">
         <div class="user-avatar">
           <img [src]="getSearchResultAvatar(user)" alt="{{ user.username }} avatar" (error)="handleAvatarError($event)">
@@ -66,9 +70,13 @@
   <div
     *ngFor="let chat of filteredChats; trackBy: trackByChatId"
     class="chat-item"
+    role="button"
+    tabindex="0"
     [class.active]="router.url.includes(chat._id)"
     [class.has-unread]="getUnreadCountForChat(chat) > 0"
     (click)="onChatClick(chat._id)"
+    (keydown.enter)="onChatClick(chat._id)"
+    (keydown.space)="$event.preventDefault(); onChatClick(chat._id)"
     [title]="'Open chat with ' + getChatDisplayName(chat)"
   >
     <div class="chat-avatar-wrapper">

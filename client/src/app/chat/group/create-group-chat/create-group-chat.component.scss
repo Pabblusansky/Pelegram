@@ -100,7 +100,8 @@
 
   .selected-participants-container {
     margin-top: 1rem;
-    label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+    label,
+    .field-label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
   }
 
   .selected-participants-list {

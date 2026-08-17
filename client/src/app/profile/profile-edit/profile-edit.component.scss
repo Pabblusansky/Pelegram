@@ -204,7 +204,8 @@
 .form-group {
   margin-bottom: 20px;
   
-  label {
+  label,
+  .form-label {
     display: block;
     margin-bottom: 6px;
     font-weight: 500;
@@ -456,7 +457,8 @@
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   }
   
-  .form-group label {
+  .form-group label,
+  .form-group .form-label {
     color: #e0e0e0;
   }
   
