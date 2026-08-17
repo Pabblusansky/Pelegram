@@ -42,9 +42,14 @@ From the repository root:
 ```bash
 npm run typecheck     # server type checking
 npm run lint          # lint client and server
-npm test              # client unit tests (headless Chrome)
+npm test              # server integration tests, then client unit tests
 npm run build         # production build of both
 ```
+
+The server tests run against a real MongoDB started in memory, so they need no
+local database. The first run downloads a MongoDB binary, which takes a moment;
+later runs reuse it. They live in `server/tests/` and exercise the built output
+in `server/dist/`, so `npm test` builds first.
 
 CI runs the same commands on every pull request. A red build will block a merge,
 so it is worth running them locally first.

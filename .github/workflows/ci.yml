@@ -41,6 +41,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Unit and integration tests
+        run: npm test
+
       - name: Verify environment validation rejects a weak secret
         run: |
           if SECRET_KEY=tooshort node dist/config/env.js; then
