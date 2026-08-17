@@ -35,7 +35,7 @@ In scope:
 Out of scope:
 
 - Vulnerabilities in third-party hosting (Netlify, Render, MongoDB Atlas,
-  Cloudinary) — report those to the vendor
+  Cloudinary). Report those to the vendor
 - Denial of service through sheer traffic volume against the free-tier demo
 - Missing hardening headers with no demonstrable impact
 - Findings from automated scanners with no working proof of concept
@@ -43,7 +43,7 @@ Out of scope:
 ## Please do not
 
 - Access, modify, or delete other users' accounts, messages, or uploads. The
-  demo has real accounts on it — use two accounts you created yourself.
+  demo has real accounts on it, so use two accounts you created yourself.
 - Run automated scanners or load tests against the deployed demo.
 - Publicly disclose an unfixed issue.
 

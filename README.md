@@ -104,7 +104,7 @@ cp server/.env.example server/.env
 ```
 
 Then open `server/.env` and set `SECRET_KEY`. It is **required** and must be at
-least 32 characters — the server validates this at startup and refuses to run
+least 32 characters. The server validates this at startup and refuses to run
 with a missing or weak value. Generate one with:
 
 ```bash
@@ -152,11 +152,11 @@ Frontend build artifacts are written to `client/dist/`.
 
 # 🤝 Contributing
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup,
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup,
 project layout, coding conventions, and the checks CI runs on every pull request.
 Participation is covered by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-Found a security issue? Please report it privately — see [SECURITY.md](SECURITY.md).
+Found a security issue? Please report it privately. See [SECURITY.md](SECURITY.md).
 
 # 📜 License
 

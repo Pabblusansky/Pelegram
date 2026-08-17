@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Thanks for the report. Please do not use this form for security
-        vulnerabilities — see [SECURITY.md](../blob/master/SECURITY.md).
+        vulnerabilities. See [SECURITY.md](../blob/master/SECURITY.md).
 
   - type: textarea
     id: what-happened
@@ -65,7 +65,7 @@ body:
     id: node
     attributes:
       label: Node.js version
-      description: Only needed for local setups — output of `node -v`
+      description: Only needed for local setups. Output of `node -v`
       placeholder: v22.17.0
 
   - type: textarea

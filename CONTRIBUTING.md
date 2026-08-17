@@ -1,7 +1,7 @@
 # Contributing to Pelegram
 
 Thanks for taking an interest in Pelegram. It is a hobby project, so contributions
-of any size are welcome — from typo fixes to new chat features.
+of any size are welcome, from typo fixes to new chat features.
 
 By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 For security problems, follow [SECURITY.md](SECURITY.md) instead of opening an issue.
@@ -17,7 +17,7 @@ cd Pelegram
 npm run install-all
 
 cp server/.env.example server/.env
-# then set SECRET_KEY in server/.env — see the comments in that file
+# then set SECRET_KEY in server/.env (see the comments in that file)
 ```
 
 Generate a secret with:
@@ -79,13 +79,13 @@ refactor: extract message actions into a service
 
 **Code style**
 
-- TypeScript everywhere, on both client and server. `strict` is on — please keep
+- TypeScript everywhere, on both client and server. `strict` is on, so please keep
   it that way rather than reaching for `any`.
 - The server is ESM. Relative imports need the `.js` extension even in `.ts`
   files (`import x from './thing.js'`), which is how Node 16 module resolution
   works.
 - Angular components are standalone. Prefer `OnPush` change detection and
-  `trackBy` on lists — several components were migrated for performance and
+  `trackBy` on lists. Several components were migrated for performance and
   new code should match.
 - Use the shared logger (`server/src/config/logger.ts`, and the client logger)
   rather than `console.*`.
@@ -102,7 +102,7 @@ A few areas have bitten this project before:
 - **Route ordering.** `app.use(authenticateToken)` in `server/src/index.ts`
   protects everything registered *after* it. A route added above that line is
   public. Add new authenticated routes below it, and project Mongoose queries to
-  the fields you actually need — never return raw user documents, which contain
+  the fields you actually need. Never return raw user documents, which contain
   password hashes.
 - **Uploads.** Storage differs between development (local disk) and production
   (Cloudinary). Test both paths when touching `multer-config.ts`.
@@ -110,9 +110,9 @@ A few areas have bitten this project before:
 ## Pull requests
 
 1. Fork and branch from `master` (`feat/...`, `fix/...`).
-2. Keep the change focused — one concern per PR.
+2. Keep the change focused: one concern per PR.
 3. Update the README or this file if behaviour or setup changes.
 4. Fill in the pull request template and link any related issue.
 
-Not sure whether an idea fits? Open an issue and ask first — that is cheaper than
+Not sure whether an idea fits? Open an issue and ask first. That is cheaper than
 building something that gets turned down.
