@@ -11,7 +11,22 @@ import { MESSAGE_POPULATE, CHAT_POPULATE, applyPopulate } from '../config/popula
 export default (io: Server) => {
   const router = express.Router();
 
-  router.post('/upload/chat/:chatId', authenticateToken, uploadMedia.single('mediaFile'), async (req: Request, res: Response) => {
+  // Runs before multer so a non-participant cannot even spend upload storage.
+  const requireChatMembership = async (req: Request, res: Response, next: express.NextFunction): Promise<void> => {
+    try {
+      const chat = await Chat.findOne({ _id: req.params.chatId, participants: req.user!.id }).lean();
+      if (!chat) {
+        res.status(403).json({ message: 'Access denied or chat not found' });
+        return;
+      }
+      next();
+    } catch (err) {
+      logger.error('Error checking chat membership for upload:', err);
+      res.status(500).json({ message: 'Server error' });
+    }
+  };
+
+  router.post('/upload/chat/:chatId', authenticateToken, requireChatMembership, uploadMedia.single('mediaFile'), async (req: Request, res: Response) => {
     if (!req.file) {
       res.status(400).json({ message: 'No file uploaded, or file was rejected by filter/size limit.' });
       return;

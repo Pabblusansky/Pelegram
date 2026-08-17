@@ -674,9 +674,11 @@ export default (io: Server) => {
     const { query } = req.query;
 
       try {
-        const users = await User.find({
-          username: { $regex: query, $options: 'i' }
-        }).limit(10);
+        const escaped = String(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const users = await User.find(
+          { username: { $regex: escaped, $options: 'i' } },
+          '_id username displayName avatar'
+        ).limit(10);
 
         res.json(users);
       } catch (error: any) {
