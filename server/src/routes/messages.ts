@@ -423,8 +423,15 @@ export default (io: Server) => {
   router.get('/:chatId', authenticateToken, async (req: Request, res: Response) => {
     const { chatId } = req.params;
     const { before, limit = 30 } = req.query;
+    const userId = req.user!.id;
 
     try {
+        const chat = await Chat.findOne({ _id: chatId, participants: userId }).lean();
+        if (!chat) {
+          res.status(403).json({ message: 'Access denied or chat not found' });
+          return;
+        }
+
         const query: any = { chatId };
 
       if (before) {

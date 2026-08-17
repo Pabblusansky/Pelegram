@@ -745,7 +745,11 @@ export default (io: Server) => {
   router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
     try {
       const chatId = req.params.id;
-      const chat = await applyPopulate(Chat.findById(chatId), FULL_CHAT_POPULATE);
+      const userId = req.user!.id;
+      const chat = await applyPopulate(
+        Chat.findOne({ _id: chatId, participants: userId }),
+        FULL_CHAT_POPULATE
+      );
 
       if (!chat) {
         res.status(404).json({ message: 'Chat not found' });
