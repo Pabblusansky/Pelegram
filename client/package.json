@@ -6,7 +6,10 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test --watch=false --browsers=ChromeHeadless",
+    "test:watch": "ng test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "private": true,
   "dependencies": {
@@ -17,17 +20,11 @@
     "@angular/core": "^20.0.6",
     "@angular/forms": "^20.0.6",
     "@angular/platform-browser": "^20.0.6",
-    "@angular/platform-browser-dynamic": "^20.0.6",
     "@angular/router": "^20.0.6",
     "date-fns": "^4.1.0",
     "dompurify": "^3.2.6",
     "emoji-picker-element": "^1.29.1",
-    "esbuild": "^0.25.5",
-    "express": "^5.1.0",
-    "multer": "^2.0.1",
-    "pelegram-monorepo": "file:..",
     "rxjs": "~7.8.2",
-    "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "tslib": "^2.8.1",
     "zone.js": "~0.15.1"
@@ -36,13 +33,17 @@
     "@angular/build": "^20.0.5",
     "@angular/cli": "^20.0.5",
     "@angular/compiler-cli": "^20.0.6",
+    "@eslint/js": "^10.0.1",
     "@types/jasmine": "~5.1.8",
+    "angular-eslint": "^20.7.0",
+    "eslint": "^9.39.5",
     "jasmine-core": "~5.8.0",
     "karma": "~6.4.4",
     "karma-chrome-launcher": "~3.2.0",
     "karma-coverage": "~2.2.1",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "~5.8.3"
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.67.0"
   }
 }

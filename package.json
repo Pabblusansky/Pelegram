@@ -5,14 +5,17 @@
   "scripts": {
     "install-all": "npm install && npm install --prefix client && npm install --prefix server",
     "dev": "concurrently \"npm start --prefix client\" \"npm run dev --prefix server\"",
+    "build": "npm run build --prefix server && npm run build --prefix client",
     "build-client": "npm run build --prefix client",
-    "start-server": "npm start --prefix server"
+    "start-server": "npm start --prefix server",
+    "test": "npm test --prefix client",
+    "lint": "npm run lint --prefix server && npm run lint --prefix client",
+    "typecheck": "npm run typecheck --prefix server"
   },
   "devDependencies": {
     "concurrently": "^9.2.0"
   },
-  "dependencies": {
-    "all": "^0.0.0",
-    "node": "^22.17.0"
+  "engines": {
+    "node": ">=20"
   }
 }
