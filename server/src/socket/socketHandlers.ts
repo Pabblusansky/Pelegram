@@ -2,6 +2,7 @@ import { Server, Socket } from 'socket.io';
 import User from '../models/User.js';
 import Message from '../models/Message.js';
 import Chat from '../models/Chat.js';
+import { env } from '../config/env.js';
 import logger from '../config/logger.js';
 import { CHAT_POPULATE, applyPopulate } from '../config/populate.js';
 import { validateChatMembership, isValidObjectId, sanitizeText } from '../middleware/socketAuth.js';
@@ -178,7 +179,7 @@ async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: 
 
     await chatBeforeMessage.save();
 
-    const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+    const baseUrl = env.BASE_URL;
     const messageForClient: any = {
       ...message.toObject(),
       senderAvatar: sender.avatar ? `${baseUrl}${sender.avatar}` : null,

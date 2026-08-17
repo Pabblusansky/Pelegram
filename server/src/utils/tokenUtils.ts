@@ -1,7 +1,8 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import { env } from '../config/env.js';
 
-const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
+const SECRET_KEY = env.SECRET_KEY;
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 

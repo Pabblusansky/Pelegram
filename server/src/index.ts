@@ -4,10 +4,10 @@ import cors from 'cors';
 import path from 'path';
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { fileURLToPath } from 'url';
 
+import { env } from './config/env.js';
 import {
   generalLimiter,
   authLimiter,
@@ -18,10 +18,7 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
-const SECRET_KEY = process.env.SECRET_KEY || 'default_secret';
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/Pelegram';
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:4200';
+const { SECRET_KEY, MONGO_URI, CORS_ORIGIN } = env;
 
 import { authRoutes } from './routes/auth.js';
 import chatRoutes from './routes/chatRoutes.js';
@@ -112,15 +109,6 @@ io.on('connection', (socket) => {
 });
 
 // --- REST Routes ---
-app.get('/users', async (_req: Request, res: Response) => {
-  try {
-    const users = await User.find();
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err });
-  }
-});
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authLimiter, authRoutes);
@@ -151,6 +139,16 @@ app.use('/media', (req, res, next) => {
 }, express.static(path.join(__dirname, '../uploads/media')));
 
 app.use(authenticateToken);
+
+app.get('/users', async (_req: Request, res: Response) => {
+  try {
+    const users = await User.find({}, '_id username displayName avatar');
+    res.json(users);
+  } catch (err) {
+    logger.error('Error fetching users:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 app.use('/chats', chatRoutes(io));
 app.use('/messages', messageLimiter, messageRoutes(io));
@@ -224,5 +222,5 @@ app.get('/api/users/status', authenticateToken, async (req: Request, res: Respon
 // Catch-all error middleware (must be after all routes)
 app.use(globalErrorHandler);
 
-const PORT = process.env.PORT || 3000;
+const PORT = env.PORT;
 httpServer.listen(PORT, () => logger.info(`Server running on http://localhost:${PORT}`));

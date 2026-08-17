@@ -1,3 +1,5 @@
+import { env, isProduction } from './env.js';
+
 type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 
 const LOG_LEVELS: Record<LogLevel, number> = {
@@ -7,7 +9,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   debug: 3,
 };
 
-const CURRENT_LEVEL = (process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'warn' : 'info')) as LogLevel;
+const CURRENT_LEVEL: LogLevel = env.LOG_LEVEL ?? (isProduction ? 'warn' : 'info');
 
 function shouldLog(level: LogLevel): boolean {
   return LOG_LEVELS[level] <= LOG_LEVELS[CURRENT_LEVEL];

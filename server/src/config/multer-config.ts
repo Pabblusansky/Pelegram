@@ -3,12 +3,13 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { Request } from 'express';
+import { env, isProduction } from './env.js';
 import logger from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const IS_PROD = process.env.NODE_ENV === 'production';
+const IS_PROD = isProduction;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let cloudinary: any;
@@ -23,9 +24,9 @@ if (IS_PROD) {
   CloudinaryStorage = cloudinaryStorageModule.CloudinaryStorage;
 
   cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
+    cloud_name: env.CLOUDINARY_CLOUD_NAME,
+    api_key: env.CLOUDINARY_API_KEY,
+    api_secret: env.CLOUDINARY_API_SECRET,
     secure: true,
   });
 
@@ -180,7 +181,7 @@ export const getFileUrl = (file: Express.Multer.File): string => {
 };
 
 export const deleteFileFromCloudinary = async (fileUrl: string): Promise<void> => {
-  if (process.env.NODE_ENV !== 'production' || !fileUrl || !cloudinary) {
+  if (!IS_PROD || !fileUrl || !cloudinary) {
     return;
   }
 

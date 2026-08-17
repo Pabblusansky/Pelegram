@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { env } from '../config/env.js';
 import logger from '../config/logger.js';
 
 export interface AuthUser {
@@ -20,12 +21,6 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  if (!process.env.SECRET_KEY) {
-    logger.error('AUTH_MIDDLEWARE: SECRET_KEY not found in process.env!');
-    res.status(500).json({ message: 'Server configuration error (secret missing in middleware)' });
-    return;
-  }
-
   const authHeader = req.headers['authorization'];
   if (!authHeader) {
     res.status(401).json({ message: 'Access denied. No authorization header.' });
@@ -40,7 +35,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.SECRET_KEY) as AuthUser;
+    const decoded = jwt.verify(token, env.SECRET_KEY) as AuthUser;
     req.user = decoded;
     next();
   } catch (error) {

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, throwError, catchError, map, tap } from 'rxjs';
+import { Observable, throwError, catchError, map} from 'rxjs';
 import { Chat, Message, MediaGalleryResponse } from '../chat.model';
 import { User } from '../chat.model';
 import { LoggerService } from '../../services/logger.service';
@@ -104,7 +104,12 @@ export class ChatApiService {
   }
 
   getUsers(): Observable<User[]> {
-    return this.http.get<User[]>(`${this.apiUrl}/users`);
+    const headers = this.getHeaders();
+    if (!headers) {
+      return throwError(() => new Error('Not authorized to list users.'));
+    }
+    return this.http.get<User[]>(`${this.apiUrl}/users`, { headers })
+      .pipe(catchError(this.handleError));
   }
 
   createOrGetDirectChat(userId: string): Observable<Chat> {
@@ -395,7 +400,7 @@ export class ChatApiService {
   ): Observable<MediaGalleryResponse> {
     const headers = this.getHeaders();
     if (!headers) return throwError(() => new Error('Not authorized to get chat media.'));
-    let params = new HttpParams()
+    const params = new HttpParams()
       .set('type', type)
       .set('page', page.toString())
       .set('limit', limit.toString());
