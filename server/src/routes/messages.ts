@@ -151,7 +151,21 @@ export default (io: Server) => {
         return;
       }
 
-      const originalMessages = await Message.find({ _id: { $in: messageIds } }).sort({ timestamp: 1 });
+      const candidateMessages = await Message.find({ _id: { $in: messageIds } }).sort({ timestamp: 1 });
+
+      const sourceChatIds = [...new Set(candidateMessages.map(m => m.chatId.toString()))];
+      const readableChats = await Chat.find(
+        { _id: { $in: sourceChatIds }, participants: userId },
+        '_id'
+      ).lean();
+      const readableChatIds = new Set(readableChats.map(c => c._id.toString()));
+
+      const originalMessages = candidateMessages.filter(m => readableChatIds.has(m.chatId.toString()));
+
+      if (originalMessages.length === 0) {
+        res.status(403).json({ message: 'Access denied to the original messages' });
+        return;
+      }
 
       if (originalMessages.length !== messageIds.length) {
         logger.warn('Not all messages for multiple forward were found or accessible.');
@@ -317,6 +331,12 @@ export default (io: Server) => {
         return;
       }
 
+      const sourceChat = await Chat.findOne({ _id: originalMessage.chatId, participants: userId }).lean();
+      if (!sourceChat) {
+        res.status(403).json({ message: 'Access denied to the original message' });
+        return;
+      }
+
       const chatForValidation = await Chat.findOne({ _id: targetChatId, participants: userId });
       if (!chatForValidation) {
         res.status(403).json({ message: 'Access denied to target chat' });
@@ -399,6 +419,12 @@ export default (io: Server) => {
       const { chatId, content } = req.body;
 
       try {
+          const chat = await Chat.findOne({ _id: chatId, participants: req.user!.id }).lean();
+          if (!chat) {
+            res.status(403).json({ message: 'Access denied or chat not found' });
+            return;
+          }
+
           const sender = await User.findById(req.user!.id).select('username').lean();
           const newMessage = new Message({
               chatId,

@@ -84,6 +84,80 @@ describe('GET /messages/:chatId authorization', () => {
   });
 });
 
+describe('POST /messages authorization', () => {
+  test('a non-participant cannot post into the chat', async () => {
+    const res = await request(app)
+      .post('/messages')
+      .set('Authorization', `Bearer ${generateAccessToken(outsider._id.toString())}`)
+      .send({ chatId: privateChat._id.toString(), content: 'forged message' });
+
+    assert.ok(
+      res.status === 403 || res.status === 404,
+      `expected posting to be denied, got ${res.status}`
+    );
+
+    const forged = await Message.findOne({ content: 'forged message' });
+    assert.equal(forged, null, 'the forged message must not be stored');
+  });
+
+  test('a participant can post into the chat', async () => {
+    const res = await request(app)
+      .post('/messages')
+      .set('Authorization', `Bearer ${generateAccessToken(insider._id.toString())}`)
+      .send({ chatId: privateChat._id.toString(), content: 'legitimate message' });
+
+    assert.equal(res.status, 201, `expected the participant post to succeed, got ${res.status}`);
+  });
+
+  test('an unauthenticated caller cannot post', async () => {
+    const res = await request(app)
+      .post('/messages')
+      .send({ chatId: privateChat._id.toString(), content: 'anonymous message' });
+
+    assert.equal(res.status, 401);
+  });
+});
+
+describe('message forwarding authorization', () => {
+  test('cannot forward a message out of a chat the caller is not in', async () => {
+    const secret = await Message.findOne({ content: 'meet me at the usual place' });
+    const outsiderChat = await Chat.create({ participants: [outsider._id] , type: 'self' });
+
+    const res = await request(app)
+      .post(`/messages/${secret._id}/forward`)
+      .set('Authorization', `Bearer ${generateAccessToken(outsider._id.toString())}`)
+      .send({ targetChatId: outsiderChat._id.toString() });
+
+    assert.ok(
+      res.status === 403 || res.status === 404,
+      `expected forwarding to be denied, got ${res.status}`
+    );
+
+    const leaked = await Message.findOne({
+      chatId: outsiderChat._id,
+      content: 'meet me at the usual place',
+    });
+    assert.equal(leaked, null, 'private content must not be copied into the outsider chat');
+  });
+});
+
+describe('forward-multiple happy path', () => {
+  test('a participant can forward their own messages', async () => {
+    const secret = await Message.findOne({ content: 'meet me at the usual place' });
+    const ownChat = await Chat.create({ participants: [insider._id], type: 'self' });
+
+    const res = await request(app)
+      .post('/messages/forward-multiple')
+      .set('Authorization', `Bearer ${generateAccessToken(insider._id.toString())}`)
+      .send({ messageIds: [secret._id.toString()], targetChatId: ownChat._id.toString() });
+
+    assert.ok(
+      res.status === 200 || res.status === 201,
+      `a participant should be able to forward, got ${res.status} ${JSON.stringify(res.body).slice(0, 120)}`
+    );
+  });
+});
+
 describe('GET /chats/:id authorization', () => {
   test('a participant can read the chat details', async () => {
     const res = await request(app)
