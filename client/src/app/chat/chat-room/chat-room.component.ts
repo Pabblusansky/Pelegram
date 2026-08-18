@@ -23,7 +23,6 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
 import { AfterViewInit, AfterViewChecked } from '@angular/core';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { AudioPlayerComponent } from "../../shared/components/audio-player/audio-player.component";
-import DOMPurify from 'dompurify';
 import { MessageContextMenuComponent } from '../message-context-menu/message-context-menu.component';
 import { ChatHeaderComponent } from '../chat-header/chat-header.component';
 import { ChatSearchBarComponent } from '../chat-search-bar/chat-search-bar.component';
@@ -34,6 +33,8 @@ import { SelectionService } from './services/selection.service';
 import { MessageActionsService } from './services/message-actions.service';
 import { MediaUrlService, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR, SAVED_MESSAGES_ICON } from './services/media-url.service';
 import { scrollToBottomButtonAnimation } from '../../shared/animations';
+import { MessageTextService } from './services/message-text.service';
+import { TypingIndicatorService } from './services/typing-indicator.service';
 
 @Component({
   selector: 'app-chat-room',
@@ -57,7 +58,7 @@ import { scrollToBottomButtonAnimation } from '../../shared/animations';
     ChatHeaderComponent,
     ChatSearchBarComponent
   ],
-  providers: [SelectionService, MessageActionsService],
+  providers: [SelectionService, MessageActionsService, TypingIndicatorService],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 
@@ -78,6 +79,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   selectionService = inject(SelectionService);
   messageActionsService = inject(MessageActionsService);
   private mediaUrlService = inject(MediaUrlService);
+  private messageTextService = inject(MessageTextService);
 
   private componentIsCurrentlyFocused: boolean = document.hasFocus(); 
   @HostListener('window:focus', ['$event'])
@@ -99,8 +101,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
 
   isTyping = false;
   @Input() selectedChatId: string | null = null;
-  typingUsers: Set<string> = new Set();
-  private typingTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private typingIndicator = inject(TypingIndicatorService);
   chatId: string | null = null;
   messages: Message[] = [];
   messagesWithDividers: any = [];
@@ -238,28 +239,12 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
       .pipe(takeUntil(this.destroy$))
       .subscribe((data: { chatId: string; senderId: string; isTyping: boolean }) => {
       if (data.chatId === this.chatId) {
-        // Clear any existing timeout for this user
-        const existingTimeout = this.typingTimeouts.get(data.senderId);
-        if (existingTimeout) {
-          clearTimeout(existingTimeout);
-          this.typingTimeouts.delete(data.senderId);
-        }
+        this.typingIndicator.track(data.senderId, data.isTyping, () => {
+          this.isTyping = this.typingIndicator.isAnyoneTyping;
+          this.cdr.detectChanges();
+        });
 
-        if (data.isTyping) {
-          this.typingUsers.add(data.senderId);
-          // Auto-clear after 5 seconds if no "stop typing" arrives
-          const timeout = setTimeout(() => {
-            this.typingUsers.delete(data.senderId);
-            this.typingTimeouts.delete(data.senderId);
-            this.isTyping = this.typingUsers.size > 0;
-            this.cdr.detectChanges();
-          }, 5000);
-          this.typingTimeouts.set(data.senderId, timeout);
-        } else {
-          this.typingUsers.delete(data.senderId);
-        }
-
-        this.isTyping = this.typingUsers.size > 0;
+        this.isTyping = this.typingIndicator.isAnyoneTyping;
         this.cdr.detectChanges();
         if (this.isTyping && this.isAtBottom) {
           setTimeout(() => this.scrollToBottom(), 100);
@@ -441,8 +426,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
     this.destroy$.next();
     this.destroy$.complete();
 
-    this.typingTimeouts.forEach(timeout => clearTimeout(timeout));
-    this.typingTimeouts.clear();
+    this.typingIndicator.clear();
 
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
@@ -461,26 +445,12 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   }
 
   get typingIndicatorText(): string {
-    if (this.typingUsers.size === 0) {
-      return '';
-    }
-
-    const typingUserNames = Array.from(this.typingUsers)
+    const names = Array.from(this.typingIndicator.typingUserIds)
       .filter(id => id !== this.userId)
       .map(id => this.getTypingUserName(id))
-      .filter(name => name !== 'Unknown User'); 
+      .filter(name => name !== 'Unknown User');
 
-    if (typingUserNames.length === 0) {
-      return '';
-    }
-
-    if (typingUserNames.length === 1) {
-      return `${typingUserNames[0]} is typing...`;
-    } else if (typingUserNames.length === 2) {
-      return `${typingUserNames[0]} and ${typingUserNames[1]} are typing...`;
-    } else { 
-      return `${typingUserNames[0]}, ${typingUserNames[1]} and ${typingUserNames.length - 2} more are typing...`;
-    }
+    return this.typingIndicator.describe(names);
   }
   onInputChange(isTyping: boolean): void {
     if (this.chatId) {
@@ -490,11 +460,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   }
   
   formatDate(date: Date): string {
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    return this.messageTextService.formatDate(date);
   }
   
   onChatNameClick(event: Event): void {
@@ -830,8 +796,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   }
 
   formatTimestamp(timestamp: string): string {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return this.messageTextService.formatTimestamp(timestamp);
   }
 
   getMessageStatusIcon(status: string): string {
@@ -1205,18 +1170,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   }
 
   formatEditedTime(editedAt?: string): string {
-    if (!editedAt) return '';
-    
-    const editedDate = new Date(editedAt);
-    return `${editedDate.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit', 
-      second: '2-digit'
-    })}`;
+    return this.messageTextService.formatEditedTime(editedAt);
   }
 
   loadMoreMessages(): void {
@@ -1652,27 +1606,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
 
 
   // Methods for text highlighting
-  private escapeRegExp(string: string): string {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
   getHighlightedText(text: string, query: string): SafeHtml {
-    if (!query || !text) {
-      return this.formatMessageContent(text);
-    }
-    
-    const safeQuery = this.escapeRegExp(query.trim());
-    try {
-      const re = new RegExp(`(${safeQuery})`, 'gi');
-      const sanitizedInitialText = this.formatMessageContent(text);
-      
-      const finalHighlighted = sanitizedInitialText.replace(re, `<span class="highlighted-search-term">$1</span>`);
-      
-      return DOMPurify.sanitize(finalHighlighted, { ADD_TAGS: ['span'], ADD_ATTR: ['class'] });
-    } catch (error) {
-      this.logger.error('Error highlighting text:', error);
-      return this.formatMessageContent(text);
-    }
+    return this.messageTextService.highlight(text, query);
   }
 
   private applyHighlightsToMessages(): void {
@@ -1771,13 +1706,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
 
 
   formatMessageContent(content: string): string {
-    if (!content) return '';
-    
-    const formattedContent = content.replace(/\n/g, '<br>');
-    
-    const sanitizedContent = DOMPurify.sanitize(formattedContent);
-
-    return sanitizedContent;
+    return this.messageTextService.format(content);
   }
 
 
