@@ -9,7 +9,7 @@ import { configureApp } from './app.js';
 import logger from './config/logger.js';
 import { initUserStatus, updateUserStatus } from './socket/userStatus.js';
 import { registerSocketHandlers } from './socket/socketHandlers.js';
-import type { AuthUser } from './middleware/authenticateToken.js';
+import { JWT_ALGORITHMS, type AuthUser } from './middleware/authenticateToken.js';
 
 const { SECRET_KEY, MONGO_URI, CORS_ORIGIN, PORT } = env;
 
@@ -48,7 +48,9 @@ io.on('connection', (socket) => {
     return;
   }
   try {
-    const decoded = jwt.verify(token, SECRET_KEY) as AuthUser;
+    const decoded = jwt.verify(token, SECRET_KEY, {
+      algorithms: [...JWT_ALGORITHMS],
+    }) as AuthUser;
     (socket as any).user = decoded;
     if (decoded.id) {
       socket.join(decoded.id.toString());

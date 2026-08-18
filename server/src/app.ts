@@ -41,19 +41,10 @@ export function configureApp(app: express.Express, io: Server): express.Express 
 
   app.use(generalLimiter);
 
-  app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', CORS_ORIGIN);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.header('Access-Control-Allow-Credentials', 'true');
-
-    if (req.method === 'OPTIONS') {
-      res.sendStatus(200);
-      return;
-    }
-    next();
-  });
-
+  // A single source of truth for CORS. A hand-rolled header block used to run
+  // ahead of cors() and answered every preflight with 200 regardless of the
+  // request Origin; cors() already handles preflight and only emits the
+  // allow-origin header for the configured origin.
   app.use(cors({
     origin: CORS_ORIGIN,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -65,30 +56,32 @@ export function configureApp(app: express.Express, io: Server): express.Express 
   app.use(express.urlencoded({ extended: true }));
   app.use('/api/auth', authLimiter, authRoutes);
 
-  app.use('/uploads', (req, res, next) => {
+  /**
+   * User-supplied bytes are served from the API origin, so every upload mount
+   * gets the same treatment: no MIME sniffing, and a CSP that neutralises any
+   * active content that still manages to be served as a document.
+   */
+  const uploadHeaders = (req: express.Request, res: Response, next: express.NextFunction): void => {
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
 
     if (req.method === 'OPTIONS') {
       res.sendStatus(200);
       return;
     }
     next();
-  }, express.static(path.join(__dirname, '../uploads')));
+  };
 
-  app.use('/uploads/avatars', (req, res, next) => {
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
-    next();
-  }, express.static(path.join(__dirname, '../uploads/avatars')));
+  const staticOptions = { dotfiles: 'deny', index: false } as const;
 
-  app.use('/media', (req, res, next) => {
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
-    next();
-  }, express.static(path.join(__dirname, '../uploads/media')));
+  app.use('/uploads', uploadHeaders, express.static(path.join(__dirname, '../uploads'), staticOptions));
+
+  app.use('/uploads/avatars', uploadHeaders, express.static(path.join(__dirname, '../uploads/avatars'), staticOptions));
+
+  app.use('/media', uploadHeaders, express.static(path.join(__dirname, '../uploads/media'), staticOptions));
 
   // Everything registered below this line requires a valid access token.
   app.use(authenticateToken);

@@ -23,7 +23,9 @@ import {
   sendMessageSchema, forwardMessageSchema, forwardMultipleSchema,
   deleteMultipleSchema, chatIdParam,
   messageForwardParam, contextParam, searchQuerySchema,
+  editMessageSchema, messageIdParam, messagesQuerySchema,
 } from '../schemas/message.schema.js';
+import { sanitizeText } from '../middleware/socketAuth.js';
 
 export default (io: Server) => {
   const router = express.Router();
@@ -77,7 +79,10 @@ export default (io: Server) => {
     const contextLimit = parseInt(req.query.limit as string) || 15;
 
     try {
-      const targetMessage: any = await Message.findById(targetMessageId).lean();
+      // Scoped to the chat the caller was authorised for: a bare findById would
+      // accept a message id from any other chat and confirm its existence and
+      // timestamp to a non-participant.
+      const targetMessage: any = await Message.findOne({ _id: targetMessageId, chatId }).lean();
       if (!targetMessage) {
         res.status(404).json({ message: 'Target message not found' });
         return;
@@ -432,7 +437,7 @@ export default (io: Server) => {
           }
   });
 
-  router.get('/:chatId', authenticateToken, requireChatMembership(), async (req: Request, res: Response) => {
+  router.get('/:chatId', authenticateToken, validate({ params: chatIdParam, query: messagesQuerySchema }), requireChatMembership(), async (req: Request, res: Response) => {
     const { chatId } = req.params;
     const { before, limit = 30 } = req.query;
 
@@ -457,10 +462,16 @@ export default (io: Server) => {
     }
   });
   router.route('/:id')
-    .patch(authenticateToken, async (req: Request, res: Response) => {
+    .patch(authenticateToken, validate({ params: messageIdParam, body: editMessageSchema }), async (req: Request, res: Response) => {
       try {
         const now = new Date();
         const messageId = req.params.id;
+        const content = sanitizeText(req.body.content);
+
+        if (!content) {
+          res.status(400).json({ message: 'Content is required' });
+          return;
+        }
 
         const existingMessage: any = await Message.findById(req.params.id);
 
@@ -478,7 +489,7 @@ export default (io: Server) => {
           Message.findByIdAndUpdate(
             messageId,
             {
-              content: req.body.content,
+              content,
               edited: true,
               editedAt: now
             },

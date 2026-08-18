@@ -1,4 +1,5 @@
 import multer, { FileFilterCallback } from 'multer';
+import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -38,6 +39,49 @@ const requireCloudinary = (): CloudinaryLike => {
   return cloudinary;
 };
 
+/**
+ * Canonical extension per accepted MIME type.
+ *
+ * The extension of a stored file decides the Content-Type express.static
+ * serves it with, so it must never be taken from the client-supplied
+ * originalname: uploading "payload.html" while declaring an image MIME type
+ * would otherwise persist an HTML document under /media and get it served as
+ * text/html from the API origin. Anything not listed here is stored without an
+ * extension, which express.static serves as application/octet-stream.
+ */
+const EXTENSION_BY_MIME: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+  'video/quicktime': '.mov',
+  'audio/mpeg': '.mp3',
+  'audio/ogg': '.ogg',
+  'audio/wav': '.wav',
+  'audio/webm': '.weba',
+  'audio/opus': '.opus',
+  'audio/mp4': '.m4a',
+  'audio/aac': '.aac',
+  'audio/flac': '.flac',
+  'application/pdf': '.pdf',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'text/plain': '.txt',
+};
+
+export const safeExtension = (mimetype: string): string => EXTENSION_BY_MIME[mimetype] ?? '';
+
+/**
+ * Unguessable filename suffix.
+ *
+ * /uploads and /media are mounted ahead of authenticateToken, so the URL is
+ * the only thing protecting a private chat attachment. Math.random() is not a
+ * CSPRNG and its output is recoverable from a handful of observed samples.
+ */
+export const randomFileSuffix = (): string => crypto.randomBytes(16).toString('hex');
+
 const ensureDirectoryExists = (dirPath: string): void => {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -60,9 +104,7 @@ if (IS_PROD) {
   avatarStorage = multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, avatarDir),
     filename: (req: Request, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      const ext = path.extname(file.originalname);
-      cb(null, `user-${req.user!.id}-${uniqueSuffix}${ext}`);
+      cb(null, `user-${req.user!.id}-${randomFileSuffix()}${safeExtension(file.mimetype)}`);
     },
   });
 }
@@ -82,9 +124,7 @@ if (IS_PROD) {
   groupAvatarStorage = multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, groupAvatarDir),
     filename: (_req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      const ext = path.extname(file.originalname);
-      cb(null, `group-${uniqueSuffix}${ext}`);
+      cb(null, `group-${randomFileSuffix()}${safeExtension(file.mimetype)}`);
     },
   });
 }
@@ -110,8 +150,7 @@ if (IS_PROD) {
     destination: (_req, _file, cb) => cb(null, mediaDir),
     filename: (req: Request, file, cb) => {
       const userId = req.user ? req.user.id : 'anonymous';
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      cb(null, `user-${userId}-${uniqueSuffix}${path.extname(file.originalname)}`);
+      cb(null, `user-${userId}-${randomFileSuffix()}${safeExtension(file.mimetype)}`);
     },
   });
 }

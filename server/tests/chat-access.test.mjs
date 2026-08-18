@@ -165,7 +165,7 @@ describe('malformed chat ids are denied, not crashed', () => {
       .set('Authorization', `Bearer ${generateAccessToken(insider._id.toString())}`);
 
     assert.ok(
-      res.status === 403 || res.status === 404,
+      res.status === 400 || res.status === 403 || res.status === 404,
       `expected a denial, got ${res.status}`
     );
   });

@@ -3,9 +3,17 @@ import { z } from 'zod';
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 const objectId = z.string().regex(objectIdRegex, 'Invalid ID format');
 
+// Mirrors the cap the socket path applies through sanitizeText, so the REST
+// routes cannot be used to store a message the realtime path would reject.
+export const MAX_MESSAGE_LENGTH = 10000;
+
+const messageContent = z.string()
+  .min(1, 'Content is required')
+  .max(MAX_MESSAGE_LENGTH, `Content cannot exceed ${MAX_MESSAGE_LENGTH} characters`);
+
 export const sendMessageSchema = z.object({
   chatId: objectId,
-  content: z.string().min(1, 'Content is required'),
+  content: messageContent,
 });
 
 export const forwardMessageSchema = z.object({
@@ -22,7 +30,7 @@ export const deleteMultipleSchema = z.object({
 });
 
 export const editMessageSchema = z.object({
-  content: z.string().min(1, 'Content is required'),
+  content: messageContent,
 });
 
 export const chatIdParam = z.object({

@@ -7,6 +7,13 @@ export interface AuthUser {
   id: string;
 }
 
+/**
+ * The single algorithm this server signs with. Passing it to verify() pins the
+ * accepted `alg` instead of letting the token header pick from every HMAC
+ * variant jsonwebtoken enables by default.
+ */
+export const JWT_ALGORITHMS = ['HS256'] as const;
+
 declare global {
   namespace Express {
     interface Request {
@@ -27,15 +34,17 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  const token = authHeader.split(' ')[1];
+  const [scheme, token] = authHeader.split(' ');
 
-  if (!token) {
+  if (scheme?.toLowerCase() !== 'bearer' || !token) {
     res.status(401).json({ message: 'Access denied. No token provided.' });
     return;
   }
 
   try {
-    const decoded = jwt.verify(token, env.SECRET_KEY) as AuthUser;
+    const decoded = jwt.verify(token, env.SECRET_KEY, {
+      algorithms: [...JWT_ALGORITHMS],
+    }) as AuthUser;
     req.user = decoded;
     next();
   } catch (error) {
