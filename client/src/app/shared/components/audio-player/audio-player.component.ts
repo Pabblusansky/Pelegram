@@ -85,6 +85,55 @@ export class AudioPlayerComponent implements OnChanges, AfterViewInit, OnDestroy
     this.audioElement.currentTime = this.duration * percentage;
   }
 
+  seekBy(deltaSeconds: number): void {
+    this.seekTo(this.currentTime + deltaSeconds);
+  }
+
+  seekTo(seconds: number): void {
+    if (this.isLoading || !this.duration) return;
+
+    const clamped = Math.min(Math.max(seconds, 0), this.duration);
+    this.audioElement.currentTime = clamped;
+    this.currentTime = clamped;
+  }
+
+  onSeekKeydown(event: KeyboardEvent): void {
+    if (this.isLoading || !this.duration) return;
+
+    const step = event.shiftKey ? 10 : 5;
+
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowUp':
+        this.seekBy(step);
+        break;
+      case 'ArrowLeft':
+      case 'ArrowDown':
+        this.seekBy(-step);
+        break;
+      case 'Home':
+        this.seekTo(0);
+        break;
+      case 'End':
+        this.seekTo(this.duration);
+        break;
+      case 'PageUp':
+        this.seekBy(30);
+        break;
+      case 'PageDown':
+        this.seekBy(-30);
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+  }
+
+  get seekAriaValueText(): string {
+    return `${this.formatTime(this.currentTime)} of ${this.formatTime(this.duration)}`;
+  }
+
   onVolumeChange(event: Event): void {
     const value = parseFloat((event.target as HTMLInputElement).value);
     this.volume = value;
