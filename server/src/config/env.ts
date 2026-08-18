@@ -18,6 +18,11 @@ const envSchema = z.object({
     'CORS_ORIGIN must name a concrete origin, not "*", because credentials are allowed',
   ).default('http://localhost:4200'),
   BASE_URL: z.string().min(1).default('http://localhost:3000'),
+  // Number of reverse proxies in front of the app. Defaults to 0: trusting
+  // X-Forwarded-For when nothing sets it lets any client spoof its source
+  // address and rotate it per request, which defeats the auth rate limiter
+  // entirely. Set this only to the real hop count.
+  TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).optional(),
   CLOUDINARY_CLOUD_NAME: IS_PROD ? z.string().min(1) : z.string().optional(),
   CLOUDINARY_API_KEY: IS_PROD ? z.string().min(1) : z.string().optional(),

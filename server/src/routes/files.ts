@@ -32,7 +32,10 @@ export default (io: Server) => {
           const parsedReplyTo = JSON.parse(replyToInput);
 
           if (parsedReplyTo && parsedReplyTo._id) {
-            const originalRepliedMessage: any = await Message.findById(parsedReplyTo._id)
+            // Scoped to the chat being uploaded to. An unscoped lookup returns
+            // the content and author of any message in the database to anyone
+            // holding its id, regardless of chat membership.
+            const originalRepliedMessage: any = await Message.findOne({ _id: parsedReplyTo._id, chatId })
               .select('_id content senderId senderName messageType filePatch')
               .populate('senderId', 'username')
               .lean();

@@ -25,7 +25,7 @@ import { getStatusSnapshot } from './socket/userStatus.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const { CORS_ORIGIN } = env;
+const { CORS_ORIGIN, TRUST_PROXY } = env;
 
 /**
  * Registers middleware and routes on an existing app.
@@ -37,7 +37,7 @@ const { CORS_ORIGIN } = env;
  * response.
  */
 export function configureApp(app: express.Express, io: Server): express.Express {
-  app.set('trust proxy', 1);
+  app.set('trust proxy', TRUST_PROXY);
 
   app.use(generalLimiter);
 
