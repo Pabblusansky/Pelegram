@@ -39,6 +39,7 @@ import { ScrollStabilizerService } from './services/scroll-stabilizer.service';
 import { MediaModalService } from './services/media-modal.service';
 import { MessageSearchService } from './services/message-search.service';
 import { MessageListService, GroupedReaction } from './services/message-list.service';
+import { PinnedMessageService } from './services/pinned-message.service';
 
 @Component({
   selector: 'app-chat-room',
@@ -141,6 +142,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   private mediaModal = inject(MediaModalService);
   private messageSearch = inject(MessageSearchService);
   private messageList = inject(MessageListService);
+  private pinnedMessage = inject(PinnedMessageService);
   // Search functionality
   get isSearchActive(): boolean { return this.messageSearch.isActive; }
   get searchResults(): Message[] { return this.messageSearch.results; }
@@ -151,7 +153,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   readReceiptsMessageId: string | null = null;
   // Group chat functionality
   isGroupChat: boolean = false;
-  groupAdmin: User | null = null;
   showGroupInfoModal: boolean = false;
   // Lightbox functionality
   showLightbox: boolean = false;
@@ -530,9 +531,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
           this.otherParticipant = null;
           this.otherParticipantStatus$ = null;
           this.isOtherParticipantOnline$ = null;
-          if (chat.admin && typeof chat.admin === 'object') {
-            this.groupAdmin = chat.admin as User;
-          }
         } else {
         const isSavedMessages = chat.participants && chat.participants.length === 1 && chat.participants[0]._id === this.userId;
 
@@ -1180,40 +1178,17 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   }
 
   private addOrUpdateMessage(message: Message, isMyOwnMessageJustSent: boolean = false): void {
-    if (message.category === 'system_event') {
-      message.ismyMessage = false;
-    } else {
-      let actualSenderId: string;
-      
-      if (typeof message.senderId === 'string') {
-        actualSenderId = message.senderId;
-      } else if (typeof message.senderId === 'object' && message.senderId?._id) {
-        actualSenderId = message.senderId._id;
-      } else {
-        actualSenderId = '';
-      }
-      
-      if (isMyOwnMessageJustSent) {
-        message.ismyMessage = true;
-      } else {
-        message.ismyMessage = actualSenderId === this.userId;
-      }
-    }
+    message.ismyMessage = this.messageList.ownershipFor(message, this.userId, isMyOwnMessageJustSent);
 
     const existingMessageIndex = this.messages.findIndex(m => m._id === message._id);
     const wasAtBottom = this.isAtBottom;
 
     if (existingMessageIndex > -1) {
-      const existingMessage = this.messages[existingMessageIndex];
-      
-      this.messages[existingMessageIndex] = {
-        ...existingMessage,
-        ...message,
-        status: this.getNewerStatus(existingMessage.status, message.status), 
-        ismyMessage: isMyOwnMessageJustSent ? true : message.ismyMessage, // Приоритет для только что отправленных
-        isSelected: existingMessage.isSelected, 
-      };
-      
+      this.messages[existingMessageIndex] = this.messageList.mergeIncoming(
+        this.messages[existingMessageIndex],
+        message,
+        isMyOwnMessageJustSent
+      );
     } else {
       this.messages.push(message);
       
@@ -1233,10 +1208,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
     }
   }
 
-  private getNewerStatus(oldStatus: string | undefined, newStatus: string | undefined): string | undefined {
-    return this.messageList.newerStatus(oldStatus, newStatus);
-  }
-  
   startReply(message: Message): void {
     this.messageActionsService.startReply(message);
   }
@@ -1497,23 +1468,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
 
   // Pinned message handling
   private updatePinnedMessageDetails(): void {
-    if (this.chatDetails && this.chatDetails.pinnedMessage) {
-      if (typeof this.chatDetails.pinnedMessage === 'object' && this.chatDetails.pinnedMessage._id) {
-        this.pinnedMessageDetails = this.chatDetails.pinnedMessage as Message;
-      }
-      else if (typeof this.chatDetails.pinnedMessage === 'string') {
-        this.pinnedMessageDetails = this.messages.find(m => m._id === this.chatDetails!.pinnedMessage) || null;
-        if (!this.pinnedMessageDetails) {
-            if (this.isSearchActive && this.messageSearch.hasResults) {
-                this.pinnedMessageDetails = this.messageSearch.findResult(this.chatDetails!.pinnedMessage as unknown as string);
-            }
-        }
-      } else {
-        this.pinnedMessageDetails = null;
-      }
-    } else {
-      this.pinnedMessageDetails = null;
-    }
+    this.pinnedMessageDetails = this.pinnedMessage.resolve(
+      this.chatDetails?.pinnedMessage,
+      this.messages,
+      id => (this.isSearchActive && this.messageSearch.hasResults)
+        ? this.messageSearch.findResult(id)
+        : null
+    );
   }
   
   pinSelectedMessage(): void {
@@ -1525,11 +1486,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   }
 
   canUnpin(): boolean {
-    if (!this.isGroupChat) return true;
-    const adminId = typeof this.chatDetails?.admin === 'object'
-      ? (this.chatDetails.admin as any)?._id
-      : this.chatDetails?.admin;
-    return adminId === this.userId;
+    return this.pinnedMessage.canUnpin(this.isGroupChat, this.chatDetails?.admin, this.userId);
   }
 
 

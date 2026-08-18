@@ -85,6 +85,26 @@ export class MessageListService {
     return items;
   }
 
+  ownershipFor(message: Message, userId: string | null, isMyOwnMessageJustSent: boolean): boolean {
+    if (message.category === 'system_event') {
+      return false;
+    }
+    if (isMyOwnMessageJustSent) {
+      return true;
+    }
+    return (this.resolveSenderId(message) ?? '') === userId;
+  }
+
+  mergeIncoming(existing: Message, incoming: Message, isMyOwnMessageJustSent: boolean): Message {
+    return {
+      ...existing,
+      ...incoming,
+      status: this.newerStatus(existing.status, incoming.status),
+      ismyMessage: isMyOwnMessageJustSent ? true : incoming.ismyMessage,
+      isSelected: existing.isSelected,
+    } as Message;
+  }
+
   private resolveSenderId(message: Message): string | undefined {
     const sender = message.senderId as unknown;
     if (sender && typeof sender === 'object' && (sender as { _id?: string })._id) {

@@ -187,4 +187,77 @@ describe('MessageListService', () => {
       expect(items.filter(i => i.type === 'divider').length).toBe(3);
     });
   });
+
+  describe('ownershipFor', () => {
+    it('treats a matching string sender as mine', () => {
+      expect(service.ownershipFor(msg('a', 'me'), 'me', false)).toBe(true);
+    });
+
+    it('treats a matching populated sender as mine', () => {
+      expect(service.ownershipFor(msg('a', { _id: 'me' }), 'me', false)).toBe(true);
+    });
+
+    it('treats another user as not mine', () => {
+      expect(service.ownershipFor(msg('a', 'someone'), 'me', false)).toBe(false);
+    });
+
+    it('never attributes a system event to the user', () => {
+      const systemMsg = msg('a', 'me', { category: 'system_event' } as Partial<Message>);
+      expect(service.ownershipFor(systemMsg, 'me', false)).toBe(false);
+      expect(service.ownershipFor(systemMsg, 'me', true)).toBe(false);
+    });
+
+    it('trusts the just-sent flag over the sender id', () => {
+      expect(service.ownershipFor(msg('a', 'someone-else'), 'me', true)).toBe(true);
+    });
+
+    it('is not mine when there is no user id', () => {
+      expect(service.ownershipFor(msg('a', 'me'), null, false)).toBe(false);
+    });
+
+    it('is not mine when the sender cannot be resolved', () => {
+      expect(service.ownershipFor(msg('a', undefined), 'me', false)).toBe(false);
+    });
+  });
+
+  describe('mergeIncoming', () => {
+    const existing = () => msg('a', 'me', { status: 'read', isSelected: true, content: 'old' } as Partial<Message>);
+    const incoming = () => msg('a', 'me', { status: 'delivered', content: 'new', ismyMessage: true } as Partial<Message>);
+
+    it('takes the incoming fields', () => {
+      expect(service.mergeIncoming(existing(), incoming(), false).content).toBe('new');
+    });
+
+    it('never downgrades the status', () => {
+      expect(service.mergeIncoming(existing(), incoming(), false).status).toBe('read');
+    });
+
+    it('accepts a status that moves forward', () => {
+      const older = msg('a', 'me', { status: 'sent' } as Partial<Message>);
+      const newer = msg('a', 'me', { status: 'read' } as Partial<Message>);
+      expect(service.mergeIncoming(older, newer, false).status).toBe('read');
+    });
+
+    it('preserves the local selection state', () => {
+      expect(service.mergeIncoming(existing(), incoming(), false).isSelected).toBe(true);
+    });
+
+    it('forces ownership for a message the user just sent', () => {
+      const notMine = msg('a', 'other', { ismyMessage: false } as Partial<Message>);
+      expect(service.mergeIncoming(existing(), notMine, true).ismyMessage).toBe(true);
+    });
+
+    it('otherwise keeps the incoming ownership', () => {
+      const notMine = msg('a', 'other', { ismyMessage: false } as Partial<Message>);
+      expect(service.mergeIncoming(existing(), notMine, false).ismyMessage).toBe(false);
+    });
+
+    it('does not mutate either input', () => {
+      const e = existing();
+      const i = incoming();
+      service.mergeIncoming(e, i, true);
+      expect(e.content).toBe('old');
+      expect(i.content).toBe('new');
+    });
+  });
 });
