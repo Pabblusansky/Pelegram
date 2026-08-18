@@ -37,6 +37,7 @@ import { MessageTextService } from './services/message-text.service';
 import { TypingIndicatorService } from './services/typing-indicator.service';
 import { ScrollStabilizerService } from './services/scroll-stabilizer.service';
 import { MediaModalService } from './services/media-modal.service';
+import { MessageSearchService } from './services/message-search.service';
 
 @Component({
   selector: 'app-chat-room',
@@ -60,7 +61,7 @@ import { MediaModalService } from './services/media-modal.service';
     ChatHeaderComponent,
     ChatSearchBarComponent
   ],
-  providers: [SelectionService, MessageActionsService, TypingIndicatorService, ScrollStabilizerService, MediaModalService],
+  providers: [SelectionService, MessageActionsService, TypingIndicatorService, ScrollStabilizerService, MediaModalService, MessageSearchService],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 
@@ -137,9 +138,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   private isScrollingToBottom: boolean = false;
   private scrollStabilizer = inject(ScrollStabilizerService);
   private mediaModal = inject(MediaModalService);
+  private messageSearch = inject(MessageSearchService);
   // Search functionality
-  isSearchActive: boolean = false;
-  searchResults: Message[] = [];
+  get isSearchActive(): boolean { return this.messageSearch.isActive; }
+  get searchResults(): Message[] { return this.messageSearch.results; }
   @ViewChild(ChatSearchBarComponent) searchBar?: ChatSearchBarComponent;
   isLoadingContext: boolean = false;
   private isScrollingProgrammatically: boolean = false;
@@ -189,6 +191,12 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
       chatApiService: this.chatApiService,
       confirmationService: this.confirmationService,
       logger: this.logger,
+    });
+
+    this.messageSearch.init({
+      messages: () => this.messages,
+      updateMessagesWithDividers: () => this.updateMessagesWithDividers(),
+      detectChanges: () => this.cdr.detectChanges(),
     });
 
     this.messageActionsService.init({
@@ -1480,20 +1488,15 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
 
   // Search event handlers (logic moved to ChatSearchBarComponent)
   onSearchResultsChanged(results: Message[]): void {
-    this.searchResults = results;
-    this.applyHighlightsToMessages();
-    this.cdr.detectChanges();
+    this.messageSearch.setResults(results);
   }
 
   onSearchResultsCleared(): void {
-    this.searchResults = [];
-    this.resetMessageHighlights();
-    this.cdr.detectChanges();
+    this.messageSearch.clearResults();
   }
 
   async onSearchResultNavigated(event: { messageId: string; isInitial: boolean }): Promise<void> {
-    this.messages.forEach(m => m.isCurrentSearchResult = (m._id === event.messageId));
-    this.updateMessagesWithDividers();
+    this.messageSearch.markCurrent(event.messageId);
 
     this.isScrollingProgrammatically = true;
     await this.scrollToMessage(event.messageId, 'center', true);
@@ -1504,9 +1507,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   }
 
   onSearchClosed(): void {
-    this.isSearchActive = false;
-    this.searchResults = [];
-    this.resetMessageHighlights();
+    this.messageSearch.close();
     this.scrollToBottom();
   }
 
@@ -1543,32 +1544,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
     return this.messageTextService.highlight(text, query);
   }
 
-  private applyHighlightsToMessages(): void {
-    this.messages.forEach(msg => {
-      msg.isSearchResult = false;
-    });
-
-    if (this.searchResults.length > 0) {
-      const searchResultIds = new Set(this.searchResults.map(sr => sr._id));
-      this.messages.forEach(msg => {
-        if (msg._id && searchResultIds.has(msg._id)) {
-          msg.isSearchResult = true;
-        }
-      });
-    }
-
-    this.updateMessagesWithDividers();
-    this.cdr.detectChanges();
-  }
-
-  private resetMessageHighlights(): void {
-    this.messages.forEach(msg => {
-      msg.isSearchResult = false;
-      msg.isCurrentSearchResult = false;
-    });
-    this.updateMessagesWithDividers();
-  }
-  
   // Pinned message handling
   private updatePinnedMessageDetails(): void {
     if (this.chatDetails && this.chatDetails.pinnedMessage) {
@@ -1578,8 +1553,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
       else if (typeof this.chatDetails.pinnedMessage === 'string') {
         this.pinnedMessageDetails = this.messages.find(m => m._id === this.chatDetails!.pinnedMessage) || null;
         if (!this.pinnedMessageDetails) {
-            if (this.isSearchActive && this.searchResults.length > 0) {
-                this.pinnedMessageDetails = this.searchResults.find(m => m._id === this.chatDetails!.pinnedMessage) || null;
+            if (this.isSearchActive && this.messageSearch.hasResults) {
+                this.pinnedMessageDetails = this.messageSearch.findResult(this.chatDetails!.pinnedMessage as unknown as string);
             }
         }
       } else {
@@ -1624,17 +1599,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   }
 
   toggleSearch(): void {
-    this.isSearchActive = !this.isSearchActive;
-
-    if (!this.isSearchActive) {
+    if (!this.messageSearch.toggle()) {
       this.onSearchClosed();
     }
   }
 
   closeSearch(): void {
-    this.isSearchActive = false;
-    this.searchResults = [];
-    this.resetMessageHighlights();
+    this.messageSearch.close();
   }
 
 
