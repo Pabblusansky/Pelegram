@@ -1,177 +1,192 @@
-[![Angular Version][angular-shield]][angular-url][![Node.js Version][nodejs-shield]][nodejs-url][![Socket.IO Shield][socketio-shield]][socketio-url][![License: MIT][license-shield]][license-url][![TypeScript][typescript-shield]][typescript-url]
+<div align="center">
 
 ![Pelegram](README%20files/README.png)
-# Pelegram: Reimagining real-time chat. Built with Angular.
 
-Welcome to the Pelegram Messenger project! This is a feature-rich, real-time web chat application inspired by Telegram, built from the ground up with Angular for the frontend and a robust backend (NodeJS/Express with MongoDB). It's been challenging journey bringing this to life, and I'm excited to share it.
+# Pelegram
 
-# ✨ Features
+**Real-time chat, reimagined. Built with Angular.**
 
-Pelegram aims to provide a seamless and engaging chat experience. Here's what's packed in (so far!):
+[![Angular Version][angular-shield]][angular-url]
+[![Node.js Version][nodejs-shield]][nodejs-url]
+[![TypeScript][typescript-shield]][typescript-url]
+[![Socket.IO Shield][socketio-shield]][socketio-url]
+[![License: MIT][license-shield]][license-url]
 
-📱 Real-Time Messaging: Instant message delivery and updates powered by Socket.IO.
+[Live demo](https://pelegram.netlify.app/) &nbsp;·&nbsp;
+[Getting started](#-getting-started) &nbsp;·&nbsp;
+[Architecture](docs/ARCHITECTURE.md) &nbsp;·&nbsp;
+[Contributing](CONTRIBUTING.md)
 
-👤 User Authentication: Secure registration and login system.
+</div>
 
-👀 Online & Last Seen Status: See when your contacts are online or their last activity.
+---
 
-✔️ Message Status: Track if your messages are sent, delivered, and read.
+A feature-rich, real-time web chat application inspired by Telegram, built from the
+ground up with Angular on the front end and Node.js, Express, Socket.IO, and MongoDB
+behind it. It has been a challenging journey bringing this to life, and I am glad to
+share it.
 
-✏️ Edit & Delete Messages: Easily correct mistakes by editing your messages or remove them entirely.
+## ✨ Features
 
-↪️ Message Forwarding: Seamlessly forward messages from one chat to another, keeping the original sender's context.
+| | |
+| :-- | :-- |
+| 📱 **Real-time messaging** | Instant delivery and updates over Socket.IO |
+| 👤 **Authentication** | Registration and login with JWT access and refresh tokens |
+| 👀 **Presence** | Online status and last seen |
+| ✔️ **Message status** | Sent, delivered, and read receipts |
+| ✏️ **Edit and delete** | Fix a typo or remove a message entirely |
+| ↪️ **Forwarding** | Move messages between chats, keeping the original sender |
+| 💬 **Threaded replies** | Quote a message, tap the quote to jump back to it |
+| 😀 **Reactions** | React to any message, grouped by emoji |
+| 👥 **Group chats** | Create groups, manage participants, admin controls |
+| 📎 **Media** | Images, video, audio recording, and file attachments |
+| 🔍 **Search** | Find users, chats, and messages within a conversation |
+| 📌 **Pinned messages** | Keep the important one at the top |
+| 🖼️ **Profiles and avatars** | Clickable names and avatars, editable profile |
+| 🎨 **Themes** | Light and dark mode |
+| 📜 **Infinite scroll** | Message history loads as you scroll up |
 
-💬 Threaded Replies: Reply to messages with a quote of the original for context. Tap the quote to jump to the original message.
-
-🖼️ User Profiles & Avatars: Personalize your profile and see others' avatars. Clickable names and avatars to view profiles.
-
-🎨 Customizable Themes: Light and Dark mode support for comfortable viewing.
-
-📜 Infinite Scroll / Message History Loading: Smoothly load older messages as you scroll up.
-
-🔍 User & Chat Search: Easily find users to start new conversations.
-
-And more to come!
 ![Main GIF](README%20files/Main.gif)
 
-# Live Demo & Deployment
+## 🌐 Live demo
 
-A live version of Pelegram is deployed and available for you to try! LINK: [pelegram.netlify.app](https://pelegram.netlify.app/)
+A live version is deployed and open to try: **[pelegram.netlify.app](https://pelegram.netlify.app/)**
 
-- Frontend (Angular): [pelegram.netlify.app](https://pelegram.netlify.app/) (Deployed on Netlify)
+| Piece | Where |
+| :-- | :-- |
+| Frontend (Angular) | [Netlify](https://pelegram.netlify.app/) |
+| Backend (Node.js) | [Render](https://render.com/) |
+| Database | [MongoDB Atlas](https://www.mongodb.com/) |
 
-- Backend (Node.js): Deployed on [Render.com](https://render.com/)
+Register an account and start chatting. Two things to know about the free hosting:
 
-- Database (MongoDB): [Hosted on MongoDB Atlas](https://www.mongodb.com/)
+> **Cold starts.** The backend sleeps after 15 minutes of inactivity. The first
+> request after that (a login, say) can take 30 to 50 seconds while the instance
+> wakes up. Everything after it is fast.
 
-Feel free to register a new account and start chatting.
-# Deployment Status & Known Limitations
-Please be aware of the following limitations in the current deployed version:
+> **Media persistence.** Uploads once lived on the server's ephemeral filesystem and
+> disappeared on every restart. This is now solved: files go to Cloudinary in
+> production, so they persist.
 
-    Server Spin-Down (Cold Start): The backend is hosted on Render's free tier. If the server is inactive for 15 minutes, it will "spin down" to conserve resources. The first request to an inactive server (e.g., login or sending a message) may experience a delay of 30-50 seconds while the instance wakes up. Subsequent requests will be fast. This is a characteristic of the free hosting plan.
+## 🛠 Tech stack
 
-~~Ephemeral Filesystem (Media & Avatars): The current implementation for file uploads (avatars, images, audio) saves files directly to the server's local filesystem. While this works perfectly for local development, hosting platforms like Render use an ephemeral filesystem. This means that all uploaded files will be permanently deleted whenever the server restarts or spins down due to inactivity.
-What this means for you: You can upload and view media, but it may disappear after a short period of time.~~
+**Frontend**
+Angular 20 (standalone components, `OnPush`), TypeScript, RxJS, Socket.IO client, SCSS
 
-    The professional solution (implemented!): integrate a dedicated object storage service like Cloudinary or AWS S3 to ensure persistent file storage. 
-# Tech Stack
+**Backend**
+Node.js, Express 5, Socket.IO, MongoDB with Mongoose, Zod for request and environment
+validation, JWT authentication
 
-**Frontend:**
-- Angular (Angular CLI)
-- TypeScript
-- Socket.IO Client
-- SCSS for styling
-- RxJS for reactive programming
+**Tooling**
+ESLint, Karma and Jasmine, `node:test` with an in-memory MongoDB, GitHub Actions
 
-**Backend:**
-- Node.js
-- Express.js
-- MongoDB with Mongoose
-- Socket.IO Server
-- JWT (JSON Web Tokens) for authentication
+## 🚀 Getting started
 
-**Development Tools:**
-- npm
-- VS Code
-- Git
+### Prerequisites
 
-# 🚀 Getting Started
+- **Node.js** 20 or newer (22 LTS recommended). CI runs both.
+- **npm** 8 or newer
+- **MongoDB**, either running locally or an Atlas connection string
 
-Ready to run Pelegram on your local machine? The new monorepo structure makes it easier than ever.
-
-## Prerequisites
-
-- **Node.js**: v18.15.0 or higher (v20.x LTS recommended)
-- **npm**: v8 or higher (comes with Node.js)
-- **MongoDB**: A local instance running or a connection string to a cloud instance (like MongoDB Atlas)
-- **Angular CLI**: (Optional, but recommended for development) `npm install -g @angular/cli`
-
-## 1. Clone the Repository
-
-First, clone the project to your local machine and navigate into the project directory.
+### 1. Clone
 
 ```bash
 git clone https://github.com/Pabblusansky/pelegram.git
 cd Pelegram
 ```
 
-## 2. Setup Environment Variables (Backend)
-
-The server reads its configuration from `server/.env`. Copy the template:
+### 2. Configure the server
 
 ```bash
 cp server/.env.example server/.env
 ```
 
-Then open `server/.env` and set `SECRET_KEY`. It is **required** and must be at
-least 32 characters. The server validates this at startup and refuses to run
-with a missing or weak value. Generate one with:
+Open `server/.env` and set `SECRET_KEY`. It is **required** and must be at least 32
+characters. The server validates this at startup and refuses to run with a missing or
+weak value. Generate one with:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
-Every other variable has a sensible development default. See the comments in
+Every other variable has a sensible development default. See
 [`server/.env.example`](server/.env.example) for the full list, including the
-Cloudinary credentials required only in production.
+Cloudinary credentials that are only needed in production.
 
-## 3. Install All Dependencies
+### 3. Install
 
-From the root directory of the project (`Pelegram/`), run the install-all script. This will install dependencies for the root, the client, and the server all at once.
+From the repository root, this installs the root, client, and server at once:
 
 ```bash
 npm run install-all
 ```
 
-## 4. Run Everything!
-
-That's it! Now, from the root directory, run the dev script. This will start both the backend server (with nodemon) and the Angular frontend development server simultaneously.
+### 4. Run
 
 ```bash
 npm run dev
 ```
 
-- The backend server will start on http://localhost:3000
-- The frontend application will be available at http://localhost:4200
+This starts the API and the Angular dev server together.
 
-Open your browser and navigate to **http://localhost:4200** to start using Pelegram!
+- API: **http://localhost:3000**
+- App: **http://localhost:4200**
 
-## Other Useful Commands
+Open http://localhost:4200 and you are in.
 
-All commands run from the root directory.
+### Other commands
+
+All run from the repository root.
 
 ```bash
-npm run build        # production build of server and client
-npm run build-client # production build of the frontend only
-npm test             # frontend unit tests (headless Chrome)
+npm test             # server integration tests, then client unit tests
 npm run lint         # lint server and client
 npm run typecheck    # type check the server
+npm run build        # production build of both
+npm run build-client # production build of the frontend only
 ```
 
-Frontend build artifacts are written to `client/dist/`.
+Frontend build artifacts land in `client/dist/`.
 
-# 🤝 Contributing
+## 🧪 Tests
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup,
-project layout, coding conventions, and the checks CI runs on every pull request.
+| Suite | What it covers |
+| :-- | :-- |
+| Server | Authorization, authentication flow, message ordering and pagination, upload permissions |
+| Client | Message list logic, search, text sanitizing, URL resolution, timers and listener lifecycles |
+
+Server tests run against a real MongoDB started in memory, so no local database is
+needed. The first run downloads a MongoDB binary and later runs reuse it.
+
+## 🏗 Architecture
+
+See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for how the pieces fit together:
+why the app uses both REST and Socket.IO, where authorization lives on the server,
+how the chat room is split into services, and the conventions that keep it from
+drifting back.
+
+## 🤝 Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, project
+layout, coding conventions, and the checks CI runs on every pull request.
 Participation is covered by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 Found a security issue? Please report it privately. See [SECURITY.md](SECURITY.md).
 
-# 📜 License
+## 📜 License
 
-This project is licensed under the MIT License - see the LICENSE.md file for details.
+MIT. See [LICENSE.md](LICENSE.md).
 
-[angular-shield]: https://img.shields.io/badge/angular-v20%2B-%23DD0031?logo=angular
-[angular-url]: https://angular.io/
+[angular-shield]: https://img.shields.io/badge/Angular-20-DD0031?logo=angular&logoColor=white
+[angular-url]: https://angular.dev/
 
-[typescript-shield]: https://img.shields.io/badge/typescript-v5%2B-%233178C6?logo=typescript
+[typescript-shield]: https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white
 [typescript-url]: https://www.typescriptlang.org/
 
-[nodejs-shield]: https://img.shields.io/badge/Node.js-v18.15+/20+-%2523339933?logo=node.js
+[nodejs-shield]: https://img.shields.io/badge/Node.js-20%20%7C%2022-339933?logo=node.js&logoColor=white
 [nodejs-url]: https://nodejs.org/
 
-[socketio-shield]: https://img.shields.io/badge/Socket.IO-v4%2B-010101?logo=socket.io
+[socketio-shield]: https://img.shields.io/badge/Socket.IO-4-010101?logo=socket.io&logoColor=white
 [socketio-url]: https://socket.io/
 
 [license-shield]: https://img.shields.io/badge/License-MIT-yellow.svg

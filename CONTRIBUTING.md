@@ -54,17 +54,24 @@ in `server/dist/`, so `npm test` builds first.
 CI runs the same commands on every pull request. A red build will block a merge,
 so it is worth running them locally first.
 
+## Architecture
+
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) covers how the client and server fit
+together, where authorization lives, how the chat room is split into services, and
+the conventions behind those choices. Worth reading before a first feature.
+
 ## Project layout
 
 ```
 client/   Angular 20 single-page app
   src/app/auth/       login, registration, token handling
   src/app/chat/       chat list, chat room, message input, groups
+  src/app/profile/    own and other users' profiles
   src/app/services/   shared app-wide services
-  src/app/shared/     reusable components, pipes, utilities
+  src/app/shared/     reusable components, pipes, animations, utilities
 server/   Express + Socket.IO + Mongoose API
   src/config/     env validation, logging, multer/Cloudinary storage
-  src/middleware/ auth, validation, rate limiting, error handling
+  src/middleware/ auth, chat access guards, validation, rate limiting, errors
   src/models/     Mongoose schemas
   src/routes/     REST endpoints
   src/schemas/    Zod request schemas
@@ -104,11 +111,18 @@ A few areas have bitten this project before:
   imported modules before the importing module's body, so a top-level
   `process.env` read in another file runs before `dotenv` has loaded and
   silently picks up a fallback.
-- **Route ordering.** `app.use(authenticateToken)` in `server/src/index.ts`
+- **Route ordering.** `app.use(authenticateToken)` in `server/src/app.ts`
   protects everything registered *after* it. A route added above that line is
   public. Add new authenticated routes below it, and project Mongoose queries to
   the fields you actually need. Never return raw user documents, which contain
   password hashes.
+- **Chat permissions.** Use the guards in `server/src/middleware/chatAccess.ts`
+  (`requireChatMembership`, `requireGroupAdmin`, `findMemberChat`) rather than
+  writing the membership query again. On upload routes the guard goes before
+  multer, so a non-member cannot spend storage before being rejected.
+- **Cleanup on the client.** Long-lived subscriptions need
+  `takeUntil(this.destroy$)`, and every listener or timer needs a matching teardown
+  on every exit path. This is the most common bug this project has had.
 - **Uploads.** Storage differs between development (local disk) and production
   (Cloudinary). Test both paths when touching `multer-config.ts`.
 
