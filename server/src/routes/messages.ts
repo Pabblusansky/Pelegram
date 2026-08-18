@@ -8,15 +8,11 @@ import logger from '../config/logger.js';
 import { MESSAGE_POPULATE, CHAT_POPULATE, applyPopulate, populateMessageSender, populateChatParticipants } from '../config/populate.js';
 
 import fs from 'fs';
-import path from 'path';
 
-import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import { Request, Response } from 'express';
 
-const __filename_messages = fileURLToPath(import.meta.url);
-const __dirname_messages = path.dirname(__filename_messages);
-const UPLOAD_BASE_DIR = path.resolve(__dirname_messages, '../../uploads');
+import { resolveUploadPath } from '../utils/uploadPaths.js';
 import { deleteFileFromCloudinary } from '../config/multer-config.js';
 import { validate } from '../middleware/validate.js';
 import {
@@ -239,11 +235,9 @@ export default (io: Server) => {
           await deleteFileFromCloudinary(message.filePath);
           logger.info(`Deleted file from Cloudinary: ${message.filePath}`);
         } else {
-          let diskPath = '';
-          if (message.filePath.startsWith('/media/')) {
-            diskPath = path.join(UPLOAD_BASE_DIR, message.filePath.substring(1));
-          } else {
-            logger.warn(`Message ${message._id} had filePath, but it does not start with /media/: ${message.filePath}`);
+          const diskPath = resolveUploadPath(message.filePath);
+          if (!diskPath) {
+            logger.warn(`Message ${message._id} had a filePath outside the uploads directory: ${message.filePath}`);
           }
 
           if (diskPath) {
@@ -546,11 +540,9 @@ export default (io: Server) => {
           await deleteFileFromCloudinary(filePathToDelete);
           logger.info(`Deleted file from Cloudinary: ${filePathToDelete}`);
         } else {
-          let diskPath = '';
-          if (filePathToDelete.startsWith('/media/')) {
-            diskPath = path.join(UPLOAD_BASE_DIR, filePathToDelete.substring(1));
-          } else {
-            logger.warn(`Message ${messageId} had filePath, but it does not start with /media/: ${filePathToDelete}`);
+          const diskPath = resolveUploadPath(filePathToDelete);
+          if (!diskPath) {
+            logger.warn(`Message ${messageId} had a filePath outside the uploads directory: ${filePathToDelete}`);
           }
 
           if (diskPath) {

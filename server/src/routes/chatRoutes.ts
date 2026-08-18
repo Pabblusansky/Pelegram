@@ -13,6 +13,7 @@ import { uploadGroupAvatar, getFileUrl, deleteFileFromCloudinary } from '../conf
 import logger from '../config/logger.js';
 import { CHAT_POPULATE, GROUP_CHAT_POPULATE, FULL_CHAT_POPULATE, applyPopulate, populateDoc, populateChatParticipants, populateChatAdmin, populateChatLastMessage, populateChatPinnedMessage } from '../config/populate.js';
 import { validate } from '../middleware/validate.js';
+import { resolveUploadPath } from '../utils/uploadPaths.js';
 import {
   createGroupSchema, addParticipantsSchema, updateGroupNameSchema,
   createDirectChatSchema, chatIdParam, chatIdWithParticipantParam,
@@ -21,8 +22,6 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const UPLOAD_BASE_DIR = path.resolve(__dirname, '../../uploads');
 
 export default (io: Server) => {
   const router = express.Router();
@@ -259,6 +258,11 @@ export default (io: Server) => {
         });
       }
 
+      // Evict the removed user's sockets from the chat room before notifying
+      // them. Leaving it to the client means a client that simply ignores
+      // user_removed_from_chat keeps receiving every later message in the room.
+      io.in(participantId).socketsLeave(chatId);
+
       // Notify the removed user that they've been removed
       io.to(participantId).emit('user_removed_from_chat', {
         chatId: chatId,
@@ -314,11 +318,10 @@ export default (io: Server) => {
 
             for (const message of messagesWithFiles) {
               if ((message as any).filePath) {
-                let diskPath = '';
-                if ((message as any).filePath.startsWith('/media/')) {
-                  diskPath = path.join(UPLOAD_BASE_DIR, (message as any).filePath.substring(1));
-                } else if ((message as any).filePath.startsWith('/uploads/')) {
-                  diskPath = path.join(__dirname, '../..', (message as any).filePath.replace('/uploads/', 'uploads/'));
+                const diskPath = resolveUploadPath((message as any).filePath);
+                if (!diskPath) {
+                  logger.warn(`Skipping filePath outside the uploads directory: ${(message as any).filePath}`);
+                  continue;
                 }
 
                 try {
@@ -356,11 +359,10 @@ export default (io: Server) => {
 
           for (const message of messagesWithFiles) {
             if ((message as any).filePath) {
-              let diskPath = '';
-              if ((message as any).filePath.startsWith('/media/')) {
-                diskPath = path.join(UPLOAD_BASE_DIR, (message as any).filePath.substring(1));
-              } else if ((message as any).filePath.startsWith('/uploads/')) {
-                diskPath = path.join(__dirname, '../..', (message as any).filePath.replace('/uploads/', 'uploads/'));
+              const diskPath = resolveUploadPath((message as any).filePath);
+              if (!diskPath) {
+                logger.warn(`Skipping filePath outside the uploads directory: ${(message as any).filePath}`);
+                continue;
               }
 
               try {
@@ -419,6 +421,8 @@ export default (io: Server) => {
           io.to(participant._id.toString()).emit('receive_message', savedSystemMessage.toObject());
         });
       }
+
+      io.in(userId.toString()).socketsLeave(chatId);
 
       io.to(userId.toString()).emit('user_removed_from_chat', {
         chatId: chatId,
@@ -722,13 +726,9 @@ export default (io: Server) => {
           if (process.env.NODE_ENV === 'production') {
             await deleteFileFromCloudinary((message as any).filePath);
           } else {
-            let diskPath = '';
-            if ((message as any).filePath.startsWith('/media/')) {
-              diskPath = path.join(UPLOAD_BASE_DIR, (message as any).filePath.substring(1));
-            } else if ((message as any).filePath.startsWith('/uploads/')) {
-              diskPath = path.join(__dirname, '../..', (message as any).filePath.replace('/uploads/', 'uploads/'));
-            } else {
-              logger.warn(`Unexpected filePath format: ${(message as any).filePath}`);
+            const diskPath = resolveUploadPath((message as any).filePath);
+            if (!diskPath) {
+              logger.warn(`Skipping filePath outside the uploads directory: ${(message as any).filePath}`);
               continue;
             }
 
@@ -748,6 +748,8 @@ export default (io: Server) => {
       await Message.deleteMany({ chatId: chat._id });
 
       await Chat.findByIdAndDelete(chatId);
+
+      io.socketsLeave(chatId);
 
       participantIds.forEach((participantId: string) => {
         io.to(participantId).emit('chat_deleted_globally', {

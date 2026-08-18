@@ -13,24 +13,19 @@ interface AuthenticatedSocket extends Socket {
   user: AuthUser;
 }
 
+/**
+ * File messages are created by the REST upload route, which derives filePath
+ * from the stored file. The socket path deliberately accepts no file metadata
+ * and no messageType: a client-supplied filePath is persisted verbatim and
+ * later fed to the unlink calls in the delete handlers, and a client-supplied
+ * messageType lets a user forge a 'event' system message.
+ */
 interface SendMessageData {
   chatId: string;
   content?: string;
   replyTo?: {
     _id: string;
-    senderName: string;
-    content: string;
-    senderId: string;
   };
-  fileInfo?: {
-    filePath: string;
-    fileName: string;
-    fileSize: number;
-    fileMimeType: string;
-    fileOriginalName: string;
-    thumbnailPath?: string;
-  };
-  messageType?: string;
 }
 
 interface SendMessageCallback {
@@ -95,7 +90,7 @@ async function handleLogoutAttempt(socket: AuthenticatedSocket): Promise<void> {
 }
 
 async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: SendMessageData, callback: SendMessageCallback): Promise<void> {
-  const { chatId, replyTo, fileInfo, messageType = 'text' } = data;
+  const { chatId, replyTo } = data;
   const content = sanitizeText(data.content);
   const senderId = socket.user.id;
 
@@ -103,7 +98,7 @@ async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: 
     if (typeof callback === 'function') callback({ success: false, error: 'Invalid chat ID' });
     return;
   }
-  if (!content && !fileInfo) {
+  if (!content) {
     if (typeof callback === 'function') callback({ success: false, error: 'Message content is required' });
     return;
   }
@@ -134,22 +129,23 @@ async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: 
       senderName: sender.username,
       content,
       status: 'sent',
-      messageType,
-      filePath: fileInfo ? fileInfo.filePath : null,
-      fileName: fileInfo ? fileInfo.fileName : null,
-      fileSize: fileInfo ? fileInfo.fileSize : null,
-      fileMimeType: fileInfo ? fileInfo.fileMimeType : null,
-      fileOriginalName: fileInfo ? fileInfo.fileOriginalName : null,
-      fileThumbnailPath: fileInfo ? fileInfo.thumbnailPath : null,
+      messageType: 'text',
     });
 
-    if (replyTo && replyTo._id) {
-      message.replyTo = {
-        _id: replyTo._id as any,
-        senderName: replyTo.senderName,
-        content: replyTo.content,
-        senderId: replyTo.senderId as any,
-      };
+    // The quoted text and author are read back from the replied-to message
+    // rather than taken from the payload, so a client cannot attribute words
+    // to someone who never wrote them. Scoped to this chat so a quote cannot
+    // lift content out of a conversation the sender is not in.
+    if (replyTo && isValidObjectId(replyTo._id)) {
+      const original = await Message.findOne({ _id: replyTo._id, chatId }).select('content senderId senderName').lean();
+      if (original) {
+        message.replyTo = {
+          _id: original._id,
+          senderName: original.senderName,
+          content: original.content,
+          senderId: original.senderId,
+        };
+      }
     }
 
     await message.save();
