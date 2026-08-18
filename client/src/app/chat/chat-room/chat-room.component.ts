@@ -38,6 +38,7 @@ import { TypingIndicatorService } from './services/typing-indicator.service';
 import { ScrollStabilizerService } from './services/scroll-stabilizer.service';
 import { MediaModalService } from './services/media-modal.service';
 import { MessageSearchService } from './services/message-search.service';
+import { MessageListService, GroupedReaction } from './services/message-list.service';
 
 @Component({
   selector: 'app-chat-room',
@@ -139,6 +140,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   private scrollStabilizer = inject(ScrollStabilizerService);
   private mediaModal = inject(MediaModalService);
   private messageSearch = inject(MessageSearchService);
+  private messageList = inject(MessageListService);
   // Search functionality
   get isSearchActive(): boolean { return this.messageSearch.isActive; }
   get searchResults(): Message[] { return this.messageSearch.results; }
@@ -1249,12 +1251,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   }
 
   private getNewerStatus(oldStatus: string | undefined, newStatus: string | undefined): string | undefined {
-    const statusOrder: { [key: string]: number } = { 'sent': 1, 'delivered': 2, 'read': 3 };
-
-    const oldRank = oldStatus ? statusOrder[oldStatus] || 0 : 0;
-    const newRank = newStatus ? statusOrder[newStatus] || 0 : 0;
-
-    return oldRank > newRank ? oldStatus : newStatus;
+    return this.messageList.newerStatus(oldStatus, newStatus);
   }
   
   startReply(message: Message): void {
@@ -1443,25 +1440,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   private handleReactionUpdate(messageId: string, newReactions: Reaction[]): void {
     this.messageActionsService.handleReactionUpdate(messageId, newReactions);
   }
-  getGroupedReactions(reactions: Reaction[] | undefined): { type: string; count: number; reactedByMe: boolean; userIds: string[] }[] {
-    if (!reactions || reactions.length === 0) {
-      return [];
-    }
-    const groups: { [key: string]: { count: number; userIds: string[] } } = {};
-    reactions.forEach(r => {
-      if (!groups[r.reaction]) {
-        groups[r.reaction] = { count: 0, userIds: [] };
-      }
-      groups[r.reaction].count++;
-      groups[r.reaction].userIds.push(r.userId);
-    });
-
-    return Object.keys(groups).map(reactionType => ({
-      type: reactionType,
-      count: groups[reactionType].count,
-      reactedByMe: !!this.userId && groups[reactionType].userIds.includes(this.userId),
-      userIds: groups[reactionType].userIds // For future use
-    }));
+  getGroupedReactions(reactions: Reaction[] | undefined): GroupedReaction[] {
+    return this.messageList.groupReactions(reactions, this.userId);
   }
 
 
@@ -1512,19 +1492,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   }
 
   private mergeMessages(newMessages: Message[]): void {
-      const existingMessageIds = new Set(this.messages.map(m => m._id));
-      const messagesToAdd = newMessages
-          .filter(nm => nm._id && !existingMessageIds.has(nm._id)) 
-          .map(nm => {
-              const senderIdFromMessage = nm.senderId && typeof nm.senderId === 'object' && (nm.senderId as any)._id 
-                  ? (nm.senderId as any)._id 
-                  : (typeof nm.senderId === 'string' ? nm.senderId : undefined);
-
-              return {
-                  ...nm,
-                  ismyMessage: senderIdFromMessage === this.userId 
-              };
-          });
+      const messagesToAdd = this.messageList.selectNewMessages(this.messages, newMessages, this.userId);
 
       if (messagesToAdd.length > 0) {
           this.messages.push(...messagesToAdd);
