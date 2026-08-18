@@ -1,11 +1,11 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ProfileService } from '../profile.service';
 import { UserProfile } from '../profile.model';
 import { SocketService } from '../../chat/services/socket.service';
 import { ChatApiService } from '../../chat/services/chat-api.service';
-import { Observable } from 'rxjs';
+import { Observable, Subject, takeUntil } from 'rxjs';
 import { Location } from '@angular/common';
 import { LoggerService } from '../../services/logger.service';
 import { environment } from '../../../environments/environment';
@@ -17,7 +17,7 @@ import { environment } from '../../../environments/environment';
   standalone: true,
   imports: [CommonModule]
 })
-export class UserProfileComponent implements OnInit {
+export class UserProfileComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private profileService = inject(ProfileService);
@@ -26,6 +26,7 @@ export class UserProfileComponent implements OnInit {
   private location = inject(Location);
   private logger = inject(LoggerService);
 
+  private destroy$ = new Subject<void>();
   userId: string | null = null;
   profile: UserProfile | null = null;
   isLoading = true;
@@ -34,8 +35,15 @@ export class UserProfileComponent implements OnInit {
   isOnline$: Observable<boolean> | null = null;
   private apiUrl = environment.apiUrl
   
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   ngOnInit(): void {
-    this.route.paramMap.subscribe(params => {
+    this.route.paramMap
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(params => {
       this.userId = params.get('userId');
       if (this.userId) {
         this.loadUserProfile();

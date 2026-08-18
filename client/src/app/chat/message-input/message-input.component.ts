@@ -147,6 +147,7 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges, Afte
 
   ngOnDestroy(): void {
     clearTimeout(this.typingTimeout);
+    clearInterval(this.recordingTimerInterval);
     if (this.messageTextarea && this.messageTextarea.nativeElement) {
       this.messageTextarea.nativeElement.removeEventListener('paste', this.boundOnPaste);
     }

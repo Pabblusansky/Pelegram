@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProfileService } from './profile.service';
@@ -10,6 +10,7 @@ import { SoundService } from '../services/sound.service';
 import { AuthService } from '../auth/auth.service';
 import { LoggerService } from '../services/logger.service';
 import { environment } from '../../environments/environment';
+import { Subject, takeUntil } from 'rxjs';
 
 @Component({
   selector: 'app-profile',
@@ -18,7 +19,7 @@ import { environment } from '../../environments/environment';
   standalone: true,
   imports: [CommonModule, FormsModule, ProfileEditComponent]
 })
-export class ProfileComponent implements OnInit {
+export class ProfileComponent implements OnInit, OnDestroy {
   private profileService = inject(ProfileService);
   themeService = inject(ThemeService);
   private notificationService = inject(NotificationService);
@@ -26,6 +27,7 @@ export class ProfileComponent implements OnInit {
   private authService = inject(AuthService);
   private logger = inject(LoggerService);
 
+  private destroy$ = new Subject<void>();
   isLoading = true;
   error: string | null = null;
   isEditing = false;
@@ -77,11 +79,18 @@ export class ProfileComponent implements OnInit {
     }
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   ngOnInit(): void {
     if (!this.profile) {
       this.loadProfile();
     }
-    this.profileService.avatarUploadProgress$.subscribe(progress => {
+    this.profileService.avatarUploadProgress$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(progress => {
       this.uploadProgress = progress;
     });
   }
