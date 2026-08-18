@@ -33,11 +33,13 @@ import { ToastService } from '../../utils/toast-service';
 import { SelectionService } from './services/selection.service';
 import { MessageActionsService } from './services/message-actions.service';
 import { MediaUrlService, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR, SAVED_MESSAGES_ICON } from './services/media-url.service';
+import { scrollToBottomButtonAnimation } from '../../shared/animations';
 
 @Component({
   selector: 'app-chat-room',
   templateUrl: './chat-room.component.html',
   styleUrls: ['./chat-room.component.scss'],
+  animations: [scrollToBottomButtonAnimation],
   
   standalone: true,
   imports: [

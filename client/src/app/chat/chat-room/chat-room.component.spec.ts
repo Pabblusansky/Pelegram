@@ -21,6 +21,12 @@ describe('ChatRoomComponent', () => {
     fixture.detectChanges();
   });
 
+  it('registers the scrollToBottomButtonAnimation trigger the template binds to', () => {
+    const meta = (ChatRoomComponent as any).ɵcmp;
+    const names = (meta.data?.animation ?? []).map((a: any) => a.name);
+    expect(names).toContain('scrollToBottomButtonAnimation');
+  });
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
