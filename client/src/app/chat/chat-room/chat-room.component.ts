@@ -505,27 +505,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   }
 
   updateMessagesWithDividers(): void {
-    const newMessagesWithDividers = [];
-    let lastDate = null;
-
-    for (const message of this.messages) {
-      const messageDate = this.formatDate(new Date(message.timestamp));
-
-      if (messageDate !== lastDate) {
-        newMessagesWithDividers.push({
-          type: 'divider',
-          date: messageDate,
-        });
-        lastDate = messageDate;
-      }
-
-      newMessagesWithDividers.push({
-        ...message,
-        type: 'message',
-      });
-    }
-
-    this.messagesWithDividers = newMessagesWithDividers;
+    this.messagesWithDividers = this.messageList.withDateDividers(
+      this.messages,
+      date => this.formatDate(date)
+    );
 
 
     this.cdr.detectChanges();

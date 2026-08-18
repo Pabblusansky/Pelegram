@@ -8,6 +8,13 @@ export interface GroupedReaction {
   userIds: string[];
 }
 
+export interface DateDivider {
+  type: 'divider';
+  date: string;
+}
+
+export type MessageListItem = DateDivider | (Message & { type: 'message' });
+
 const STATUS_RANK: { [key: string]: number } = { sent: 1, delivered: 2, read: 3 };
 
 /**
@@ -54,6 +61,28 @@ export class MessageListService {
         ...nm,
         ismyMessage: this.resolveSenderId(nm) === userId,
       }));
+  }
+
+  /**
+   * Flattens messages into the render list, inserting a divider each time the calendar
+   * day changes. Date formatting is injected so this stays independent of locale setup.
+   */
+  withDateDividers(messages: Message[], formatDate: (date: Date) => string): MessageListItem[] {
+    const items: MessageListItem[] = [];
+    let lastDate: string | null = null;
+
+    for (const message of messages) {
+      const messageDate = formatDate(new Date(message.timestamp));
+
+      if (messageDate !== lastDate) {
+        items.push({ type: 'divider', date: messageDate });
+        lastDate = messageDate;
+      }
+
+      items.push({ ...message, type: 'message' });
+    }
+
+    return items;
   }
 
   private resolveSenderId(message: Message): string | undefined {

@@ -123,4 +123,68 @@ describe('MessageListService', () => {
       expect(existing.length).toBe(1);
     });
   });
+
+  describe('withDateDividers', () => {
+    const at = (iso: string, id: string) => msg(id, 'u1', { timestamp: iso } as Partial<Message>);
+    const dayOf = (d: Date) => d.toISOString().slice(0, 10);
+
+    it('returns an empty list for no messages', () => {
+      expect(service.withDateDividers([], dayOf)).toEqual([]);
+    });
+
+    it('puts a divider before the first message', () => {
+      const items = service.withDateDividers([at('2026-08-18T10:00:00Z', 'a')], dayOf);
+
+      expect(items.length).toBe(2);
+      expect(items[0]).toEqual({ type: 'divider', date: '2026-08-18' });
+      expect(items[1].type).toBe('message');
+    });
+
+    it('uses one divider for several messages on the same day', () => {
+      const items = service.withDateDividers([
+        at('2026-08-18T10:00:00Z', 'a'),
+        at('2026-08-18T11:00:00Z', 'b'),
+        at('2026-08-18T12:00:00Z', 'c'),
+      ], dayOf);
+
+      expect(items.filter(i => i.type === 'divider').length).toBe(1);
+      expect(items.length).toBe(4);
+    });
+
+    it('adds a divider each time the day changes', () => {
+      const items = service.withDateDividers([
+        at('2026-08-17T10:00:00Z', 'a'),
+        at('2026-08-18T10:00:00Z', 'b'),
+        at('2026-08-19T10:00:00Z', 'c'),
+      ], dayOf);
+
+      expect(items.filter(i => i.type === 'divider').map(i => (i as { date: string }).date))
+        .toEqual(['2026-08-17', '2026-08-18', '2026-08-19']);
+    });
+
+    it('keeps message order intact', () => {
+      const items = service.withDateDividers([
+        at('2026-08-17T10:00:00Z', 'a'),
+        at('2026-08-18T10:00:00Z', 'b'),
+      ], dayOf);
+
+      expect(items.filter(i => i.type === 'message').map(i => (i as Message)._id)).toEqual(['a', 'b']);
+    });
+
+    it('copies messages rather than mutating them', () => {
+      const source = at('2026-08-18T10:00:00Z', 'a');
+      service.withDateDividers([source], dayOf);
+      expect((source as unknown as { type?: string }).type).toBeUndefined();
+    });
+
+    it('re-emits a divider when the day repeats after a gap', () => {
+      const items = service.withDateDividers([
+        at('2026-08-17T10:00:00Z', 'a'),
+        at('2026-08-18T10:00:00Z', 'b'),
+        at('2026-08-17T10:00:00Z', 'c'),
+      ], dayOf);
+
+      expect(items.filter(i => i.type === 'divider').length).toBe(3);
+    });
+  });
 });
