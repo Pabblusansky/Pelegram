@@ -4,11 +4,12 @@ import { ChatApiService } from '../../services/chat-api.service';
 import { SocketService } from '../../services/socket.service';
 import { ConfirmationService } from '../../../shared/services/confirmation.service';
 import { LoggerService } from '../../../services/logger.service';
-import { SelectionService } from './selection.service';
+import { MessageListItem } from './message-list.service';
+import { SelectionService, ForwardPayload } from './selection.service';
 
 export interface MessageActionsContext {
   messages: () => Message[];
-  messagesWithDividers: () => any[];
+  messagesWithDividers: () => MessageListItem[];
   userId: () => string | null;
   chatId: () => string | null;
   chatDetails: () => Chat | null;
@@ -32,7 +33,7 @@ export class MessageActionsService {
   selectedMessageId: string | null = null;
   replyingToMessage: Message | null = null;
   pinnedMessageDetails: Message | null = null;
-  messagetoForward: Message | null = null;
+  messagetoForward: ForwardPayload | null = null;
   showForwardDialogue = false;
   editAnimationTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
   availableReactions: string[] = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -63,7 +64,7 @@ export class MessageActionsService {
     } else {
       const messagesWithDividers = this.ctx.messagesWithDividers();
       const messageFromDividers = messagesWithDividers.find(
-        (item: any) => item.type === 'message' && item._id === this.activeContextMenuId
+        (item: MessageListItem) => item.type === 'message' && item._id === this.activeContextMenuId
       );
       if (messageFromDividers) {
         return messageFromDividers as Message;
@@ -206,7 +207,7 @@ export class MessageActionsService {
 
     const messagesWithDividers = this.ctx.messagesWithDividers();
     const messageInDividers = messagesWithDividers.find(
-      (item: any) => item.type === 'message' && item._id === message._id
+      (item): item is Message & { type: 'message' } => item.type === 'message' && item._id === message._id
     );
     if (messageInDividers) {
       messageInDividers.isEditing = true;

@@ -29,7 +29,7 @@ import { ChatSearchBarComponent } from '../chat-search-bar/chat-search-bar.compo
 import { LoggerService } from '../../services/logger.service';
 import { TokenService } from '../../services/token.service';
 import { ToastService } from '../../utils/toast-service';
-import { SelectionService } from './services/selection.service';
+import { SelectionService, ForwardPayload } from './services/selection.service';
 import { MessageActionsService } from './services/message-actions.service';
 import { MediaUrlService, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR, SAVED_MESSAGES_ICON } from './services/media-url.service';
 import { scrollToBottomButtonAnimation } from '../../shared/animations';
@@ -169,7 +169,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   get replyingToMessage(): Message | null { return this.messageActionsService.replyingToMessage; }
   get pinnedMessageDetails(): Message | null { return this.messageActionsService.pinnedMessageDetails; }
   set pinnedMessageDetails(value: Message | null) { this.messageActionsService.pinnedMessageDetails = value; }
-  get messagetoForward(): Message | null { return this.messageActionsService.messagetoForward; }
+  get messagetoForward(): ForwardPayload | null { return this.messageActionsService.messagetoForward; }
   get showForwardDialogue(): boolean { return this.messageActionsService.showForwardDialogue; }
   get availableReactions(): string[] { return this.messageActionsService.availableReactions; }
 

@@ -1,12 +1,20 @@
 import { Injectable } from '@angular/core';
 import { Message } from '../../chat.model';
+import { MessageListItem } from './message-list.service';
 import { ChatApiService } from '../../services/chat-api.service';
 import { ConfirmationService } from '../../../shared/services/confirmation.service';
 import { LoggerService } from '../../../services/logger.service';
 
+export interface MultipleForwardSelection {
+  _id: 'multiple';
+  content: string;
+}
+
+export type ForwardPayload = Message | MultipleForwardSelection;
+
 export interface SelectionContext {
   messages: () => Message[];
-  messagesWithDividers: () => any[];
+  messagesWithDividers: () => MessageListItem[];
   userId: () => string | null;
   updateMessagesWithDividers: () => void;
   detectChanges: () => void;
@@ -95,11 +103,14 @@ export class SelectionService {
 
     const messagesWithDividers = this.ctx.messagesWithDividers();
     const msgDividerIndex = messagesWithDividers.findIndex(
-      (item: any) => item.type === 'message' && item._id === updatedMessage._id
+      (item: MessageListItem) => item.type === 'message' && item._id === updatedMessage._id
     );
 
     if (msgDividerIndex !== -1) {
-      messagesWithDividers[msgDividerIndex].isSelected = updatedMessage.isSelected;
+      const row = messagesWithDividers[msgDividerIndex];
+      if (row.type === 'message') {
+        row.isSelected = updatedMessage.isSelected;
+      }
     }
 
     this.ctx.updateMessagesWithDividers();
@@ -109,7 +120,7 @@ export class SelectionService {
     this.isActive = false;
 
     this.ctx.messages().forEach(msg => msg.isSelected = false);
-    this.ctx.messagesWithDividers().forEach((item: any) => {
+    this.ctx.messagesWithDividers().forEach((item: MessageListItem) => {
       if (item.type === 'message') {
         item.isSelected = false;
       }
@@ -151,7 +162,7 @@ export class SelectionService {
       });
   }
 
-  getForwardPayload(): any {
+  getForwardPayload(): ForwardPayload | null {
     const selected = this.getSelectedArray();
     if (selected.length === 0) return null;
 
@@ -171,7 +182,7 @@ export class SelectionService {
     const userId = this.ctx.userId();
     for (const msg of this.selectedMessagesMap.values()) {
       const senderId = typeof msg.senderId === 'object' && msg.senderId !== null
-        ? (msg.senderId as any)._id
+        ? (msg.senderId as { _id?: string })._id
         : msg.senderId;
 
       if (senderId !== userId) {
