@@ -41,3 +41,48 @@ export function requireChatMembership(param: string = 'chatId') {
     next();
   };
 }
+
+export function isChatAdmin(chat: IChat, userId: string): boolean {
+  const admin = chat.admin as unknown;
+  if (Array.isArray(admin)) {
+    return admin.some((adminId) => adminId.toString() === userId);
+  }
+  return !!admin && (admin as { toString(): string }).toString() === userId;
+}
+
+export function requireGroupAdmin(action: string, param: string = 'chatId') {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const chatId = req.params[param];
+    if (!isValidObjectId(chatId)) {
+      res.status(404).json({ message: 'Group chat not found.' });
+      return;
+    }
+
+    let chat: IChat | null;
+    try {
+      chat = await Chat.findById(chatId);
+    } catch (err) {
+      logger.error('requireGroupAdmin error:', err);
+      res.status(500).json({ message: 'Server error' });
+      return;
+    }
+
+    if (!chat) {
+      res.status(404).json({ message: 'Group chat not found.' });
+      return;
+    }
+
+    if (!chat.isGroupChat) {
+      res.status(400).json({ message: 'This is not a group chat.' });
+      return;
+    }
+
+    if (!isChatAdmin(chat, req.user!.id)) {
+      res.status(403).json({ message: `Only the group admin can ${action}.` });
+      return;
+    }
+
+    req.chat = chat;
+    next();
+  };
+}

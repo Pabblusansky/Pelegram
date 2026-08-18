@@ -7,10 +7,11 @@ import mongoose from 'mongoose';
 import Chat from '../models/Chat.js';
 import Message from '../models/Message.js';
 import authenticateToken from '../middleware/authenticateToken.js';
+import { requireChatMembership, requireGroupAdmin, isChatAdmin } from '../middleware/chatAccess.js';
 import User from '../models/User.js';
 import { uploadGroupAvatar, getFileUrl, deleteFileFromCloudinary } from '../config/multer-config.js';
 import logger from '../config/logger.js';
-import { CHAT_POPULATE, GROUP_CHAT_POPULATE, FULL_CHAT_POPULATE, applyPopulate, populateChatParticipants, populateChatAdmin, populateChatLastMessage, populateChatPinnedMessage } from '../config/populate.js';
+import { CHAT_POPULATE, GROUP_CHAT_POPULATE, FULL_CHAT_POPULATE, applyPopulate, populateDoc, populateChatParticipants, populateChatAdmin, populateChatLastMessage, populateChatPinnedMessage } from '../config/populate.js';
 import { validate } from '../middleware/validate.js';
 import {
   createGroupSchema, addParticipantsSchema, updateGroupNameSchema,
@@ -79,9 +80,8 @@ export default (io: Server) => {
     }
   });
 
-  router.patch('/:chatId/group/avatar', authenticateToken, uploadGroupAvatar.single('avatar'), async (req: Request, res: Response) => {
+  router.patch('/:chatId/group/avatar', authenticateToken, requireGroupAdmin('change the group avatar'), uploadGroupAvatar.single('avatar'), async (req: Request, res: Response) => {
     const { chatId } = req.params;
-    const userId = req.user!.id;
 
     try {
       if (!req.file) {
@@ -89,26 +89,7 @@ export default (io: Server) => {
         return;
       }
 
-      const chat: any = await Chat.findById(chatId);
-      if (!chat) {
-        res.status(404).json({ message: 'Group chat not found.' });
-        return;
-      }
-
-      if (!chat.isGroupChat) {
-        res.status(400).json({ message: 'This is not a group chat.' });
-        return;
-      }
-
-      // Check if user is admin
-      const isAdmin = Array.isArray(chat.admin)
-        ? chat.admin.some((adminId: any) => adminId.toString() === userId)
-        : chat.admin && chat.admin.toString() === userId;
-
-      if (!isAdmin) {
-        res.status(403).json({ message: 'Only the group admin can change the group avatar.' });
-        return;
-      }
+      const chat: any = req.chat;
 
       if (process.env.NODE_ENV !== 'production' && chat.groupAvatar && !chat.groupAvatar.includes('default-group-avatar')) {
         const oldAvatarPath = path.join(process.cwd(), chat.groupAvatar.replace('/uploads/', 'uploads/'));
@@ -137,33 +118,13 @@ export default (io: Server) => {
   });
 
   // Add participants to group
-  router.post('/:chatId/group/participants', authenticateToken, validate({ body: addParticipantsSchema, params: chatIdParam }), async (req: Request, res: Response) => {
+  router.post('/:chatId/group/participants', authenticateToken, validate({ body: addParticipantsSchema, params: chatIdParam }), requireGroupAdmin('add participants'), async (req: Request, res: Response) => {
     const { chatId } = req.params;
     const { participantIds } = req.body;
-    const userId = req.user!.id;
 
     try {
 
-      const chat: any = await Chat.findById(chatId);
-      if (!chat) {
-        res.status(404).json({ message: 'Group chat not found.' });
-        return;
-      }
-
-      if (!chat.isGroupChat) {
-        res.status(400).json({ message: 'This is not a group chat.' });
-        return;
-      }
-
-      // Check if user is admin
-      const isAdmin = Array.isArray(chat.admin)
-        ? chat.admin.some((adminId: any) => adminId.toString() === userId)
-        : chat.admin && chat.admin.toString() === userId;
-
-      if (!isAdmin) {
-        res.status(403).json({ message: 'Only the group admin can add participants.' });
-        return;
-      }
+      const chat: any = req.chat;
 
       // Verify all user IDs exist
       const usersToAdd = await User.find({ '_id': { $in: participantIds } });
@@ -237,30 +198,12 @@ export default (io: Server) => {
   });
 
   // Remove participant
-  router.delete('/:chatId/group/participants/:participantId', authenticateToken, validate({ params: chatIdWithParticipantParam }), async (req: Request, res: Response) => {
+  router.delete('/:chatId/group/participants/:participantId', authenticateToken, validate({ params: chatIdWithParticipantParam }), requireGroupAdmin('remove participants'), async (req: Request, res: Response) => {
     const { chatId, participantId } = req.params;
     const userId = req.user!.id;
 
     try {
-      const chat: any = await Chat.findById(chatId);
-      if (!chat) {
-        res.status(404).json({ message: 'Group chat not found.' });
-        return;
-      }
-
-      if (!chat.isGroupChat) {
-        res.status(400).json({ message: 'This is not a group chat.' });
-        return;
-      }
-
-      const isAdmin = Array.isArray(chat.admin)
-        ? chat.admin.some((adminId: any) => adminId.toString() === userId)
-        : chat.admin && chat.admin.toString() === userId;
-
-      if (!isAdmin) {
-        res.status(403).json({ message: 'Only the group admin can remove participants.' });
-        return;
-      }
+      const chat: any = req.chat;
 
       const participantIndex = chat.participants.findIndex((p: any) => p.toString() === participantId);
       if (participantIndex === -1) {
@@ -490,32 +433,13 @@ export default (io: Server) => {
     }
   });
 
-  router.patch('/:chatId/group/name', authenticateToken, validate({ body: updateGroupNameSchema, params: chatIdParam }), async (req: Request, res: Response) => {
+  router.patch('/:chatId/group/name', authenticateToken, validate({ body: updateGroupNameSchema, params: chatIdParam }), requireGroupAdmin('change the group name'), async (req: Request, res: Response) => {
     const { chatId } = req.params;
     const { name } = req.body;
-    const userId = req.user!.id;
 
     try {
 
-      const chat: any = await Chat.findById(chatId);
-      if (!chat) {
-        res.status(404).json({ message: 'Group chat not found.' });
-        return;
-      }
-
-      if (!chat.isGroupChat) {
-        res.status(400).json({ message: 'This is not a group chat.' });
-        return;
-      }
-
-      const adminId = Array.isArray(chat.admin)
-        ? (chat.admin[0]?.toString() || '')
-        : (chat.admin?.toString() || '');
-
-      if (adminId !== userId) {
-        res.status(403).json({ message: 'Only the group admin can change the group name.' });
-        return;
-      }
+      const chat: any = req.chat;
 
       chat.name = name.trim();
       chat.updatedAt = new Date();
@@ -539,16 +463,12 @@ export default (io: Server) => {
     }
   });
 
-  router.post('/:chatId/mark-as-read', authenticateToken, async (req: Request, res: Response) => {
+  router.post('/:chatId/mark-as-read', authenticateToken, requireChatMembership(), async (req: Request, res: Response) => {
     const { chatId } = req.params;
     const userId = req.user!.id;
 
     try {
-      const chat: any = await Chat.findOne({ _id: chatId, participants: userId });
-      if (!chat) {
-        res.status(404).json({ message: 'Chat not found or you are not a participant.' });
-        return;
-      }
+      const chat: any = req.chat;
 
       if (chat.unreadCounts && chat.unreadCounts.length > 0) {
         const userUnreadIndex = chat.unreadCounts.findIndex((uc: any) => uc.userId.toString() === userId);
@@ -616,9 +536,8 @@ export default (io: Server) => {
     }
   });
 
-  router.get('/:chatId/media', authenticateToken, validate({ params: chatIdParam, query: mediaQuerySchema }), async (req: Request, res: Response) => {
+  router.get('/:chatId/media', authenticateToken, validate({ params: chatIdParam, query: mediaQuerySchema }), requireChatMembership(), async (req: Request, res: Response) => {
     const { chatId } = req.params;
-    const userId = req.user!.id;
 
     const typeFilter = req.query.type || 'images';
     const limit = parseInt(req.query.limit as string) || 30;
@@ -626,12 +545,6 @@ export default (io: Server) => {
     const skip = (page - 1) * limit;
 
     try {
-      const chat = await Chat.findOne({ _id: chatId, participants: userId });
-      if (!chat) {
-        res.status(403).json({ message: 'Access denied or chat not found.' });
-        return;
-      }
-
       const queryConditions: any = {
         chatId: chatId,
         filePath: { $exists: true, $nin: [null, ''] }
@@ -744,19 +657,9 @@ export default (io: Server) => {
       }
   });
 
-  router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
+  router.get('/:id', authenticateToken, requireChatMembership('id'), async (req: Request, res: Response) => {
     try {
-      const chatId = req.params.id;
-      const userId = req.user!.id;
-      const chat = await applyPopulate(
-        Chat.findOne({ _id: chatId, participants: userId }),
-        FULL_CHAT_POPULATE
-      );
-
-      if (!chat) {
-        res.status(404).json({ message: 'Chat not found' });
-        return;
-      }
+      const chat = await populateDoc(req.chat!, FULL_CHAT_POPULATE);
 
       res.json(chat);
     } catch (err: any) {
@@ -783,10 +686,7 @@ export default (io: Server) => {
       }
 
       if (chat.isGroupChat) {
-        const isAdmin = Array.isArray(chat.admin)
-          ? chat.admin.some((adminId: any) => adminId.toString() === userId)
-          : chat.admin && chat.admin.toString() === userId;
-        if (!isAdmin) {
+        if (!isChatAdmin(chat, userId)) {
           res.status(403).json({ message: 'Only the group admin can delete this group.' });
           return;
         }
@@ -898,16 +798,11 @@ export default (io: Server) => {
     }
   });
 
-  router.patch('/:chatId/pin/:messageId', authenticateToken, validate({ params: pinMessageParam }), async (req: Request, res: Response) => {
+  router.patch('/:chatId/pin/:messageId', authenticateToken, validate({ params: pinMessageParam }), requireChatMembership(), async (req: Request, res: Response) => {
     const { chatId, messageId } = req.params;
-    const userId = req.user!.id;
 
     try {
-        const chat: any = await Chat.findOne({ _id: chatId, participants: userId });
-        if (!chat) {
-            res.status(404).json({ message: 'Chat not found or you are not a participant.' });
-            return;
-        }
+        const chat: any = req.chat;
 
         const messageExists = await Message.findOne({ _id: messageId, chatId: chatId });
         if (!messageExists) {
@@ -932,16 +827,11 @@ export default (io: Server) => {
     }
   });
 
-  router.patch('/:chatId/unpin', authenticateToken, async (req: Request, res: Response) => {
+  router.patch('/:chatId/unpin', authenticateToken, requireChatMembership(), async (req: Request, res: Response) => {
       const { chatId } = req.params;
-      const userId = req.user!.id;
 
       try {
-          const chat: any = await Chat.findOne({ _id: chatId, participants: userId });
-          if (!chat) {
-              res.status(404).json({ message: 'Chat not found or you are not a participant.' });
-              return;
-          }
+          const chat: any = req.chat;
 
           if (!chat.pinnedMessage) {
               res.status(400).json({ message: 'No message is currently pinned in this chat.' });
@@ -965,31 +855,11 @@ export default (io: Server) => {
     }
   });
 
-  router.delete('/:chatId/group/avatar', authenticateToken, async (req: Request, res: Response) => {
+  router.delete('/:chatId/group/avatar', authenticateToken, requireGroupAdmin('delete the group avatar'), async (req: Request, res: Response) => {
     const { chatId } = req.params;
-    const userId = req.user!.id;
 
     try {
-      const chat: any = await Chat.findById(chatId);
-      if (!chat) {
-        res.status(404).json({ message: 'Group chat not found.' });
-        return;
-      }
-
-      if (!chat.isGroupChat) {
-        res.status(400).json({ message: 'This is not a group chat.' });
-        return;
-      }
-
-      // Check if user is admin
-      const isAdmin = Array.isArray(chat.admin)
-        ? chat.admin.some((adminId: any) => adminId.toString() === userId)
-        : chat.admin && chat.admin.toString() === userId;
-
-      if (!isAdmin) {
-        res.status(403).json({ message: 'Only the group admin can delete the group avatar.' });
-        return;
-      }
+      const chat: any = req.chat;
 
       if (!chat.groupAvatar || chat.groupAvatar.includes('default-group-avatar')) {
         res.status(400).json({ message: 'No custom avatar to delete.' });
