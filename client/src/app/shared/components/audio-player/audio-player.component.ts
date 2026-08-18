@@ -39,7 +39,9 @@ export class AudioPlayerComponent implements OnChanges, AfterViewInit, OnDestroy
 
   constructor() {
     if (!this.audioContext) {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextCtor = window.AudioContext
+        || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      this.audioContext = new AudioContextCtor!();
     }
   }
 

@@ -1,4 +1,4 @@
-import { Injectable, ApplicationRef, createComponent, EnvironmentInjector, inject } from '@angular/core';
+import { Injectable, ApplicationRef, createComponent, EmbeddedViewRef, EnvironmentInjector, inject } from '@angular/core';
 import { ConfirmationDialogComponent } from '../components/confirmation-dialogue/confirmation-dialogue.component';
 
 interface ConfirmationOptions {
@@ -38,7 +38,7 @@ export class ConfirmationService {
       });
 
       this.appRef.attachView(componentRef.hostView);
-      const domElem = (componentRef.hostView as any).rootNodes[0] as HTMLElement;
+      const domElem = (componentRef.hostView as EmbeddedViewRef<unknown>).rootNodes[0] as HTMLElement;
       document.body.appendChild(domElem);
 
       const cleanup = () => {

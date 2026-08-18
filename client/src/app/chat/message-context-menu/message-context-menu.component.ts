@@ -169,8 +169,8 @@ export class MessageContextMenuComponent {
     this.reactionClick.emit(emoji);
   }
 
-  onReactionPickerSelect(event: any): void {
-    const emoji = event.detail?.unicode;
+  onReactionPickerSelect(event: Event): void {
+    const emoji = (event as CustomEvent<{ unicode?: string }>).detail?.unicode;
     if (emoji) {
       this.reactionClick.emit(emoji);
     }
