@@ -83,14 +83,14 @@ export default (io: Server) => {
         return;
       }
 
-      const targetTimestamp = targetMessage.createdAt || targetMessage.timestamp;
+      const targetTimestamp = targetMessage.timestamp || targetMessage.createdAt;
 
       const messagesBefore: any[] = await applyPopulate(
         Message.find({
           chatId: chatId,
-          createdAt: { $lt: targetTimestamp }
+          timestamp: { $lt: targetTimestamp }
         })
-        .sort({ createdAt: -1 })
+        .sort({ timestamp: -1 })
         .limit(contextLimit),
         MESSAGE_POPULATE
       ).lean();
@@ -98,9 +98,9 @@ export default (io: Server) => {
       const messagesAfterAndTarget: any[] = await applyPopulate(
         Message.find({
           chatId: chatId,
-          createdAt: { $gte: targetTimestamp }
+          timestamp: { $gte: targetTimestamp }
         })
-        .sort({ createdAt: 1 })
+        .sort({ timestamp: 1 })
         .limit(contextLimit + 1),
         MESSAGE_POPULATE
       ).lean();
@@ -113,8 +113,7 @@ export default (io: Server) => {
 
       const uniqueMessages = Array.from(new Map(combinedMessages.map(msg => [msg._id.toString(), msg])).values());
 
-      // Sort by createdAt or timestamp to maintain chronological order
-      uniqueMessages.sort((a: any, b: any) => new Date(a.createdAt || a.timestamp).getTime() - new Date(b.createdAt || b.timestamp).getTime());
+      uniqueMessages.sort((a: any, b: any) => new Date(a.timestamp || a.createdAt).getTime() - new Date(b.timestamp || b.createdAt).getTime());
 
       res.json(uniqueMessages);
 
@@ -443,11 +442,11 @@ export default (io: Server) => {
       if (before) {
         const beforeMessage: any = await Message.findById(before);
         if (beforeMessage) {
-          query.createdAt = { $lt: new Date(beforeMessage.createdAt) };
+          query.timestamp = { $lt: new Date(beforeMessage.timestamp || beforeMessage.createdAt) };
         }
       }
         const messages = await Message.find(query)
-        .sort({ createdAt: -1 })
+        .sort({ timestamp: -1 })
         .limit(parseInt(limit as string))
         .exec();
 
@@ -558,7 +557,7 @@ export default (io: Server) => {
       await Message.findByIdAndDelete(messageId);
 
       const lastMessage = await Message.find({ chatId })
-      .sort({ createdAt: -1 })
+      .sort({ timestamp: -1 })
       .limit(1);
 
       let updatedChat;

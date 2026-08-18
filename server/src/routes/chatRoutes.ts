@@ -561,7 +561,7 @@ export default (io: Server) => {
       }
 
       const mediaMessages = await Message.find(queryConditions)
-        .sort({ createdAt: -1 })
+        .sort({ timestamp: -1 })
         .skip(skip)
         .limit(limit)
         .populate('senderId', 'username')
