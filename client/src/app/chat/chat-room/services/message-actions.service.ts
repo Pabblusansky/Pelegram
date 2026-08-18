@@ -32,7 +32,7 @@ export class MessageActionsService {
   selectedMessageId: string | null = null;
   replyingToMessage: Message | null = null;
   pinnedMessageDetails: Message | null = null;
-  messagetoForward: any = null;
+  messagetoForward: Message | null = null;
   showForwardDialogue = false;
   editAnimationTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
   availableReactions: string[] = ['👍', '❤️', '😂', '😮', '😢', '🙏'];

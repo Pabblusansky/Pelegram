@@ -38,7 +38,7 @@ import { TypingIndicatorService } from './services/typing-indicator.service';
 import { ScrollStabilizerService } from './services/scroll-stabilizer.service';
 import { MediaModalService } from './services/media-modal.service';
 import { MessageSearchService } from './services/message-search.service';
-import { MessageListService, GroupedReaction } from './services/message-list.service';
+import { MessageListService, GroupedReaction, MessageListItem } from './services/message-list.service';
 import { PinnedMessageService } from './services/pinned-message.service';
 
 @Component({
@@ -169,7 +169,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   get replyingToMessage(): Message | null { return this.messageActionsService.replyingToMessage; }
   get pinnedMessageDetails(): Message | null { return this.messageActionsService.pinnedMessageDetails; }
   set pinnedMessageDetails(value: Message | null) { this.messageActionsService.pinnedMessageDetails = value; }
-  get messagetoForward(): any { return this.messageActionsService.messagetoForward; }
+  get messagetoForward(): Message | null { return this.messageActionsService.messagetoForward; }
   get showForwardDialogue(): boolean { return this.messageActionsService.showForwardDialogue; }
   get availableReactions(): string[] { return this.messageActionsService.availableReactions; }
 
@@ -335,17 +335,18 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
 
     this.socketService.onMessageStatusUpdated()
       .pipe(takeUntil(this.destroy$))
-      .subscribe((data: any) => {
+      .subscribe(data => {
       const message = this.messages.find(msg => msg._id === data.messageId);
       if (message) {
         message.status = data.status;
-        if (data.readBy) {
+        const readBy = data.readBy;
+        if (readBy) {
           if (!message.readBy) {
             message.readBy = [];
           }
-          const alreadyTracked = message.readBy.some(r => r.userId === data.readBy.userId);
+          const alreadyTracked = message.readBy.some(r => r.userId === readBy.userId);
           if (!alreadyTracked) {
-            message.readBy.push(data.readBy);
+            message.readBy.push(readBy);
           }
         }
         this.updateMessagesWithDividers();
@@ -604,7 +605,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
     }
   }
 
-  trackByMessageId(index: number, item: any): string {
+  trackByMessageId(index: number, item: MessageListItem): string {
     if (item.type === 'divider') {
       return `divider-${item.date}`;
     }
@@ -635,7 +636,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
         next: (messagesFromServer: Message[]) => {
             this.messages = messagesFromServer.map((msg) => ({
                 ...msg,
-                ismyMessage: (msg.senderId && (msg.senderId as any)._id || msg.senderId) === this.userId,
+                ismyMessage: (msg.senderId && (msg.senderId as { _id?: string })._id || msg.senderId) === this.userId,
                 status: msg.status || 'sent'
             }));
             this.updateMessagesWithDividers();
@@ -801,15 +802,18 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   setMenuPosition(event: Event): void {
     let clientX: number, clientY: number;
 
+    const touchEvent = event as TouchEvent;
+    const pointerEvent = event as MouseEvent;
+
     if (event && 'touches' in event &&
-        Array.isArray((event as any).touches) &&
-        (event as any).touches.length > 0 &&
-        (event as any).touches[0]) {
-      clientX = (event as any).touches[0].clientX;
-      clientY = (event as any).touches[0].clientY;
+        Array.isArray(touchEvent.touches) &&
+        touchEvent.touches.length > 0 &&
+        touchEvent.touches[0]) {
+      clientX = touchEvent.touches[0].clientX;
+      clientY = touchEvent.touches[0].clientY;
     } else if (event && 'clientX' in event && 'clientY' in event) {
-      clientX = (event as any).clientX;
-      clientY = (event as any).clientY;
+      clientX = pointerEvent.clientX;
+      clientY = pointerEvent.clientY;
     } else {
       const target = event.target as HTMLElement;
       if (target) {
@@ -909,10 +913,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
     return user ? user.username : 'Unknown';
   }
 
-  toggleReadReceipts(message: any, event: Event): void {
+  toggleReadReceipts(message: Message, event: Event): void {
     event.stopPropagation();
     if (!message.readBy || message.readBy.length === 0) return;
-    this.readReceiptsMessageId = this.readReceiptsMessageId === message._id ? null : message._id;
+    this.readReceiptsMessageId = this.readReceiptsMessageId === message._id ? null : (message._id ?? null);
     this.cdr.detectChanges();
   }
 
@@ -1000,7 +1004,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
         this.messageActionsService.selectedMessageId = null;
         event.preventDefault();
 
-        this.messagesWithDividers.forEach((item: any) => {
+        this.messagesWithDividers.forEach((item: MessageListItem) => {
           if (item.type === 'message' && item.isEditing) {
             this.cancelEdit(item);
           }
@@ -1070,7 +1074,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
     
     if (event.key === 'Enter' && event.ctrlKey) {
       const editingMessage = this.messagesWithDividers.find(
-        (item: any) => item.type === 'message' && item.isEditing
+        (item: MessageListItem): item is Message & { type: 'message' } => item.type === 'message' && !!item.isEditing
       );
 
       if (editingMessage) {
@@ -1082,7 +1086,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
 
   ngAfterViewChecked(): void {
     const editingMessage = this.messagesWithDividers.find(
-      (item: any) => item.type === 'message' && item.isEditing
+      (item: MessageListItem) => item.type === 'message' && item.isEditing
     );
     
     if (editingMessage && this.editTextareaRef) {
@@ -1135,7 +1139,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
             }
             const newMessages = olderMessages.map(msg => ({
                 ...msg,
-                ismyMessage: (msg.senderId && (msg.senderId as any)._id || msg.senderId) === this.userId,
+                ismyMessage: (msg.senderId && (msg.senderId as { _id?: string })._id || msg.senderId) === this.userId,
                 status: msg.status || 'sent'
             }));
 
@@ -1295,7 +1299,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
 
     this.scrollViewport.checkViewportSize();
     
-    const index = this.messagesWithDividers.findIndex((item: any) => item.type === 'message' && item._id === messageId);
+    const index = this.messagesWithDividers.findIndex((item: MessageListItem) => item.type === 'message' && item._id === messageId);
 
     if (index !== -1) {
         this.scrollViewport.scrollToIndex(index, 'smooth');
@@ -1530,7 +1534,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
     for (let i = this.messages.length - 1; i >= 0; i--) {
       const message = this.messages[i];
       const messageSenderId = (typeof message.senderId === 'object' && message.senderId !== null)
-                            ? (message.senderId as any)._id
+                            ? (message.senderId as { _id?: string })._id
                             : message.senderId;
       if (messageSenderId === this.userId) {
         if (message.isEditing) {
@@ -1730,9 +1734,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
     setTimeout(() => {
       const mediaElement = document.querySelector(`#message-${message._id} img, #message-${message._id} video`) as HTMLElement;
       if (mediaElement && 'src' in mediaElement) {
-        const originalSrc = (mediaElement as any).src;
-        (mediaElement as any).src = '';
-        (mediaElement as any).src = originalSrc;
+        const sourced = mediaElement as HTMLImageElement | HTMLVideoElement;
+        const originalSrc = sourced.src;
+        sourced.src = '';
+        sourced.src = originalSrc;
       }
     }, 100);
   }
