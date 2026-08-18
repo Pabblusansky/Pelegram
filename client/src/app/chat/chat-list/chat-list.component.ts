@@ -42,8 +42,8 @@ export class ChatListComponent implements OnInit, OnDestroy {
   private tokenService = inject(TokenService);
 
   @Output() chatSelected = new EventEmitter<string>();
-  chats: any[] = [];
-  filteredChats: any[] = [];
+  chats: Chat[] = [];
+  filteredChats: Chat[] = [];
   searchQuery: string = '';
   searchResults: User[] = [];
   loading: boolean = false;
@@ -196,7 +196,7 @@ loadRegularChats(): void {
 
   // General method to format a chat (both regular and Saved Messages)
 
-  formatChatForDisplay(chat: Chat, isSelf: boolean): Chat {
+  formatChatForDisplay(chat: Chat, isSelf: boolean | undefined): Chat {
     const formatted = { ...chat };
     const _id = chat._id;
 
@@ -328,6 +328,9 @@ loadRegularChats(): void {
   }
   
   sortChatsInPlace(): void {
+    const lastMessageTimestamp = (chat: Chat): string | Date | undefined =>
+      (chat.lastMessage && typeof chat.lastMessage === 'object') ? chat.lastMessage.timestamp : undefined;
+
     this.chats.sort((a, b) => {
       const aIsSavedMessages = a.isSelfChat || a.participantsString === 'Saved Messages';
       const bIsSavedMessages = b.isSelfChat || b.participantsString === 'Saved Messages';
@@ -336,8 +339,8 @@ loadRegularChats(): void {
       if (!aIsSavedMessages && bIsSavedMessages) return 1;
       
       if (aIsSavedMessages === bIsSavedMessages) {
-        const timeA = new Date(a.lastMessage?.timestamp || a.updatedAt || 0).getTime();
-        const timeB = new Date(b.lastMessage?.timestamp || b.updatedAt || 0).getTime();
+        const timeA = new Date(lastMessageTimestamp(a) || a.updatedAt || 0).getTime();
+        const timeB = new Date(lastMessageTimestamp(b) || b.updatedAt || 0).getTime();
         return timeB - timeA;
       }
       
@@ -692,7 +695,7 @@ loadRegularChats(): void {
       if (typeof uc.userId === 'string') {
         return uc.userId === this.currentUserId;
       } else {
-        return (uc.userId as any)?._id === this.currentUserId;
+        return (uc.userId as { _id?: string })?._id === this.currentUserId;
       }
     });
     return unreadEntry ? unreadEntry.count : 0;
@@ -729,7 +732,7 @@ loadRegularChats(): void {
       adminId = adminField;
     } 
     else if (adminField && typeof adminField === 'object') {
-      adminId = (adminField as any)._id;
+      adminId = (adminField as { _id?: string })._id ?? null;
     }
 
     return !!adminId && adminId.toString() === this.currentUserId.toString();
@@ -773,8 +776,9 @@ loadRegularChats(): void {
     return user._id;
   }
 
-  isMyLastMessage(chat: any): boolean {
-      if (!chat || !chat.lastMessage || !chat.lastMessage.senderId || !this.currentUserId) {
+  isMyLastMessage(chat: Chat): boolean {
+      const lastMessage = chat?.lastMessage;
+      if (!lastMessage || typeof lastMessage === 'string' || !lastMessage.senderId || !this.currentUserId) {
           return false;
       }
 
@@ -782,9 +786,9 @@ loadRegularChats(): void {
           return true;
       }
 
-      const senderId = (typeof chat.lastMessage.senderId === 'object' && chat.lastMessage.senderId !== null) 
-                      ? chat.lastMessage.senderId._id 
-                      : chat.lastMessage.senderId;
+      const senderId = (typeof lastMessage.senderId === 'object' && lastMessage.senderId !== null)
+                      ? lastMessage.senderId._id
+                      : lastMessage.senderId;
       return senderId === this.currentUserId;
   }
 }

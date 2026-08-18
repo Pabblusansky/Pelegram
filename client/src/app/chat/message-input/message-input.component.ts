@@ -5,6 +5,7 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { FileSizePipe } from '../../pipes/fileSize/file-size.pipe';
 import { ToastService } from '../../utils/toast-service';
 import { LoggerService } from '../../services/logger.service';
+import { Message } from '../chat.model';
 
 import 'emoji-picker-element';
 
@@ -28,11 +29,11 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges, Afte
   private logger = inject(LoggerService);
 
   @Input() chatId: string | null = null;
-  @Input() replyingToMessage: any | null = null;
+  @Input() replyingToMessage: Message | null = null;
   @Output() sendMessageEvent = new EventEmitter<{
     content: string;
     file?: File;
-    replyTo?: any;
+    replyTo?: Message;
     duration?: number;
   }>(); 
   @Output() inputChange = new EventEmitter<boolean>(); 
@@ -41,7 +42,7 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges, Afte
   newMessage: string = '';
   @ViewChild('messageTextarea') messageTextarea!: ElementRef<HTMLTextAreaElement>;
 
-  private typingTimeout: any;
+  private typingTimeout: ReturnType<typeof setTimeout> | undefined;
   private readonly typingDelay: number = 2000;
   private isCurrentlyTyping: boolean = false;
 
@@ -59,7 +60,7 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges, Afte
   recordingTime: number = 0;
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
-  private recordingTimerInterval: any;
+  private recordingTimerInterval: ReturnType<typeof setInterval> | undefined;
   private recordingStartTime: number = 0;
 
   private micButtonRect: DOMRect | null = null;
@@ -226,7 +227,7 @@ adjustTextareaHeight(): void {
     if (!textContent && !this.selectedFile) { 
       return;
     }
-    const dataToSend: { content: string; file?: File; caption?: string; replyTo?: any } = {
+    const dataToSend: { content: string; file?: File; caption?: string; replyTo?: Message } = {
       content: textContent,
       file: this.selectedFile || undefined,
     };
@@ -433,8 +434,8 @@ adjustTextareaHeight(): void {
     this.cdr.detectChanges();
   }
 
-  onEmojiClick(event: any): void {
-    const emoji = event.detail?.unicode;
+  onEmojiClick(event: Event): void {
+    const emoji = (event as CustomEvent<{ unicode?: string }>).detail?.unicode;
     if (!emoji) return;
 
     const textarea = this.messageTextarea?.nativeElement;
@@ -581,7 +582,9 @@ adjustTextareaHeight(): void {
   private async initializeWaveform(stream: MediaStream): Promise<void> {
     try {
       if (!this.audioContext) {
-        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const AudioContextCtor = window.AudioContext
+          || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        this.audioContext = new AudioContextCtor!();
       }
 
       if (this.audioContext.state === 'suspended') {
