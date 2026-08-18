@@ -42,8 +42,8 @@ export class ChatListComponent implements OnInit, OnDestroy {
   private tokenService = inject(TokenService);
 
   @Output() chatSelected = new EventEmitter<string>();
-  chats: Chat[] = [];
-  filteredChats: Chat[] = [];
+  chats: any[] = [];
+  filteredChats: any[] = [];
   searchQuery: string = '';
   searchResults: User[] = [];
   loading: boolean = false;
