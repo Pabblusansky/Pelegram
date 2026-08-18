@@ -36,6 +36,7 @@ import { scrollToBottomButtonAnimation } from '../../shared/animations';
 import { MessageTextService } from './services/message-text.service';
 import { TypingIndicatorService } from './services/typing-indicator.service';
 import { ScrollStabilizerService } from './services/scroll-stabilizer.service';
+import { MediaModalService } from './services/media-modal.service';
 
 @Component({
   selector: 'app-chat-room',
@@ -59,7 +60,7 @@ import { ScrollStabilizerService } from './services/scroll-stabilizer.service';
     ChatHeaderComponent,
     ChatSearchBarComponent
   ],
-  providers: [SelectionService, MessageActionsService, TypingIndicatorService, ScrollStabilizerService],
+  providers: [SelectionService, MessageActionsService, TypingIndicatorService, ScrollStabilizerService, MediaModalService],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 
@@ -135,6 +136,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   private resizeObserver: ResizeObserver | undefined;
   private isScrollingToBottom: boolean = false;
   private scrollStabilizer = inject(ScrollStabilizerService);
+  private mediaModal = inject(MediaModalService);
   // Search functionality
   isSearchActive: boolean = false;
   searchResults: Message[] = [];
@@ -1741,52 +1743,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
     if (!message.filePath || message.mediaLoadError) {
       return;
     }
-    
-    const modal = document.createElement('div');
-    modal.className = 'media-modal-overlay';
-    
-    Object.assign(modal.style, {
-      position: 'fixed',
-      top: '0',
-      left: '0',
-      width: '100%',
-      height: '100%',
-      backgroundColor: 'rgba(0, 0, 0, 0.9)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: '2000',
-      cursor: 'zoom-out'
-    });
-    
-    const img = document.createElement('img');
-    img.src = this.getMediaUrl(message.filePath);
-    img.className = 'media-modal-image';
-    
-    Object.assign(img.style, {
-      maxWidth: '90%',
-      maxHeight: '90%',
-      objectFit: 'contain',
-      cursor: 'zoom-out'
-    });
-    
-    modal.appendChild(img);
-    document.body.appendChild(modal);
-    
-    modal.addEventListener('click', () => {
-      document.body.removeChild(modal);
-    });
-    
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (document.body.contains(modal)) {
-          document.body.removeChild(modal);
-        }
-        document.removeEventListener('keydown', handleEscape);
-      }
-    };
-    
-    document.addEventListener('keydown', handleEscape);
+    this.mediaModal.open(this.getMediaUrl(message.filePath));
   }
 
   getRepliedMessage(messageId: string): Message | null {
