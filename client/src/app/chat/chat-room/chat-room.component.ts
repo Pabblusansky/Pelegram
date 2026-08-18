@@ -35,6 +35,7 @@ import { MediaUrlService, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR, SAVED_MESSAGES_I
 import { scrollToBottomButtonAnimation } from '../../shared/animations';
 import { MessageTextService } from './services/message-text.service';
 import { TypingIndicatorService } from './services/typing-indicator.service';
+import { ScrollStabilizerService } from './services/scroll-stabilizer.service';
 
 @Component({
   selector: 'app-chat-room',
@@ -58,7 +59,7 @@ import { TypingIndicatorService } from './services/typing-indicator.service';
     ChatHeaderComponent,
     ChatSearchBarComponent
   ],
-  providers: [SelectionService, MessageActionsService, TypingIndicatorService],
+  providers: [SelectionService, MessageActionsService, TypingIndicatorService, ScrollStabilizerService],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 
@@ -133,7 +134,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   showMediaGallery: boolean = false;
   private resizeObserver: ResizeObserver | undefined;
   private isScrollingToBottom: boolean = false;
-  private cancelStabilization: (() => void) | null = null;
+  private scrollStabilizer = inject(ScrollStabilizerService);
   // Search functionality
   isSearchActive: boolean = false;
   searchResults: Message[] = [];
@@ -431,10 +432,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
-    if (this.cancelStabilization) {
-      this.cancelStabilization();
-      this.cancelStabilization = null;
-    }
+    this.scrollStabilizer.cancel();
     this.messageActionsService.cleanup();
 
   }
@@ -724,75 +722,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
     });
   }
 
-  /**
-   * Uses a MutationObserver on the CDK content wrapper to deterministically detect
-   * when rendering is done, then snaps to the true pixel bottom.
-   * Debounces DOM mutations (150ms quiet period) with a 1.5s hard timeout safety net.
-   */
   private stabilizeAtBottom(onComplete: () => void): void {
-    // Cancel any previous stabilization
-    if (this.cancelStabilization) {
-      this.cancelStabilization();
-      this.cancelStabilization = null;
-    }
-
-    const el = this.scrollViewport?.elementRef.nativeElement;
-    if (!el) {
-      onComplete();
-      return;
-    }
-
-    const contentWrapper = el.querySelector('.cdk-virtual-scroll-content-wrapper');
-    if (!contentWrapper) {
-      onComplete();
-      return;
-    }
-
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    let hardTimeout: ReturnType<typeof setTimeout> | null = null;
-    let observer: MutationObserver | null = null;
-    let cleaned = false;
-
-    const cleanup = () => {
-      if (cleaned) return;
-      cleaned = true;
-      if (observer) { observer.disconnect(); observer = null; }
-      if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
-      if (hardTimeout) { clearTimeout(hardTimeout); hardTimeout = null; }
-      if (this.cancelStabilization === cleanup) {
-        this.cancelStabilization = null;
-      }
-    };
-
-    const finish = () => {
-      // Final snap to true bottom
-      if (el) {
-        el.scrollTop = el.scrollHeight;
-      }
-      cleanup();
-      onComplete();
-    };
-
-    const resetDebounce = () => {
-      // Snap on every mutation
-      el.scrollTop = el.scrollHeight;
-      if (debounceTimer) { clearTimeout(debounceTimer); }
-      debounceTimer = setTimeout(finish, 150);
-    };
-
-    observer = new MutationObserver(() => {
-      resetDebounce();
-    });
-
-    observer.observe(contentWrapper, { childList: true, subtree: true });
-
-    // Hard timeout safety net — finish after 1.5s regardless
-    hardTimeout = setTimeout(finish, 1500);
-
-    // Start the debounce (in case no mutations happen at all)
-    resetDebounce();
-
-    this.cancelStabilization = cleanup;
+    this.scrollStabilizer.stabilize(this.scrollViewport?.elementRef.nativeElement, onComplete);
   }
 
   formatTimestamp(timestamp: string): string {
