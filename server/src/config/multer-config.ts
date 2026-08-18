@@ -5,25 +5,21 @@ import { fileURLToPath } from 'url';
 import { Request } from 'express';
 import { env, isProduction } from './env.js';
 import logger from './logger.js';
+import { CloudinaryStorageEngine, CloudinaryLike } from './cloudinary-storage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const IS_PROD = isProduction;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let cloudinary: any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let CloudinaryStorage: any;
+let cloudinary: (CloudinaryLike & { config(options: Record<string, unknown>): void }) | undefined;
 
 if (IS_PROD) {
   const cloudinaryModule = await import('cloudinary');
-  cloudinary = cloudinaryModule.v2;
+  const configured = cloudinaryModule.v2 as unknown as NonNullable<typeof cloudinary>;
+  cloudinary = configured;
 
-  const cloudinaryStorageModule = await import('multer-storage-cloudinary');
-  CloudinaryStorage = cloudinaryStorageModule.CloudinaryStorage;
-
-  cloudinary.config({
+  configured.config({
     cloud_name: env.CLOUDINARY_CLOUD_NAME,
     api_key: env.CLOUDINARY_API_KEY,
     api_secret: env.CLOUDINARY_API_SECRET,
@@ -35,6 +31,13 @@ if (IS_PROD) {
   logger.info('Multer config: Using local disk storage (DEVELOPMENT)');
 }
 
+const requireCloudinary = (): CloudinaryLike => {
+  if (!cloudinary) {
+    throw new Error('Cloudinary storage requested but Cloudinary is not configured');
+  }
+  return cloudinary;
+};
+
 const ensureDirectoryExists = (dirPath: string): void => {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -45,13 +48,10 @@ const ensureDirectoryExists = (dirPath: string): void => {
 // AVATAR STORAGE
 let avatarStorage: multer.StorageEngine;
 if (IS_PROD) {
-  avatarStorage = new CloudinaryStorage({
-    cloudinary,
-    params: {
-      folder: 'pelegram/avatars',
-      allowed_formats: ['jpeg', 'jpg', 'png', 'gif', 'webp'],
-      transformation: [{ width: 300, height: 300, crop: 'fill', quality: 'auto' }],
-    },
+  avatarStorage = new CloudinaryStorageEngine(requireCloudinary(), {
+    folder: 'pelegram/avatars',
+    allowed_formats: ['jpeg', 'jpg', 'png', 'gif', 'webp'],
+    transformation: [{ width: 300, height: 300, crop: 'fill', quality: 'auto' }],
   });
 } else {
   const avatarDir = path.resolve(__dirname, '../../uploads/avatars');
@@ -70,13 +70,10 @@ if (IS_PROD) {
 // GROUP AVATAR STORAGE
 let groupAvatarStorage: multer.StorageEngine;
 if (IS_PROD) {
-  groupAvatarStorage = new CloudinaryStorage({
-    cloudinary,
-    params: {
-      folder: 'pelegram/group-avatars',
-      allowed_formats: ['jpeg', 'jpg', 'png', 'gif', 'webp'],
-      transformation: [{ width: 400, height: 400, crop: 'fill', quality: 'auto' }],
-    },
+  groupAvatarStorage = new CloudinaryStorageEngine(requireCloudinary(), {
+    folder: 'pelegram/group-avatars',
+    allowed_formats: ['jpeg', 'jpg', 'png', 'gif', 'webp'],
+    transformation: [{ width: 400, height: 400, crop: 'fill', quality: 'auto' }],
   });
 } else {
   const groupAvatarDir = path.resolve(__dirname, '../../uploads/group-avatars');
@@ -95,18 +92,15 @@ if (IS_PROD) {
 // MEDIA STORAGE
 let mediaStorage: multer.StorageEngine;
 if (IS_PROD) {
-  mediaStorage = new CloudinaryStorage({
-    cloudinary,
-    params: {
-      folder: 'pelegram/media',
-      resource_type: 'auto',
-      allowed_formats: [
-        'jpeg', 'jpg', 'png', 'gif', 'webp',
-        'mp4', 'webm', 'mov',
-        'mp3', 'wav', 'ogg', 'opus', 'm4a', 'aac', 'flac',
-        'pdf', 'doc', 'docx', 'txt',
-      ],
-    },
+  mediaStorage = new CloudinaryStorageEngine(requireCloudinary(), {
+    folder: 'pelegram/media',
+    resource_type: 'auto',
+    allowed_formats: [
+      'jpeg', 'jpg', 'png', 'gif', 'webp',
+      'mp4', 'webm', 'mov',
+      'mp3', 'wav', 'ogg', 'opus', 'm4a', 'aac', 'flac',
+      'pdf', 'doc', 'docx', 'txt',
+    ],
   });
 } else {
   const mediaDir = path.resolve(__dirname, '../../uploads/media');
