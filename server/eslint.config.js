@@ -45,7 +45,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/middleware/authenticateToken.ts'],
+    files: ['src/middleware/authenticateToken.ts', 'src/middleware/chatAccess.ts'],
     rules: {
       '@typescript-eslint/no-namespace': 'off',
     },

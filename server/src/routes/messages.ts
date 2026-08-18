@@ -1,6 +1,7 @@
 import express from 'express';
 import Message from '../models/Message.js';
 import authenticateToken from '../middleware/authenticateToken.js';
+import { requireChatMembership, findMemberChat } from '../middleware/chatAccess.js';
 import Chat from '../models/Chat.js';
 import User from '../models/User.js';
 import logger from '../config/logger.js';
@@ -43,18 +44,11 @@ export default (io: Server) => {
     }
   });
 
-  router.get('/search/:chatId', authenticateToken, validate({ params: chatIdParam, query: searchQuerySchema }), async (req: Request, res: Response) => {
+  router.get('/search/:chatId', authenticateToken, validate({ params: chatIdParam, query: searchQuerySchema }), requireChatMembership(), async (req: Request, res: Response) => {
     const { chatId } = req.params;
     const { query, limit = 50, page = 1 } = req.query;
-    const userId = req.user!.id;
 
     try {
-      const chat = await Chat.findOne({ _id: chatId, participants: userId });
-      if (!chat) {
-        res.status(403).json({ message: 'Access denied to this chat or chat not found' });
-        return;
-      }
-
       const searchRegex = new RegExp((query as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); // 'i' for case-insensitive
 
       const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -78,18 +72,11 @@ export default (io: Server) => {
     }
   });
 
-  router.get('/:chatId/context/:messageId', authenticateToken, validate({ params: contextParam }), async (req: Request, res: Response) => {
+  router.get('/:chatId/context/:messageId', authenticateToken, validate({ params: contextParam }), requireChatMembership(), async (req: Request, res: Response) => {
     const { chatId, messageId: targetMessageId } = req.params;
-    const userId = req.user!.id;
     const contextLimit = parseInt(req.query.limit as string) || 15;
 
     try {
-      const chat = await Chat.findOne({ _id: chatId, participants: userId });
-      if (!chat) {
-        res.status(403).json({ message: 'Access denied or chat not found' });
-        return;
-      }
-
       const targetMessage: any = await Message.findById(targetMessageId).lean();
       if (!targetMessage) {
         res.status(404).json({ message: 'Target message not found' });
@@ -331,13 +318,13 @@ export default (io: Server) => {
         return;
       }
 
-      const sourceChat = await Chat.findOne({ _id: originalMessage.chatId, participants: userId }).lean();
+      const sourceChat = await findMemberChat(originalMessage.chatId, userId);
       if (!sourceChat) {
         res.status(403).json({ message: 'Access denied to the original message' });
         return;
       }
 
-      const chatForValidation = await Chat.findOne({ _id: targetChatId, participants: userId });
+      const chatForValidation = await findMemberChat(targetChatId, userId);
       if (!chatForValidation) {
         res.status(403).json({ message: 'Access denied to target chat' });
         return;
@@ -419,7 +406,7 @@ export default (io: Server) => {
       const { chatId, content } = req.body;
 
       try {
-          const chat = await Chat.findOne({ _id: chatId, participants: req.user!.id }).lean();
+          const chat = await findMemberChat(chatId, req.user!.id);
           if (!chat) {
             res.status(403).json({ message: 'Access denied or chat not found' });
             return;
@@ -446,18 +433,11 @@ export default (io: Server) => {
           }
   });
 
-  router.get('/:chatId', authenticateToken, async (req: Request, res: Response) => {
+  router.get('/:chatId', authenticateToken, requireChatMembership(), async (req: Request, res: Response) => {
     const { chatId } = req.params;
     const { before, limit = 30 } = req.query;
-    const userId = req.user!.id;
 
     try {
-        const chat = await Chat.findOne({ _id: chatId, participants: userId }).lean();
-        if (!chat) {
-          res.status(403).json({ message: 'Access denied or chat not found' });
-          return;
-        }
-
         const query: any = { chatId };
 
       if (before) {

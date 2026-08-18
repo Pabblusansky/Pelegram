@@ -7,26 +7,12 @@ import authenticateToken from '../middleware/authenticateToken.js';
 import { uploadMedia, getFileUrl, deleteFileFromCloudinary } from '../config/multer-config.js';
 import logger from '../config/logger.js';
 import { MESSAGE_POPULATE, CHAT_POPULATE, applyPopulate } from '../config/populate.js';
+import { requireChatMembership } from '../middleware/chatAccess.js';
 
 export default (io: Server) => {
   const router = express.Router();
 
-  // Runs before multer so a non-participant cannot even spend upload storage.
-  const requireChatMembership = async (req: Request, res: Response, next: express.NextFunction): Promise<void> => {
-    try {
-      const chat = await Chat.findOne({ _id: req.params.chatId, participants: req.user!.id }).lean();
-      if (!chat) {
-        res.status(403).json({ message: 'Access denied or chat not found' });
-        return;
-      }
-      next();
-    } catch (err) {
-      logger.error('Error checking chat membership for upload:', err);
-      res.status(500).json({ message: 'Server error' });
-    }
-  };
-
-  router.post('/upload/chat/:chatId', authenticateToken, requireChatMembership, uploadMedia.single('mediaFile'), async (req: Request, res: Response) => {
+  router.post('/upload/chat/:chatId', authenticateToken, requireChatMembership(), uploadMedia.single('mediaFile'), async (req: Request, res: Response) => {
     if (!req.file) {
       res.status(400).json({ message: 'No file uploaded, or file was rejected by filter/size limit.' });
       return;

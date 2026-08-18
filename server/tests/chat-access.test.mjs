@@ -158,6 +158,31 @@ describe('forward-multiple happy path', () => {
   });
 });
 
+describe('malformed chat ids are denied, not crashed', () => {
+  test('GET /messages/:chatId with a non-ObjectId is denied', async () => {
+    const res = await request(app)
+      .get('/messages/not-a-real-object-id')
+      .set('Authorization', `Bearer ${generateAccessToken(insider._id.toString())}`);
+
+    assert.ok(
+      res.status === 403 || res.status === 404,
+      `expected a denial, got ${res.status}`
+    );
+  });
+
+  test('file upload with a non-ObjectId chat is denied', async () => {
+    const res = await request(app)
+      .post('/api/files/upload/chat/not-a-real-object-id')
+      .set('Authorization', `Bearer ${generateAccessToken(insider._id.toString())}`)
+      .send({});
+
+    assert.ok(
+      res.status === 403 || res.status === 404,
+      `expected a denial, got ${res.status}`
+    );
+  });
+});
+
 describe('GET /chats/:id authorization', () => {
   test('a participant can read the chat details', async () => {
     const res = await request(app)
