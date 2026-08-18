@@ -188,10 +188,6 @@ export class SocketService implements OnDestroy {
           observer.error(ack && ack.error ? ack.error : 'Failed to send message to server');
         }
       });
-
-      this.socket.on('message_edited', (message: Message) => {
-        observer.next(message);
-      });
     });
   }
 
@@ -215,9 +211,14 @@ export class SocketService implements OnDestroy {
         observer.error(new Error('Socket not initialized'));
         return;
       }
-      this.socket.on('typing', (data: { chatId: string; senderId: string; isTyping: boolean }) => {
+      const socket = this.socket;
+      const handleTyping = (data: { chatId: string; senderId: string; isTyping: boolean }) => {
         observer.next(data);
-      });
+      };
+      socket.on('typing', handleTyping);
+      return () => {
+        socket.off('typing', handleTyping);
+      };
     });
   }
 
@@ -250,9 +251,14 @@ export class SocketService implements OnDestroy {
         observer.error(new Error('Socket not initialized'));
         return;
       }
-      this.socket.on('messageStatusUpdated', (data: { messageId: string; status: string; readBy?: { userId: string; readAt: string } }) => {
+      const socket = this.socket;
+      const handleStatusUpdate = (data: { messageId: string; status: string; readBy?: { userId: string; readAt: string } }) => {
         observer.next(data);
-      });
+      };
+      socket.on('messageStatusUpdated', handleStatusUpdate);
+      return () => {
+        socket.off('messageStatusUpdated', handleStatusUpdate);
+      };
     });
   }
 

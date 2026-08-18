@@ -163,7 +163,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   get availableReactions(): string[] { return this.messageActionsService.availableReactions; }
 
   constructor() {
-    this.markAsReadDebounce.pipe(debounceTime(500)).subscribe(() => {
+    this.markAsReadDebounce.pipe(debounceTime(500), takeUntil(this.destroy$)).subscribe(() => {
       this.markMessagesAsRead();
     });
   }
@@ -232,7 +232,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
       this.messageActionsService.handleReactionUpdate(update.messageId, update.reactions);
     });
 
-    this.socketService.onTyping().subscribe((data: { chatId: string; senderId: string; isTyping: boolean }) => {
+    this.socketService.onTyping()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((data: { chatId: string; senderId: string; isTyping: boolean }) => {
       if (data.chatId === this.chatId) {
         // Clear any existing timeout for this user
         const existingTimeout = this.typingTimeouts.get(data.senderId);
@@ -300,7 +302,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
         this.cdr.detectChanges();
     });
     
-    this.route.paramMap.subscribe(params => {
+    this.route.paramMap
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(params => {
       const routeChatId = params.get('chatId');
       this.chatId = routeChatId || this.selectedChatId;
       if (this.chatId) {
@@ -328,7 +332,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
       },
     });
 
-    this.socketService.onMessageStatusUpdated().subscribe((data: any) => {
+    this.socketService.onMessageStatusUpdated()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((data: any) => {
       const message = this.messages.find(msg => msg._id === data.messageId);
       if (message) {
         message.status = data.status;
