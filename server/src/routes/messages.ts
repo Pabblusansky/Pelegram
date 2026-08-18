@@ -439,7 +439,9 @@ export default (io: Server) => {
         const query: any = { chatId };
 
       if (before) {
-        const beforeMessage: any = await Message.findById(before);
+        // Scoped to this chat so a cursor cannot be used to probe whether a
+        // message id exists elsewhere by watching how the window shifts.
+        const beforeMessage: any = await Message.findOne({ _id: before, chatId });
         if (beforeMessage) {
           query.timestamp = { $lt: new Date(beforeMessage.timestamp || beforeMessage.createdAt) };
         }

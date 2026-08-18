@@ -16,6 +16,14 @@ import { registerSchema, loginSchema, refreshSchema, logoutSchema } from '../sch
 
 const router = express.Router();
 
+/**
+ * Hash compared against when no account matches, so that a login attempt costs
+ * the same whether or not the username exists. Returning early on a miss skips
+ * the ~60ms bcrypt comparison and turns response time into an oracle for which
+ * accounts are registered.
+ */
+const ABSENT_USER_PASSWORD_HASH = bcrypt.hashSync('placeholder-for-constant-time-login', 10);
+
 router.post('/register', validate({ body: registerSchema }), async (req: Request, res: Response) => {
   const { username, email, password } = req.body;
 
@@ -43,13 +51,13 @@ router.post('/login', validate({ body: loginSchema }), async (req: Request, res:
     const { usernameOrEmail, password } = req.body;
 
     const user = await User.findOne({ $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }] });
-    if (!user) {
-      res.status(400).json({ message: 'Invalid username/password credentials' });
-      return;
-    }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user ? user.password : ABSENT_USER_PASSWORD_HASH
+    );
+
+    if (!user || !isPasswordValid) {
       res.status(400).json({ message: 'Invalid username/password credentials' });
       return;
     }
