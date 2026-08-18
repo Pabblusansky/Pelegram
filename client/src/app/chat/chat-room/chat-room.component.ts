@@ -32,6 +32,7 @@ import { TokenService } from '../../services/token.service';
 import { ToastService } from '../../utils/toast-service';
 import { SelectionService } from './services/selection.service';
 import { MessageActionsService } from './services/message-actions.service';
+import { MediaUrlService, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR, SAVED_MESSAGES_ICON } from './services/media-url.service';
 
 @Component({
   selector: 'app-chat-room',
@@ -74,6 +75,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   private toastService = inject(ToastService);
   selectionService = inject(SelectionService);
   messageActionsService = inject(MessageActionsService);
+  private mediaUrlService = inject(MediaUrlService);
 
   private componentIsCurrentlyFocused: boolean = document.hasFocus(); 
   @HostListener('window:focus', ['$event'])
@@ -969,17 +971,14 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
 
   get getAvatarUrl(): string {
     if (!this.chatDetails || !this.userId || !this.users || this.users.length === 0) {
-      return 'assets/images/default-avatar.png';
+      return DEFAULT_AVATAR;
     }
 
     if (this.isGroupChat) {
       if (this.chatDetails.groupAvatar) {
-        if (this.chatDetails.groupAvatar.startsWith('/uploads/')) {
-          return `${this.chatApiService.getApiUrl()}${this.chatDetails.groupAvatar}`;
-        }
-        return this.chatDetails.groupAvatar;
+        return this.mediaUrlService.resolve(this.chatDetails.groupAvatar);
       }
-      return 'assets/images/default-group-avatar.png';
+      return DEFAULT_GROUP_AVATAR;
     }
     const isSavedMessagesChat =
       this.chatDetails.participants &&
@@ -987,17 +986,10 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
       this.chatDetails.participants[0]._id === this.userId;
 
     if (isSavedMessagesChat) {
-      return 'assets/images/saved-messages-icon.png'; 
+      return SAVED_MESSAGES_ICON;
     }
 
-    if (this.otherParticipant && this.otherParticipant.avatar) {
-      const avatarPath = this.otherParticipant.avatar;
-      if (avatarPath.startsWith('/uploads/')) { 
-        return `${this.chatApiService.getApiUrl()}${avatarPath}`;
-      }
-      return avatarPath; 
-    }
-        return 'assets/images/default-avatar.png';
+    return this.mediaUrlService.avatar(this.otherParticipant?.avatar);
   }
 
   handleAvatarError(event: Event): void {
@@ -1012,19 +1004,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
 
   getUserAvatar(userId: string): string {
     const user = this.users.find(u => u._id === userId);
-    if (!user || !user.avatar) {
-      return 'assets/images/default-avatar.png';
-    }
-
-    if (user.avatar.startsWith('http://') || user.avatar.startsWith('https://')) {
-      return user.avatar;
-    }
-    
-    if (user.avatar.startsWith('/')) {
-      return `${this.chatApiService.getApiUrl()}${user.avatar}`;
-    }
-    
-    return `${this.chatApiService.getApiUrl()}/${user.avatar}`;
+    return this.mediaUrlService.avatar(user?.avatar);
   }
 
   getUserName(userId: string): string {
@@ -2027,48 +2007,15 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   }
 
   getMediaUrl(filePath: string | null | undefined): string {
-    if (!filePath) {
-      return '';
-    }
-
-    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-      return filePath;
-    }
-
-    if (filePath.startsWith('/')) {
-      return `${this.chatApiService.getApiUrl()}${filePath}`;
-    }
-
-    return `${this.chatApiService.getApiUrl()}/${filePath}`;
+    return this.mediaUrlService.resolve(filePath);
   }
 
   getThumbnailUrl(filePath: string | null | undefined): string {
-    if (!filePath) {
-      return '';
-    }
-
-    // For Cloudinary URLs, insert transformation params for a tiny blurred placeholder
-    if (filePath.includes('cloudinary.com') && filePath.includes('/upload/')) {
-      return filePath.replace('/upload/', '/upload/w_40,q_10,e_blur:1000/');
-    }
-
-    // For local dev URLs, no thumbnail available — return empty (skeleton will show)
-    return '';
+    return this.mediaUrlService.thumbnail(filePath);
   }
 
   getVideoPosterUrl(filePath: string | null | undefined): string {
-    if (!filePath) {
-      return '';
-    }
-
-    // For Cloudinary video URLs, generate a poster image from the first frame
-    if (filePath.includes('cloudinary.com') && filePath.includes('/upload/')) {
-      return filePath
-        .replace('/video/upload/', '/video/upload/w_400,q_auto,so_0/')
-        .replace(/\.[^.]+$/, '.jpg');
-    }
-
-    return '';
+    return this.mediaUrlService.videoPoster(filePath);
   }
 
   retryLoadMedia(message: Message): void {
