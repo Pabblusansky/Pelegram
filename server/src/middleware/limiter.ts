@@ -3,7 +3,7 @@ import { Request } from 'express';
 
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  limit: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests from this IP, please try again later.' },
@@ -14,7 +14,7 @@ export const generalLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  limit: 10,
   message: { error: 'Too many authentication attempts, please try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -23,7 +23,7 @@ export const authLimiter = rateLimit({
 
 export const uploadLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
-  max: 25,
+  limit: 25,
   message: { error: 'Too many file uploads, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -31,7 +31,7 @@ export const uploadLimiter = rateLimit({
 
 export const messageLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: 60,
+  limit: 60,
   message: { error: 'Too many message requests, please slow down.' },
   standardHeaders: true,
   legacyHeaders: false,
