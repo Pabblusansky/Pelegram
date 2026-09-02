@@ -30,20 +30,20 @@
     "zone.js": "~0.15.1"
   },
   "devDependencies": {
-    "@angular/build": "^20.0.5",
-    "@angular/cli": "^20.0.5",
-    "@angular/compiler-cli": "^20.0.6",
-    "@eslint/js": "^9.39.1",
-    "@types/jasmine": "~5.1.8",
-    "angular-eslint": "^20.7.0",
-    "eslint": "^9.39.5",
-    "jasmine-core": "~5.8.0",
+    "@angular/build": "^22.1.6",
+    "@angular/cli": "^22.1.6",
+    "@angular/compiler-cli": "^22.1.4",
+    "@eslint/js": "^10.0.1",
+    "@types/jasmine": "~6.0.0",
+    "angular-eslint": "^22.1.0",
+    "eslint": "^10.9.1",
+    "jasmine-core": "~7.0.2",
     "karma": "~6.4.4",
     "karma-chrome-launcher": "~3.2.0",
     "karma-coverage": "~2.2.1",
     "karma-jasmine": "~5.1.0",
-    "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "~5.8.3",
-    "typescript-eslint": "^8.67.0"
+    "karma-jasmine-html-reporter": "~2.3.0",
+    "typescript": "~7.0.2",
+    "typescript-eslint": "^8.68.0"
   }
 }
