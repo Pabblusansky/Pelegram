@@ -32,7 +32,7 @@
     "express": "^5.1.0",
     "express-rate-limit": "^8.6.2",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.23.0",
+    "mongoose": "^9.9.5",
     "multer": "^2.0.1",
     "socket.io": "^4.8.1",
     "typescript": "^5.9.3",
