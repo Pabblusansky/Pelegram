@@ -1,4 +1,4 @@
-import { Component, ViewChild, inject } from '@angular/core';
+import { Component, ViewChild, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
@@ -10,6 +10,7 @@ import { SocketService } from '../../chat/services/socket.service';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss'], // Link the SCSS file  
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [CommonModule, FormsModule]
 })
 export class LoginComponent {

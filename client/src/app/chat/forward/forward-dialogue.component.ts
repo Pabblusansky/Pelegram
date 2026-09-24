@@ -1,5 +1,5 @@
 // forward-dialog.component.ts
-import { Component, OnInit, Input, Output, EventEmitter, HostListener, inject } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter, HostListener, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChatApiService } from '../services/chat-api.service';
@@ -92,6 +92,7 @@ import { TokenService } from '../../services/token.service';
       </div>
     </div>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .forward-dialog-backdrop {
       position: fixed;

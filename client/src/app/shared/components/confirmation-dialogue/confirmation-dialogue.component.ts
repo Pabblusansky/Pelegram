@@ -1,4 +1,4 @@
-import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { trigger, transition, style, animate } from '@angular/animations';
 
@@ -8,6 +8,7 @@ import { trigger, transition, style, animate } from '@angular/animations';
   imports: [CommonModule],
   templateUrl: './confirmation-dialogue.component.html',
   styleUrls: ['./confirmation-dialogue.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   animations: [
     trigger('fadeInOut', [
       transition(':enter', [

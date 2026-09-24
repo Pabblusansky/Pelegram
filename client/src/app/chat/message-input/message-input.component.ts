@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, Input, ViewChild, ElementRef, HostListener, OnDestroy, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef, AfterViewInit, NgZone, CUSTOM_ELEMENTS_SCHEMA, inject } from '@angular/core';
+import { Component, EventEmitter, Output, Input, ViewChild, ElementRef, HostListener, OnDestroy, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef, AfterViewInit, NgZone, CUSTOM_ELEMENTS_SCHEMA, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
@@ -19,6 +19,7 @@ import 'emoji-picker-element';
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   styleUrls: ['./message-input.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './message-input.component.html',
 })
 export class MessageInputComponent implements OnDestroy, OnInit, OnChanges, AfterViewInit {

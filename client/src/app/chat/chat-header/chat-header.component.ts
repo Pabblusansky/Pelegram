@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Observable } from 'rxjs';
 import { Chat, User } from '../chat.model';
@@ -9,6 +9,7 @@ import { Chat, User } from '../chat.model';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './chat-header.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './chat-header.component.scss'
 })
 

@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil, debounceTime } from 'rxjs';
@@ -11,6 +11,7 @@ import { LoggerService } from '../../services/logger.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './chat-search-bar.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './chat-search-bar.component.scss'
 })
 export class ChatSearchBarComponent implements OnInit, OnDestroy {

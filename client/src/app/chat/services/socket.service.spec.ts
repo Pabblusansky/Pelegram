@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { SocketService } from './socket.service';
 
@@ -61,7 +61,7 @@ describe('SocketService listener lifecycle', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), SocketService],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), SocketService],
     });
     service = TestBed.inject(SocketService);
     socket = new FakeSocket();

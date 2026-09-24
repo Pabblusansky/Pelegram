@@ -1,7 +1,7 @@
 // src/app/app.component.ts
 
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 
 @Component({
@@ -11,6 +11,7 @@ import { RouterModule } from '@angular/router';
     RouterModule,
     CommonModule
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <router-outlet></router-outlet>
   `,

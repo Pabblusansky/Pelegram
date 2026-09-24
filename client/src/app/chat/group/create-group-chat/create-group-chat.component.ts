@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, HostListener, OnInit, Output, ViewChild, OnDestroy, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, OnInit, Output, ViewChild, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, filter, switchMap, takeUntil, tap, map } from 'rxjs/operators';
@@ -20,6 +20,7 @@ import { TokenService } from '../../../services/token.service';
     ReactiveFormsModule
   ],
   templateUrl: './create-group-chat.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./create-group-chat.component.scss']
 })
 export class CreateGroupChatComponent implements OnInit, OnDestroy {
