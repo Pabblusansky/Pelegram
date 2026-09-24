@@ -120,6 +120,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   private destroy$ = new Subject<void>();
   isLoadingMore = false;
   noMoreMessages = false;
+  // True while the loaded window ends before the newest message in the chat,
+  // which happens after jumping to an old message. Scrolling down then pages
+  // forwards, and new messages are held back rather than appended past the gap.
+  hasNewerMessages = false;
+  isLoadingNewer = false;
   scrollHeightBeforeLoad = 0;
   loadMoreDebounce: Subject<void> = new Subject<void>();
   lastLoadTimestamp = 0;
@@ -411,11 +416,17 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
     const offsetTop = this.scrollViewport.measureScrollOffset('top');
     
     const wasAtBottom = this.isAtBottom;
-    this.isAtBottom = offsetBottom < 1;
+    // The end of a window with newer messages still to load is not the bottom
+    // of the chat, so it must not mark messages read or clear the badge.
+    this.isAtBottom = offsetBottom < 1 && !this.hasNewerMessages;
 
     if (this.isAtBottom && !wasAtBottom) {
         this.clearUnreadMessagesIndicator();
         this.triggerMarkAsRead();
+    }
+
+    if (offsetBottom < 300 && this.hasNewerMessages && !this.isLoadingNewer && !this.isScrollingProgrammatically) {
+        this.loadNewerMessages();
     }
 
     if (offsetTop < 300 && !this.isLoadingMore && !this.noMoreMessages && !this.isScrollingProgrammatically) {
@@ -625,6 +636,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
 
     this.isLoadingMore = true;
     this.noMoreMessages = false;
+    this.hasNewerMessages = false;
+    this.isLoadingNewer = false;
     
     if (this.resizeObserver) {
         this.resizeObserver.disconnect();
@@ -675,6 +688,13 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
     }
 
     if (!force && !this.isAtBottom && this.unreadMessagesCount === 0) {
+        return;
+    }
+
+    if (this.hasNewerMessages) {
+        // The newest messages are not loaded; reload them instead of
+        // scrolling to the end of an older window.
+        this.loadMessages();
         return;
     }
 
@@ -1193,6 +1213,18 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
         message,
         isMyOwnMessageJustSent
       );
+    } else if (this.hasNewerMessages) {
+      // Appending here would put the message after a gap of unloaded ones.
+      // Our own message means the user wants the latest view; anything else
+      // is counted on the scroll-to-bottom badge until they jump there.
+      if (message.ismyMessage) {
+        this.loadMessages();
+      } else {
+        this.unreadMessagesCount++;
+        this.newMessagesWhileScrolledUp.push(message);
+        this.cdr.detectChanges();
+      }
+      return;
     } else {
       this.messages.push(message);
       
@@ -1320,10 +1352,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
         .pipe(takeUntil(this.destroy$))
         .subscribe({
             next: (contextMessages) => {
+                this.isLoadingContext = false;
                 if (contextMessages?.length > 0) {
-                    this.mergeMessages(contextMessages);
-                    this.updateMessagesWithDividers();
-                    this.cdr.detectChanges();
+                    this.showMessageContext(contextMessages);
                     this.scrollToMessage(messageId, block, true);
                 } else {
                     this.showToast('Original message not found', 3000);
@@ -1331,6 +1362,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
                 }
             },
             error: (err) => {
+              this.isLoadingContext = false;
               this.showToast('Failed to load original message', 3000);
               this.isScrollingProgrammatically = false;
               this.logger.error('Error loading message context:', err);
@@ -1447,6 +1479,72 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
   onSearchClosed(): void {
     this.messageSearch.close();
     this.scrollToBottom();
+  }
+
+  /**
+   * Shows the messages around a jump target. If they touch what is already
+   * loaded they are merged in; otherwise they replace the window, because
+   * merging two disjoint ranges leaves a hole that neither paging direction
+   * can fill. The replaced window then pages in both directions.
+   */
+  private showMessageContext(contextMessages: Message[]): void {
+    const loadedIds = new Set(this.messages.map(m => m._id));
+    const touchesLoaded = contextMessages.some(m => loadedIds.has(m._id));
+
+    if (touchesLoaded) {
+      this.mergeMessages(contextMessages);
+    } else {
+      this.messages = this.messageList.selectNewMessages([], contextMessages, this.userId)
+        .map(msg => ({ ...msg, status: msg.status || 'sent' }));
+      this.noMoreMessages = false;
+      // The context response does not say whether it reached the newest
+      // message; the first forward page settles it.
+      this.hasNewerMessages = true;
+      this.isAtBottom = false;
+    }
+
+    this.updateMessagesWithDividers();
+    this.cdr.detectChanges();
+  }
+
+  private loadNewerMessages(): void {
+    const newest = this.messages[this.messages.length - 1];
+    if (!this.chatId || !newest?._id) return;
+
+    const pageSize = 30;
+    const anchorId = newest._id;
+    this.isLoadingNewer = true;
+
+    this.chatApiService.getMessagesAfter(this.chatId, anchorId, pageSize)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (newerMessages) => {
+          // The window was replaced (jump to latest, another search jump)
+          // while this page was in flight; it no longer belongs here.
+          if (this.messages[this.messages.length - 1]?._id !== anchorId) {
+            this.isLoadingNewer = false;
+            return;
+          }
+
+          const toAdd = this.messageList.selectNewMessages(this.messages, newerMessages, this.userId)
+            .map(msg => ({ ...msg, status: msg.status || 'sent' }));
+          this.messages = [...this.messages, ...toAdd];
+
+          if (newerMessages.length < pageSize) {
+            // Caught up with the live end of the chat; messages that arrived
+            // while the gap was open are part of what was just fetched.
+            this.hasNewerMessages = false;
+          }
+
+          this.updateMessagesWithDividers();
+          this.cdr.detectChanges();
+          this.isLoadingNewer = false;
+        },
+        error: (error) => {
+          this.isLoadingNewer = false;
+          this.logger.error('Failed to load newer messages:', error);
+        }
+      });
   }
 
   private mergeMessages(newMessages: Message[]): void {
@@ -1689,9 +1787,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewInit, Afte
           .subscribe({
             next: (contextMessages) => {
               if (contextMessages && contextMessages.length > 0) {
-                this.mergeMessages(contextMessages);
-                this.updateMessagesWithDividers();
-                this.cdr.detectChanges();
+                this.showMessageContext(contextMessages);
                 
                 setTimeout(() => {
                   this.scrollToMessage(messageId, 'center', true);

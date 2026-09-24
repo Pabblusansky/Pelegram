@@ -1,0 +1,12 @@
+<div class="draft-chat">
+  <header class="draft-header">
+    <img class="draft-avatar" [src]="avatarUrl" alt="" />
+    <div class="draft-name">{{ recipientName }}</div>
+  </header>
+
+  <div class="draft-body">
+    <div class="draft-empty">No messages yet. Say hello to start the conversation!</div>
+  </div>
+
+  <app-message-input (sendMessageEvent)="onSend($event)"></app-message-input>
+</div>

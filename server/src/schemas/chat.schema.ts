@@ -20,6 +20,10 @@ export const createDirectChatSchema = z.object({
   recipientId: objectId,
 });
 
+export const directChatParam = z.object({
+  userId: objectId,
+});
+
 export const chatIdParam = z.object({
   chatId: objectId,
 });

@@ -124,11 +124,11 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     
     this.isLoading = true;
     
-    this.chatApiService.createOrGetDirectChat(this.userId)
+    this.chatApiService.directChatRoute(this.userId)
       .subscribe({
-        next: (chat) => {
+        next: (route) => {
           this.isLoading = false;
-          this.router.navigate(['/chats', chat._id]);
+          this.router.navigate(route);
         },
         error: (err) => {
           this.error = err.message || 'Failed to start chat';

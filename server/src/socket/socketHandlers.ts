@@ -7,6 +7,7 @@ import logger from '../config/logger.js';
 import { CHAT_POPULATE, applyPopulate } from '../config/populate.js';
 import { validateChatMembership, isValidObjectId, sanitizeText } from '../middleware/socketAuth.js';
 import { updateUserStatus, getStatusSnapshot } from './userStatus.js';
+import { findOrCreateDirectChat } from '../utils/directChat.js';
 import type { AuthUser } from '../middleware/authenticateToken.js';
 
 interface AuthenticatedSocket extends Socket {
@@ -21,7 +22,9 @@ interface AuthenticatedSocket extends Socket {
  * messageType lets a user forge a 'event' system message.
  */
 interface SendMessageData {
-  chatId: string;
+  /** Omitted for the first message to a user: pass recipientId instead. */
+  chatId?: string;
+  recipientId?: string;
   content?: string;
   replyTo?: {
     _id: string;
@@ -29,7 +32,7 @@ interface SendMessageData {
 }
 
 interface SendMessageCallback {
-  (result: { success: boolean; message?: unknown; error?: string }): void;
+  (result: { success: boolean; message?: unknown; chatId?: string; error?: string }): void;
 }
 
 interface TypingData {
@@ -90,11 +93,18 @@ async function handleLogoutAttempt(socket: AuthenticatedSocket): Promise<void> {
 }
 
 async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: SendMessageData, callback: SendMessageCallback): Promise<void> {
-  const { chatId, replyTo } = data;
+  const { replyTo, recipientId } = data;
+  let chatId = data.chatId;
   const content = sanitizeText(data.content);
   const senderId = socket.user.id;
+  const startsNewChat = !chatId && recipientId !== undefined;
 
-  if (!isValidObjectId(chatId)) {
+  if (startsNewChat) {
+    if (!isValidObjectId(recipientId) || recipientId === senderId.toString()) {
+      if (typeof callback === 'function') callback({ success: false, error: 'Invalid recipient' });
+      return;
+    }
+  } else if (!isValidObjectId(chatId)) {
     if (typeof callback === 'function') callback({ success: false, error: 'Invalid chat ID' });
     return;
   }
@@ -110,6 +120,19 @@ async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: 
       return;
     }
 
+    // First message to a user: the chat is created here rather than when the
+    // conversation was opened, so abandoned drafts leave nothing behind.
+    if (startsNewChat) {
+      const recipientExists = await User.exists({ _id: recipientId });
+      if (!recipientExists) {
+        if (typeof callback === 'function') callback({ success: false, error: 'Recipient not found' });
+        return;
+      }
+      const { chat } = await findOrCreateDirectChat(senderId.toString(), recipientId!);
+      chatId = chat._id.toString();
+      socket.join(chatId);
+    }
+
     const chatBeforeMessage = await Chat.findById(chatId);
     if (!chatBeforeMessage) {
       logger.error(`Error sending message: Chat with ID ${chatId} not found.`);
@@ -121,7 +144,9 @@ async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: 
       if (typeof callback === 'function') callback({ success: false, error: 'Not a participant of this chat' });
       return;
     }
-    const isFirstMessageInChat = chatBeforeMessage.messages.length === 0;
+    // Messages are stored in their own collection and never pushed onto the
+    // chat, so the chat's lastMessage is the only record of prior traffic.
+    const isFirstMessageInChat = !chatBeforeMessage.lastMessage;
 
     const message = new Message({
       chatId,
@@ -187,7 +212,7 @@ async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: 
         : null;
     }
 
-    io.to(chatId).emit('receive_message', messageForClient);
+    io.to(chatId!).emit('receive_message', messageForClient);
 
     const updatedChat: any = await applyPopulate(
       Chat.findById(chatId),
@@ -200,7 +225,7 @@ async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: 
           ? `${baseUrl}${lmSender.avatar}`
           : null;
       }
-      io.to(chatId).emit('chat_updated', updatedChat);
+      io.to(chatId!).emit('chat_updated', updatedChat);
     }
 
     if (isFirstMessageInChat && updatedChat) {
@@ -211,10 +236,10 @@ async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: 
       });
     }
     if (typeof callback === 'function') {
-      callback({ success: true, message: messageForClient });
+      callback({ success: true, message: messageForClient, chatId });
     }
 
-    scheduleDeliveryStatus(io, chatId, message._id.toString(), senderId);
+    scheduleDeliveryStatus(io, chatId!, message._id.toString(), senderId);
   } catch (err) {
     logger.error('Error sending message:', err);
     if (typeof callback === 'function') {

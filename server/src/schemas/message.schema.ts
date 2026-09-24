@@ -58,5 +58,10 @@ export const searchQuerySchema = z.object({
 
 export const messagesQuerySchema = z.object({
   before: objectId.optional(),
+  after: objectId.optional(),
   limit: z.coerce.number().int().min(1).max(100).optional().default(30),
+}).refine(q => !(q.before && q.after), { message: 'Use either before or after, not both' });
+
+export const contextQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).optional().default(15),
 });

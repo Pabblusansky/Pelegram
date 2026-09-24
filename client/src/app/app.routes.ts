@@ -23,6 +23,12 @@ export const routes: Routes = [
     ]
   },
   {
+    // A conversation that has no chat yet; it is created by the first message.
+    path: 'chats/new/:recipientId',
+    component: HomeComponent,
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'chats/:chatId',
     component: HomeComponent,
     canActivate: [AuthGuard]
