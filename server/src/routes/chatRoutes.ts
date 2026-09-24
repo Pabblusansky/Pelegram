@@ -14,6 +14,7 @@ import logger from '../config/logger.js';
 import { CHAT_POPULATE, GROUP_CHAT_POPULATE, FULL_CHAT_POPULATE, applyPopulate, populateDoc, populateChatParticipants, populateChatAdmin, populateChatLastMessage, populateChatPinnedMessage } from '../config/populate.js';
 import { validate } from '../middleware/validate.js';
 import { resolveUploadPath } from '../utils/uploadPaths.js';
+import { findOrCreateDirectChat } from '../utils/directChat.js';
 import {
   createGroupSchema, addParticipantsSchema, updateGroupNameSchema,
   createDirectChatSchema, chatIdParam, chatIdWithParticipantParam,
@@ -613,26 +614,8 @@ export default (io: Server) => {
         return;
       }
 
-      const participantsArray = [initiatorId, recipientId].sort();
-
-      let chat: any = await applyPopulate(Chat.findOne({
-        isGroupChat: false,
-        participants: { $all: participantsArray, $size: 2 },
-        type: { $ne: 'self' }
-      }), CHAT_POPULATE);
-
-      let isNewChat = false;
-      if (!chat) {
-        isNewChat = true;
-        const newChatDoc = new Chat({
-          isGroupChat: false,
-          participants: [initiatorId, recipientId],
-          unreadCounts: participantsArray.map(pId => ({ userId: pId, count: 0 })),
-        });
-
-        chat = await newChatDoc.save();
-        chat = await applyPopulate(Chat.findById(chat._id), CHAT_POPULATE);
-      }
+      const { chat: directChat, created: isNewChat } = await findOrCreateDirectChat(initiatorId, recipientId);
+      const chat: any = await applyPopulate(Chat.findById(directChat._id), CHAT_POPULATE);
 
       if (isNewChat && chat) {
         const chatObjectForEmit = chat.toObject();
