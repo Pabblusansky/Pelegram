@@ -121,7 +121,9 @@ async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: 
       if (typeof callback === 'function') callback({ success: false, error: 'Not a participant of this chat' });
       return;
     }
-    const isFirstMessageInChat = chatBeforeMessage.messages.length === 0;
+    // Messages are stored in their own collection and never pushed onto the
+    // chat, so the chat's lastMessage is the only record of prior traffic.
+    const isFirstMessageInChat = !chatBeforeMessage.lastMessage;
 
     const message = new Message({
       chatId,

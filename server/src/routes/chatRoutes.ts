@@ -627,7 +627,6 @@ export default (io: Server) => {
         const newChatDoc = new Chat({
           isGroupChat: false,
           participants: [initiatorId, recipientId],
-          // messages: [],
           unreadCounts: participantsArray.map(pId => ({ userId: pId, count: 0 })),
         });
 
@@ -780,7 +779,6 @@ export default (io: Server) => {
         isNewChat = true;
         const newChatDoc = new Chat({
           participants: [userId],
-          messages: [],
           type: 'self',
           unreadCounts: [{ userId: userId, count: 0 }],
         });

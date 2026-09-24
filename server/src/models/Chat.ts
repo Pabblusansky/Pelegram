@@ -11,7 +11,6 @@ export interface IChat extends Document {
   participants: Types.ObjectId[];
   admin: Types.ObjectId[];
   groupAvatar?: string | null;
-  messages: Types.ObjectId[];
   lastMessage?: Types.ObjectId;
   unreadCounts: IUnreadCount[];
   pinnedMessage?: Types.ObjectId | null;
@@ -36,7 +35,6 @@ const chatSchema = new mongoose.Schema<IChat>(
       type: String,
       default: null,
     },
-    messages: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Message' }],
     lastMessage: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
     unreadCounts: [
       {
