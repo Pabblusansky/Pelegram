@@ -8,7 +8,7 @@ For security problems, follow [SECURITY.md](SECURITY.md) instead of opening an i
 
 ## Getting set up
 
-You need Node.js 20+ (22 LTS recommended), npm 8+, and a MongoDB instance
+You need Node.js 22.22.3+ or 24 (24 LTS recommended), npm 8+, and a MongoDB instance
 (local, or a MongoDB Atlas connection string).
 
 ```bash
@@ -63,7 +63,7 @@ the conventions behind those choices. Worth reading before a first feature.
 ## Project layout
 
 ```
-client/   Angular 20 single-page app
+client/   Angular 22 single-page app
   src/app/auth/       login, registration, token handling
   src/app/chat/       chat list, chat room, message input, groups
   src/app/profile/    own and other users' profiles

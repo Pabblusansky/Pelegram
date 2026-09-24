@@ -59,7 +59,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['20', '22']
+        # Angular 22 requires Node ^22.22.3 or ^24.15.
+        node: ['22', '24']
     defaults:
       run:
         working-directory: client

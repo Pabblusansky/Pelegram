@@ -6,7 +6,7 @@ before adding a feature to the chat room or a new API route.
 ## The shape of the system
 
 ```
-Browser (Angular 20)
+Browser (Angular 22)
    |
    |-- REST over HTTP ......... loading history, profiles, uploads, group admin
    |-- Socket.IO .............. live messages, typing, reactions, presence

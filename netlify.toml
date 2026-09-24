@@ -5,6 +5,10 @@
 
   base = "client/"
 
+[build.environment]
+  # Angular 22 requires Node ^22.22.3 or ^24.15.
+  NODE_VERSION = "24"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
