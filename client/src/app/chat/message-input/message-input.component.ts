@@ -71,7 +71,7 @@ export class MessageInputComponent implements OnDestroy, OnInit, OnChanges, Afte
   private analyser?: AnalyserNode;
   private mediaStreamSource?: MediaStreamAudioSourceNode;
   private animationFrameId?: number;
-  private dataArray: Uint8Array = new Uint8Array();
+  private dataArray: Uint8Array<ArrayBuffer> = new Uint8Array();
   private smoothedBars: number[] = new Array(20).fill(0); 
 
   private bars: number = 20;
