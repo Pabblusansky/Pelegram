@@ -111,7 +111,7 @@ export default (io: Server) => {
         Chat.findByIdAndUpdate(
           chatId,
           { lastMessage: savedMessage._id, updatedAt: new Date() },
-          { new: true }
+          { returnDocument: 'after' }
         ),
         CHAT_POPULATE
       );
@@ -139,7 +139,7 @@ export default (io: Server) => {
             const updated = await Message.findOneAndUpdate(
               { _id: savedMessage._id, status: 'sent' },
               { $set: { status: 'delivered' } },
-              { new: true }
+              { returnDocument: 'after' }
             );
 
             if (updated) {

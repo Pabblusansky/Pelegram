@@ -413,7 +413,7 @@ export default (io: Server) => {
           lastMessage: savedSystemMessage._id,
           updatedAt: new Date()
         },
-        { new: true }
+        { returnDocument: 'after' }
       ), GROUP_CHAT_POPULATE);
 
       if (updatedChat) {
@@ -771,7 +771,7 @@ export default (io: Server) => {
       const userId = req.user!.id;
 
       let savedMessagesChat: any = await applyPopulate(Chat.findOne({
-        participants: { $eq: [userId], $size: 1 }
+        participants: { $eq: [new mongoose.Types.ObjectId(userId)], $size: 1 }
       }), CHAT_POPULATE);
 
       let isNewChat = false;

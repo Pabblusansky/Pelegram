@@ -261,7 +261,7 @@ async function scheduleDeliveryStatus(io: Server, chatId: string, messageId: str
       const updated = await Message.findOneAndUpdate(
         { _id: messageId, status: 'sent' },
         { $set: { status: 'delivered' } },
-        { new: true }
+        { returnDocument: 'after' }
       );
 
       if (updated) {

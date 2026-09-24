@@ -49,7 +49,7 @@ export async function findOrCreateDirectChat(
         directKey: { $exists: false },
       },
       { $set: { directKey } },
-      { new: true, sort: { updatedAt: -1 } }
+      { returnDocument: 'after', sort: { updatedAt: -1 } }
     );
     if (legacy) return { chat: legacy, created: false };
 
