@@ -92,6 +92,21 @@ export class ChatApiService {
     );
   }
 
+  getMessagesAfter(chatId: string, afterMessageId: string, limit: number = 30): Observable<Message[]> {
+    const headers = this.getHeaders();
+    if (!headers) return throwError(() => new Error('Not authorized'));
+    return this.http.get<Message[]>(
+      `${this.apiUrl}/messages/${chatId}?after=${afterMessageId}&limit=${limit}`,
+      { headers }
+    ).pipe(
+      map((messages: Message[]) => Array.isArray(messages) ? messages : []),
+      catchError(error => {
+        this.logger.error('Error loading newer messages:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
   getSavedMessagesChat(): Observable<Chat> {
     const headers = this.getHeaders();
     if (!headers) {

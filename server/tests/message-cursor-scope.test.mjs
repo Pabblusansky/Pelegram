@@ -106,3 +106,48 @@ describe('message list cursor is scoped to the chat', () => {
     assert.deepEqual(res.body.map(m => m.content), ['own-0', 'own-1']);
   });
 });
+
+const listAfter = (after, limit) => request(app)
+  .get(`/messages/${ownChat._id}`)
+  .query({ after: after.toString(), ...(limit ? { limit } : {}) })
+  .set('Authorization', `Bearer ${token}`);
+
+describe('the after cursor pages forwards within the chat', () => {
+  test('returns newer messages in chronological order', async () => {
+    const res = await listAfter(ownMessages[1]._id);
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.map(m => m.content), ['own-2', 'own-3', 'own-4']);
+  });
+
+  test('the limit keeps the messages closest to the cursor', async () => {
+    const res = await listAfter(ownMessages[0]._id, 2);
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.map(m => m.content), ['own-1', 'own-2']);
+  });
+
+  test('is empty at the newest message', async () => {
+    const res = await listAfter(ownMessages[4]._id);
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body, []);
+  });
+
+  test('a foreign cursor behaves exactly like a nonexistent one', async () => {
+    const foreign = await listAfter(foreignMessage._id);
+    const absent = await listAfter(new mongoose.Types.ObjectId());
+
+    assert.equal(foreign.status, 200);
+    assert.deepEqual(foreign.body.map(m => m.content), absent.body.map(m => m.content));
+  });
+
+  test('before and after together are rejected', async () => {
+    const res = await request(app)
+      .get(`/messages/${ownChat._id}`)
+      .query({ before: ownMessages[3]._id.toString(), after: ownMessages[1]._id.toString() })
+      .set('Authorization', `Bearer ${token}`);
+
+    assert.equal(res.status, 400);
+  });
+});

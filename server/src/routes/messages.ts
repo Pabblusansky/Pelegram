@@ -18,7 +18,7 @@ import { validate } from '../middleware/validate.js';
 import {
   sendMessageSchema, forwardMessageSchema, forwardMultipleSchema,
   deleteMultipleSchema, chatIdParam,
-  messageForwardParam, contextParam, searchQuerySchema,
+  messageForwardParam, contextParam, contextQuerySchema, searchQuerySchema,
   editMessageSchema, messageIdParam, messagesQuerySchema,
 } from '../schemas/message.schema.js';
 import { sanitizeText } from '../middleware/socketAuth.js';
@@ -70,7 +70,7 @@ export default (io: Server) => {
     }
   });
 
-  router.get('/:chatId/context/:messageId', authenticateToken, validate({ params: contextParam }), requireChatMembership(), async (req: Request, res: Response) => {
+  router.get('/:chatId/context/:messageId', authenticateToken, validate({ params: contextParam, query: contextQuerySchema }), requireChatMembership(), async (req: Request, res: Response) => {
     const { chatId, messageId: targetMessageId } = req.params;
     const contextLimit = parseInt(req.query.limit as string) || 15;
 
@@ -433,25 +433,31 @@ export default (io: Server) => {
 
   router.get('/:chatId', authenticateToken, validate({ params: chatIdParam, query: messagesQuerySchema }), requireChatMembership(), async (req: Request, res: Response) => {
     const { chatId } = req.params;
-    const { before, limit = 30 } = req.query;
+    const { before, after, limit = 30 } = req.query;
 
     try {
         const query: any = { chatId };
+        const cursorId = before || after;
 
-      if (before) {
-        // Scoped to this chat so a cursor cannot be used to probe whether a
-        // message id exists elsewhere by watching how the window shifts.
-        const beforeMessage: any = await Message.findOne({ _id: before, chatId });
-        if (beforeMessage) {
-          query.timestamp = { $lt: new Date(beforeMessage.timestamp || beforeMessage.createdAt) };
+      // Both cursors are scoped to this chat so they cannot be used to probe
+      // whether a message id exists elsewhere by watching how the window shifts.
+      if (cursorId) {
+        const cursorMessage: any = await Message.findOne({ _id: cursorId, chatId });
+        if (cursorMessage) {
+          const cursorTime = new Date(cursorMessage.timestamp || cursorMessage.createdAt);
+          query.timestamp = after ? { $gt: cursorTime } : { $lt: cursorTime };
         }
       }
+
+        // `after` pages forwards (towards newer messages), so it takes the
+        // oldest matches; the default takes the newest. Either way the
+        // response is in chronological order.
         const messages = await Message.find(query)
-        .sort({ timestamp: -1 })
+        .sort({ timestamp: after ? 1 : -1 })
         .limit(parseInt(limit as string))
         .exec();
 
-        res.status(200).json(messages.reverse());
+        res.status(200).json(after ? messages : messages.reverse());
       } catch (error: any) {
         logger.error('Error fetching messages:', error);
         res.status(500).json({ message: 'Internal server error' });
