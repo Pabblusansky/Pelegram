@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy, Output, EventEmitter, inject } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, Output, EventEmitter, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChatApiService } from '../services/chat-api.service';
 import { MediaGalleryResponse } from '../chat.model';
@@ -12,6 +12,7 @@ import { LoggerService } from '../../services/logger.service';
   templateUrl: './shared-media-gallery.component.html',
   styleUrls: ['./shared-media-gallery.component.scss'],
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [CommonModule],
 })
 export class SharedMediaGalleryComponent implements OnInit, OnDestroy {

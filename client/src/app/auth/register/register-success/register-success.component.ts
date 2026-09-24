@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 
 
@@ -8,6 +8,7 @@ import { Router, RouterModule } from '@angular/router';
     RouterModule
   ],
   templateUrl: './register-success.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './register-success.component.scss'
 })
 export class RegisterSuccessComponent implements OnInit {

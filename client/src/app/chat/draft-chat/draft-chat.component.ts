@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnDestroy, SimpleChanges, inject } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, SimpleChanges, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
@@ -20,6 +20,7 @@ import { environment } from '../../../environments/environment';
   standalone: true,
   imports: [CommonModule, MessageInputComponent],
   templateUrl: './draft-chat.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./draft-chat.component.scss'],
 })
 export class DraftChatComponent implements OnChanges, OnDestroy {

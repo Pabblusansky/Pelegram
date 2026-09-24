@@ -154,7 +154,7 @@ router.patch('/me', authenticateToken, validate({ body: updateProfileSchema }), 
     const updatedUser = await User.findByIdAndUpdate(
       req.user!.id,
       { $set: updates },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).select('-password');
 
     if (!updatedUser) {

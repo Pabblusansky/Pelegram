@@ -1,4 +1,4 @@
-import { Component, EventEmitter, HostListener, Input, OnInit, Output, OnChanges, SimpleChanges, inject } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, OnInit, Output, OnChanges, SimpleChanges, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Chat, User } from '../../../chat.model';
 import { ChatApiService } from '../../../services/chat-api.service';
@@ -15,6 +15,7 @@ import { TokenService } from '../../../../services/token.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './group-info-modal.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./group-info-modal.component.scss']
 })
 export class GroupInfoModalComponent implements OnInit, OnChanges {

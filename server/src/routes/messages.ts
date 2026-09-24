@@ -277,7 +277,7 @@ export default (io: Server) => {
         Chat.findByIdAndUpdate(
           chatId,
           updateData,
-          { new: true }
+          { returnDocument: 'after' }
         ),
         CHAT_POPULATE
       );
@@ -378,7 +378,7 @@ export default (io: Server) => {
           if (recipients.length > 0) {
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            const updatedMsg = await Message.findByIdAndUpdate(savedMessage._id, { status: 'delivered' }, { new: true });
+            const updatedMsg = await Message.findByIdAndUpdate(savedMessage._id, { status: 'delivered' }, { returnDocument: 'after' });
 
             if (updatedMsg) {
               io.to(targetChatId).emit('messageStatusUpdated', {
@@ -437,7 +437,7 @@ export default (io: Server) => {
 
     try {
         const query: any = { chatId };
-        const cursorId = before || after;
+        const cursorId = (before || after) as string | undefined;
 
       // Both cursors are scoped to this chat so they cannot be used to probe
       // whether a message id exists elsewhere by watching how the window shifts.
@@ -495,7 +495,7 @@ export default (io: Server) => {
               edited: true,
               editedAt: now
             },
-            { new: true }
+            { returnDocument: 'after' }
           ),
           [populateMessageSender]
         );
@@ -578,7 +578,7 @@ export default (io: Server) => {
           Chat.findByIdAndUpdate(
             chatId,
             { lastMessage: lastMessage[0]._id },
-            { new: true }
+            { returnDocument: 'after' }
           ),
           CHAT_POPULATE
         );
@@ -587,7 +587,7 @@ export default (io: Server) => {
           Chat.findByIdAndUpdate(
             chatId,
             { lastMessage: null },
-            { new: true }
+            { returnDocument: 'after' }
           ),
           [populateChatParticipants]
         );

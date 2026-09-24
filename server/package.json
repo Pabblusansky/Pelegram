@@ -25,27 +25,27 @@
     "@types/node": "^26.2.0",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
-    "cloudinary": "^2.10.1",
+    "cloudinary": "^2.11.0",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dotenv": "^17.0.1",
     "express": "^5.1.0",
     "express-rate-limit": "^8.6.2",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.23.0",
-    "multer": "^2.0.1",
+    "mongoose": "^9.9.5",
+    "multer": "^2.3.0",
     "socket.io": "^4.8.1",
     "typescript": "^5.9.3",
-    "zod": "^4.3.6"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/supertest": "^7.2.1",
-    "eslint": "^10.9.1",
-    "globals": "^17.11.0",
+    "eslint": "^10.10.0",
+    "globals": "^17.12.0",
     "mongodb-memory-server": "^11.2.0",
     "nodemon": "^3.1.10",
     "supertest": "^7.2.2",
-    "typescript-eslint": "^8.68.0"
+    "typescript-eslint": "^8.69.0"
   }
 }

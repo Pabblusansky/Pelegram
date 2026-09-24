@@ -71,7 +71,7 @@ Register an account and start chatting. Two things to know about the free hostin
 ## 🛠 Tech stack
 
 **Frontend**
-Angular 20 (standalone components, `OnPush`), TypeScript, RxJS, Socket.IO client, SCSS
+Angular 22 (standalone components, `OnPush`), TypeScript, RxJS, Socket.IO client, SCSS
 
 **Backend**
 Node.js, Express 5, Socket.IO, MongoDB with Mongoose, Zod for request and environment
@@ -84,7 +84,7 @@ ESLint, Karma and Jasmine, `node:test` with an in-memory MongoDB, GitHub Actions
 
 ### Prerequisites
 
-- **Node.js** 20 or newer (22 LTS recommended). CI runs both.
+- **Node.js** 22.22.3+ or 24 (24 LTS recommended). The client (Angular 22) needs one of these; the server also runs on 20.19+. CI covers 20 and 22 for the server, 22 and 24 for the client.
 - **npm** 8 or newer
 - **MongoDB**, either running locally or an Atlas connection string
 
@@ -177,13 +177,13 @@ Found a security issue? Please report it privately. See [SECURITY.md](SECURITY.m
 
 MIT. See [LICENSE.md](LICENSE.md).
 
-[angular-shield]: https://img.shields.io/badge/Angular-20-DD0031?logo=angular&logoColor=white
+[angular-shield]: https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white
 [angular-url]: https://angular.dev/
 
 [typescript-shield]: https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white
 [typescript-url]: https://www.typescriptlang.org/
 
-[nodejs-shield]: https://img.shields.io/badge/Node.js-20%20%7C%2022-339933?logo=node.js&logoColor=white
+[nodejs-shield]: https://img.shields.io/badge/Node.js-22%20%7C%2024-339933?logo=node.js&logoColor=white
 [nodejs-url]: https://nodejs.org/
 
 [socketio-shield]: https://img.shields.io/badge/Socket.IO-4-010101?logo=socket.io&logoColor=white

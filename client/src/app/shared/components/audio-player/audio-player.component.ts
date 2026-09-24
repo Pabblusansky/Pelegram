@@ -1,4 +1,4 @@
-import { Component, Input, ViewChild, ElementRef, ChangeDetectorRef, NgZone, OnChanges, SimpleChanges, OnDestroy, AfterViewInit, Output, EventEmitter, inject } from '@angular/core';
+import { Component, Input, ViewChild, ElementRef, ChangeDetectorRef, NgZone, OnChanges, SimpleChanges, OnDestroy, AfterViewInit, Output, EventEmitter, inject, ChangeDetectionStrategy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { LoggerService } from '../../../services/logger.service';
@@ -8,6 +8,7 @@ import { LoggerService } from '../../../services/logger.service';
   templateUrl: './audio-player.component.html',
   styleUrls: ['./audio-player.component.scss'],
   imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: true
 })
 export class AudioPlayerComponent implements OnChanges, AfterViewInit, OnDestroy {

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, EventEmitter, Input, Output, CUSTOM_ELEMENTS_SCHEMA, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Message } from '../chat.model';
 import { animate, style, transition, trigger } from '@angular/animations';
@@ -99,6 +99,7 @@ import 'emoji-picker-element';
     </div>
   `,
   styleUrls: ['./message-context-menu.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   animations: [
     trigger('menuAnimation', [
       transition(':enter', [

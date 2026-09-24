@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { MediaUrlService, DEFAULT_AVATAR } from './media-url.service';
 import { ChatApiService } from '../../services/chat-api.service';
@@ -11,7 +11,7 @@ describe('MediaUrlService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        provideHttpClient(),
+        provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         MediaUrlService,
       ],

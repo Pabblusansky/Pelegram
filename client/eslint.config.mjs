@@ -35,6 +35,10 @@ export default tseslint.config(
       '@angular-eslint/prefer-inject': 'warn',
       '@angular-eslint/prefer-standalone': 'warn',
       '@angular-eslint/no-output-native': 'warn',
+      // New in angular-eslint 22's recommended set. The v22 migration pins
+      // existing components to Eager change detection to keep their
+      // behaviour, so moving them to OnPush is a deliberate follow-up.
+      '@angular-eslint/prefer-on-push-component-change-detection': 'warn',
     },
   },
   {
@@ -48,6 +52,9 @@ export default tseslint.config(
       '@angular-eslint/template/interactive-supports-focus': 'warn',
       '@angular-eslint/template/no-autofocus': 'warn',
       '@angular-eslint/template/label-has-associated-control': 'warn',
+      // New in angular-eslint 22's recommended set; converting the *ngIf /
+      // *ngFor templates to @if / @for is a separate refactor.
+      '@angular-eslint/template/prefer-control-flow': 'warn',
     },
   },
 );

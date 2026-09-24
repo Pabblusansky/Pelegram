@@ -1,4 +1,4 @@
-import { Component, OnInit, Input, Output, EventEmitter, inject } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UserProfile, ProfileUpdateDto } from '../profile.model';
@@ -15,6 +15,7 @@ import { LoggerService } from '../../services/logger.service';
   templateUrl: './profile-edit.component.html',
   styleUrls: ['./profile-edit.component.scss'],
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [CommonModule, FormsModule]
 })
 export class ProfileEditComponent implements OnInit {

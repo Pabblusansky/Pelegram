@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ChatListComponent } from "../chat/chat-list/chat-list.component";
 import { ChatRoomComponent } from "../chat/chat-room/chat-room.component";
 import { DraftChatComponent } from "../chat/draft-chat/draft-chat.component";
@@ -17,6 +17,7 @@ import { LoggerService } from '../services/logger.service';
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [
     ChatListComponent, 
     ChatRoomComponent, 
