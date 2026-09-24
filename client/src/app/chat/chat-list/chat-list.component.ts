@@ -573,17 +573,14 @@ loadRegularChats(): void {
     if (!user || !user._id) return;
 
     this.loading = true;
-    this.chatApiService.createOrGetDirectChat(user._id)
+    this.chatApiService.directChatRoute(user._id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (newChat: Chat) => {
+        next: (route: string[]) => {
           this.loading = false;
           this.searchQuery = '';
           this.searchResults = [];
-          this.router.navigate(['/chats', newChat._id]);
-          if (!this.chats.find(c => c._id === newChat._id)) {
-            this.loadInitialChats(); // Changed from loadChats()
-          }
+          this.router.navigate(route);
         },
         error: (error) => {
           this.loading = false;

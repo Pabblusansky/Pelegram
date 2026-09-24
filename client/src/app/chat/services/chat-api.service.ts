@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, throwError, catchError, map} from 'rxjs';
+import { Observable, throwError, catchError, map, of } from 'rxjs';
 import { Chat, Message, MediaGalleryResponse } from '../chat.model';
 import { User } from '../chat.model';
 import { LoggerService } from '../../services/logger.service';
@@ -125,23 +125,23 @@ export class ChatApiService {
       .pipe(catchError(this.handleError));
   }
 
-  createOrGetDirectChat(userId: string): Observable<Chat> {
-    const token = this.tokenService.getToken();
-    if (!token) {
-      this.logger.error('No token found, cannot create chat');
-      return throwError(() => new Error('Authentication required'));
-    }
-    const headers = new HttpHeaders({
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    });
-    return this.http.post<Chat>(`${this.apiUrl}/chats`, { recipientId: userId }, { headers })
-      .pipe(
-        catchError(error => {
-          this.logger.error('Error creating or getting direct chat:', error);
-          return throwError(() => new Error(`Failed to create chat: ${error.message}`));
-        })
-      );
+  /** The existing one-to-one chat with a user, or null if there is none yet. */
+  findDirectChat(userId: string): Observable<Chat | null> {
+    const headers = this.getHeaders();
+    if (!headers) return throwError(() => new Error('Not authorized'));
+    return this.http.get<Chat>(`${this.apiUrl}/chats/direct/${userId}`, { headers }).pipe(
+      catchError((error: HttpErrorResponse) => error.status === 404 ? of(null) : this.handleError(error))
+    );
+  }
+
+  /**
+   * Where to go to talk to a user: their chat if one exists, otherwise a
+   * draft that only becomes a real chat when the first message is sent.
+   */
+  directChatRoute(userId: string): Observable<string[]> {
+    return this.findDirectChat(userId).pipe(
+      map(chat => chat ? ['/chats', chat._id] : ['/chats', 'new', userId])
+    );
   }
 
   editMessage(messageId: string, newContent: string): Observable<Message> {

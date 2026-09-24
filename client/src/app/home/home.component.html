@@ -25,9 +25,15 @@
     <ng-template #chatContent>
       <div class="chat-room-container">
         <app-chat-room 
-          *ngIf="selectedChatId; else emptyChat" 
+          *ngIf="selectedChatId; else draftOrEmpty" 
           [selectedChatId]="selectedChatId"
         ></app-chat-room>
+        <ng-template #draftOrEmpty>
+          <app-draft-chat
+            *ngIf="draftRecipientId; else emptyChat"
+            [recipientId]="draftRecipientId"
+          ></app-draft-chat>
+        </ng-template>
         <ng-template #emptyChat>
           <div class="empty-chat-room">
             <p>Select a chat room to start chatting</p>

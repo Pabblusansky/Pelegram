@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { ChatListComponent } from "../chat/chat-list/chat-list.component";
 import { ChatRoomComponent } from "../chat/chat-room/chat-room.component";
+import { DraftChatComponent } from "../chat/draft-chat/draft-chat.component";
 import { ActivatedRoute, NavigationEnd, Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ProfileCardComponent } from "../profile/profile-card/profile-card.component";
@@ -19,6 +20,7 @@ import { LoggerService } from '../services/logger.service';
   imports: [
     ChatListComponent, 
     ChatRoomComponent, 
+    DraftChatComponent,
     CommonModule, 
     RouterModule, 
     ProfileCardComponent
@@ -33,6 +35,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   private logger = inject(LoggerService);
 
   selectedChatId: string | null = null;
+  draftRecipientId: string | null = null;
   isProfileRoute: boolean = false;
   userProfile: UserProfile | null = null;
   private destroy$ = new Subject<void>();
@@ -44,6 +47,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((params) => {
         this.selectedChatId = params.get('chatId') || null;
+        this.draftRecipientId = params.get('recipientId') || null;
       });
 
     this.router.events

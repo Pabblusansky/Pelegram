@@ -14,10 +14,10 @@ import logger from '../config/logger.js';
 import { CHAT_POPULATE, GROUP_CHAT_POPULATE, FULL_CHAT_POPULATE, applyPopulate, populateDoc, populateChatParticipants, populateChatAdmin, populateChatLastMessage, populateChatPinnedMessage } from '../config/populate.js';
 import { validate } from '../middleware/validate.js';
 import { resolveUploadPath } from '../utils/uploadPaths.js';
-import { findOrCreateDirectChat } from '../utils/directChat.js';
+import { findDirectChat, findOrCreateDirectChat } from '../utils/directChat.js';
 import {
   createGroupSchema, addParticipantsSchema, updateGroupNameSchema,
-  createDirectChatSchema, chatIdParam, chatIdWithParticipantParam,
+  createDirectChatSchema, directChatParam, chatIdParam, chatIdWithParticipantParam,
   pinMessageParam, mediaQuerySchema, searchQuerySchema,
 } from '../schemas/chat.schema.js';
 
@@ -605,6 +605,26 @@ export default (io: Server) => {
       }
   });
 
+  // Finds the caller's one-to-one chat with a user without creating it. The
+  // client opens a draft on 404 and the chat is created by its first message.
+  router.get('/direct/:userId', authenticateToken, validate({ params: directChatParam }), async (req: Request, res: Response) => {
+    if (req.params.userId === req.user!.id) {
+      res.status(400).json({ message: 'Use "Saved Messages" for a chat with yourself.' });
+      return;
+    }
+    try {
+      const chat = await findDirectChat(req.user!.id, req.params.userId as string);
+      if (!chat) {
+        res.status(404).json({ message: 'No chat with this user yet' });
+        return;
+      }
+      res.json(await applyPopulate(Chat.findById(chat._id), CHAT_POPULATE));
+    } catch (error: any) {
+      logger.error('Error looking up direct chat:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
   router.post('/', authenticateToken, validate({ body: createDirectChatSchema }), async (req: Request, res: Response) => {
     try {
       const { recipientId } = req.body;
@@ -617,11 +637,8 @@ export default (io: Server) => {
       const { chat: directChat, created: isNewChat } = await findOrCreateDirectChat(initiatorId, recipientId);
       const chat: any = await applyPopulate(Chat.findById(directChat._id), CHAT_POPULATE);
 
-      if (isNewChat && chat) {
-        const chatObjectForEmit = chat.toObject();
-        io.to(initiatorId.toString()).emit('new_chat_created', chatObjectForEmit);
-      }
-
+      // No new_chat_created here: an empty chat should not appear in anyone's
+      // list. send_message announces the chat once it has a first message.
       res.status(isNewChat ? 201 : 200).json(chat);
 
     } catch (error: any) {

@@ -191,6 +191,29 @@ export class SocketService implements OnDestroy {
     });
   }
 
+  /**
+   * Sends the first message to a user who has no chat with us yet. The server
+   * creates the chat and replies with its id alongside the message.
+   */
+  sendFirstMessage(recipientId: string, content: string): Observable<{ chatId: string; message: Message }> {
+    return new Observable((observer) => {
+      if (!this.socket || !this.socket.connected) {
+        this.logger.error('Socket is not connected. Cannot send message.');
+        observer.error('Socket is not connected');
+        return;
+      }
+      this.socket.emit('send_message', { recipientId, content }, (ack: { success: boolean; message: Message; chatId?: string; error?: string | null }) => {
+        if (ack && ack.success && ack.chatId) {
+          observer.next({ chatId: ack.chatId, message: ack.message });
+          observer.complete();
+        } else {
+          this.logger.error('Server did not create the chat or acknowledge the message:', ack);
+          observer.error(ack && ack.error ? ack.error : 'Failed to send message to server');
+        }
+      });
+    });
+  }
+
   receiveMessages(callback: (message: Message) => void): void {
     if (this.socket) {
       this.socket.on('receive_message', callback);

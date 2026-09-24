@@ -9,6 +9,21 @@ function isDuplicateKeyError(error: unknown): boolean {
 }
 
 /**
+ * Looks up the one-to-one chat between two users without creating one.
+ * Falls back to chats created before directKey existed.
+ */
+export async function findDirectChat(userA: string, userB: string): Promise<IChat | null> {
+  const directKey = directChatKey(userA, userB);
+  const keyed = await Chat.findOne({ directKey });
+  if (keyed) return keyed;
+  return Chat.findOne({
+    isGroupChat: false,
+    participants: { $all: [userA, userB], $size: 2 },
+    directKey: { $exists: false },
+  }).sort({ updatedAt: -1 });
+}
+
+/**
  * Returns the one-to-one chat between two users, creating it if needed.
  *
  * The unique index on directKey is what makes this safe under concurrency:
