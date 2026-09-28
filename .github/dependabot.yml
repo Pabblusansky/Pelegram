@@ -1,12 +1,21 @@
 version: 2
 
+# Kept deliberately quiet: one monthly run per folder, with every minor and
+# patch update in a single PR and major versions in a second one, so a
+# risky upgrade never holds back the routine ones. Security updates are not
+# delayed by the schedule or the cooldown; they arrive when advisories are
+# published, grouped into one PR per folder.
+
 updates:
   - package-ecosystem: npm
     directory: /client
     schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
+      interval: monthly
+    # Skip releases younger than a week: they are often followed by a quick
+    # fix, and it is a buffer against a compromised publish.
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 3
     ignore:
       # @angular/compiler-cli and @angular/build 22 require typescript <6.1,
       # and so does typescript-eslint 8.
@@ -20,19 +29,23 @@ updates:
       prefix: 'chore(deps)'
       prefix-development: 'chore(deps-dev)'
     groups:
-      angular:
-        patterns:
-          - '@angular/*'
-          - '@angular-devkit/*'
-      dev-dependencies:
-        dependency-type: development
+      client-security:
+        applies-to: security-updates
+        patterns: ['*']
+      client-minor-and-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
+      client-major:
+        patterns: ['*']
+        update-types: [major]
 
   - package-ecosystem: npm
     directory: /server
     schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
+      interval: monthly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 3
     ignore:
       # typescript-eslint 8 requires typescript <6.1.
       - dependency-name: typescript
@@ -41,23 +54,36 @@ updates:
       prefix: 'chore(deps)'
       prefix-development: 'chore(deps-dev)'
     groups:
-      types:
-        patterns:
-          - '@types/*'
-      dev-dependencies:
-        dependency-type: development
+      server-security:
+        applies-to: security-updates
+        patterns: ['*']
+      server-minor-and-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
+      server-major:
+        patterns: ['*']
+        update-types: [major]
 
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: monthly
-    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 1
     commit-message:
       prefix: 'chore(deps)'
+    groups:
+      root:
+        patterns: ['*']
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 1
     commit-message:
       prefix: 'chore(ci)'
+    groups:
+      actions:
+        patterns: ['*']
