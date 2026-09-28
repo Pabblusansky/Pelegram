@@ -7,6 +7,15 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    ignore:
+      # @angular/compiler-cli and @angular/build 22 require typescript <6.1,
+      # and so does typescript-eslint 8.
+      - dependency-name: typescript
+        versions: ['>=6.1']
+      # zone.js 0.16's test patching breaks on Jasmine 7's read-only globals;
+      # zone.js itself is tested against jasmine-core 6.3.
+      - dependency-name: jasmine-core
+        versions: ['>=7']
     commit-message:
       prefix: 'chore(deps)'
       prefix-development: 'chore(deps-dev)'
@@ -24,6 +33,10 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    ignore:
+      # typescript-eslint 8 requires typescript <6.1.
+      - dependency-name: typescript
+        versions: ['>=6.1']
     commit-message:
       prefix: 'chore(deps)'
       prefix-development: 'chore(deps-dev)'
