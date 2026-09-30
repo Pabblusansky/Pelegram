@@ -1,7 +1,7 @@
 import { Component, Input, OnChanges, OnDestroy, SimpleChanges, inject, ChangeDetectionStrategy } from '@angular/core';
-
+import { AsyncPipe } from '@angular/common';
 import { Router } from '@angular/router';
-import { Subject, takeUntil } from 'rxjs';
+import { Observable, Subject, takeUntil } from 'rxjs';
 import { MessageInputComponent } from '../message-input/message-input.component';
 import { SocketService } from '../services/socket.service';
 import { ProfileService } from '../../profile/profile.service';
@@ -18,7 +18,7 @@ import { environment } from '../../../environments/environment';
 @Component({
   selector: 'app-draft-chat',
   standalone: true,
-  imports: [MessageInputComponent],
+  imports: [AsyncPipe, MessageInputComponent],
   templateUrl: './draft-chat.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./draft-chat.component.scss'],
@@ -33,12 +33,18 @@ export class DraftChatComponent implements OnChanges, OnDestroy {
   @Input({ required: true }) recipientId!: string;
 
   recipient: UserProfile | null = null;
+  // Same presence feed the regular chat header uses, so a draft shows the
+  // other person as online or "last seen ..." before any chat exists.
+  statusText$: Observable<string> | null = null;
+  isOnline$: Observable<boolean> | null = null;
   isSending = false;
   private destroy$ = new Subject<void>();
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['recipientId'] && this.recipientId) {
       this.recipient = null;
+      this.statusText$ = this.socketService.getUserStatusText(this.recipientId);
+      this.isOnline$ = this.socketService.isUserOnline(this.recipientId);
       this.profileService.getUserProfile(this.recipientId)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
