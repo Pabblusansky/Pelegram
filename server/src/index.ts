@@ -8,7 +8,7 @@ import { env } from './config/env.js';
 import { configureApp } from './app.js';
 import logger from './config/logger.js';
 import { initUserStatus, updateUserStatus } from './socket/userStatus.js';
-import { registerSocketHandlers } from './socket/socketHandlers.js';
+import { registerSocketHandlers, type AuthenticatedSocket } from './socket/socketHandlers.js';
 import { JWT_ALGORITHMS, type AuthUser } from './middleware/authenticateToken.js';
 
 const { SECRET_KEY, MONGO_URI, CORS_ORIGIN, PORT } = env;
@@ -51,7 +51,7 @@ io.on('connection', (socket) => {
     const decoded = jwt.verify(token, SECRET_KEY, {
       algorithms: [...JWT_ALGORITHMS],
     }) as AuthUser;
-    (socket as any).user = decoded;
+    (socket as AuthenticatedSocket).user = decoded;
     if (decoded.id) {
       socket.join(decoded.id.toString());
       updateUserStatus(decoded.id, true);
@@ -62,7 +62,7 @@ io.on('connection', (socket) => {
     return;
   }
 
-  registerSocketHandlers(io, socket as any);
+  registerSocketHandlers(io, socket as AuthenticatedSocket);
 });
 
 httpServer.listen(PORT, () => logger.info(`Server running on http://localhost:${PORT}`));

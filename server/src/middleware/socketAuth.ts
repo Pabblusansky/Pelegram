@@ -1,8 +1,9 @@
 import { findMemberChat, isValidObjectId } from './chatAccess.js';
+import type { IChat } from '../models/Chat.js';
 
 export { isValidObjectId };
 
-export async function validateChatMembership(chatId: string, userId: string): Promise<any> {
+export async function validateChatMembership(chatId: string, userId: string): Promise<IChat | null> {
   return findMemberChat(chatId, userId);
 }
 

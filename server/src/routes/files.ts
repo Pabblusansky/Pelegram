@@ -6,6 +6,7 @@ import User from '../models/User.js';
 import authenticateToken from '../middleware/authenticateToken.js';
 import { uploadMedia, getFileUrl, deleteFileFromCloudinary } from '../config/multer-config.js';
 import logger from '../config/logger.js';
+import { Types } from 'mongoose';
 import { MESSAGE_POPULATE, CHAT_POPULATE, applyPopulate } from '../config/populate.js';
 import { requireChatMembership } from '../middleware/chatAccess.js';
 
@@ -35,9 +36,9 @@ export default (io: Server) => {
             // Scoped to the chat being uploaded to. An unscoped lookup returns
             // the content and author of any message in the database to anyone
             // holding its id, regardless of chat membership.
-            const originalRepliedMessage: any = await Message.findOne({ _id: parsedReplyTo._id, chatId })
-              .select('_id content senderId senderName messageType filePatch')
-              .populate('senderId', 'username')
+            const originalRepliedMessage = await Message.findOne({ _id: parsedReplyTo._id, chatId })
+              .select('_id content senderId senderName messageType filePath')
+              .populate<{ senderId: { _id: Types.ObjectId; username: string } | null }>('senderId', 'username')
               .lean();
             if (originalRepliedMessage) {
               replyToData = {
@@ -155,7 +156,7 @@ export default (io: Server) => {
       })();
 
       res.status(201).json({ message: 'File uploaded successfully', savedMessage: populatedMessageForSocket });
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error processing uploaded file in chat', req.params.chatId, 'by user', req.user!.id, ':', error);
 
       if (req.file) {
@@ -173,7 +174,7 @@ export default (io: Server) => {
         }
       }
 
-      if (error.message && error.message.includes('Unsupported file type')) {
+      if (error instanceof Error && error.message.includes('Unsupported file type')) {
         res.status(400).json({ message: error.message });
         return;
       }

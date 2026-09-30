@@ -1,16 +1,17 @@
 import { Server, Socket } from 'socket.io';
+import { Types } from 'mongoose';
 import User from '../models/User.js';
 import Message from '../models/Message.js';
 import Chat from '../models/Chat.js';
 import { env } from '../config/env.js';
 import logger from '../config/logger.js';
-import { CHAT_POPULATE, applyPopulate } from '../config/populate.js';
+import { CHAT_POPULATE, applyPopulate, type PopulatedUser } from '../config/populate.js';
 import { validateChatMembership, isValidObjectId, sanitizeText } from '../middleware/socketAuth.js';
 import { updateUserStatus, getStatusSnapshot } from './userStatus.js';
 import { findOrCreateDirectChat } from '../utils/directChat.js';
 import type { AuthUser } from '../middleware/authenticateToken.js';
 
-interface AuthenticatedSocket extends Socket {
+export interface AuthenticatedSocket extends Socket {
   user: AuthUser;
 }
 
@@ -175,7 +176,7 @@ async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: 
 
     await message.save();
 
-    chatBeforeMessage.lastMessage = message._id as any;
+    chatBeforeMessage.lastMessage = message._id as Types.ObjectId;
     chatBeforeMessage.updatedAt = new Date();
 
     if (chatBeforeMessage.participants && Array.isArray(chatBeforeMessage.unreadCounts)) {
@@ -229,7 +230,7 @@ async function handleSendMessage(io: Server, socket: AuthenticatedSocket, data: 
     }
 
     if (isFirstMessageInChat && updatedChat) {
-      updatedChat.participants.forEach((participant: any) => {
+      updatedChat.participants.forEach((participant: PopulatedUser) => {
         if (participant && participant._id) {
           io.to(participant._id.toString()).emit('new_chat_created', updatedChat);
         }
@@ -363,7 +364,7 @@ async function handleToggleReaction(io: Server, socket: AuthenticatedSocket, dat
         reactionChanged = true;
       }
     } else {
-      message.reactions.push({ userId: userId as any, reaction: reactionType });
+      message.reactions.push({ userId: new Types.ObjectId(userId), reaction: reactionType });
       reactionChanged = true;
     }
 

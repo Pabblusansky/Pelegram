@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import logger from '../config/logger.js';
 import { validate } from '../middleware/validate.js';
+import { isValidationError } from '../utils/errors.js';
 import { updateProfileSchema, userIdParam } from '../schemas/profile.schema.js';
 
 const router = express.Router();
@@ -163,9 +164,9 @@ router.patch('/me', authenticateToken, validate({ body: updateProfileSchema }), 
     }
 
     res.json(updatedUser);
-  } catch (err: any) {
+  } catch (err) {
     logger.error('Error updating profile:', err);
-    if (err.name === 'ValidationError') {
+    if (isValidationError(err)) {
       const errors: Record<string, string> = {};
       for (const field in err.errors) {
         errors[field] = err.errors[field].message;
@@ -223,8 +224,8 @@ router.post('/avatar', authenticateToken, uploadAvatar.single('avatar'), async (
       user: user.toObject({
         virtuals: true,
         versionKey: false,
-        transform: (_doc: any, ret: any) => {
-          delete ret.password;
+        transform: (_doc, ret) => {
+          delete (ret as { password?: unknown }).password;
           return ret;
         },
       }),
