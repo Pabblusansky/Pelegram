@@ -3,15 +3,15 @@ import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
-import mongoose from 'mongoose';
+import mongoose, { type QueryFilter } from 'mongoose';
 import Chat from '../models/Chat.js';
-import Message from '../models/Message.js';
+import Message, { type IMessage } from '../models/Message.js';
 import authenticateToken from '../middleware/authenticateToken.js';
 import { requireChatMembership, requireGroupAdmin, isChatAdmin } from '../middleware/chatAccess.js';
 import User from '../models/User.js';
 import { uploadGroupAvatar, getFileUrl, deleteFileFromCloudinary } from '../config/multer-config.js';
 import logger from '../config/logger.js';
-import { CHAT_POPULATE, GROUP_CHAT_POPULATE, FULL_CHAT_POPULATE, applyPopulate, populateDoc, populateChatParticipants, populateChatAdmin, populateChatLastMessage, populateChatPinnedMessage } from '../config/populate.js';
+import { CHAT_POPULATE, GROUP_CHAT_POPULATE, FULL_CHAT_POPULATE, applyPopulate, populateDoc, populateChatParticipants, populateChatAdmin, populateChatLastMessage, populateChatPinnedMessage, findPopulatedChat } from '../config/populate.js';
 import { validate } from '../middleware/validate.js';
 import { resolveUploadPath } from '../utils/uploadPaths.js';
 import { findDirectChat, findOrCreateDirectChat } from '../utils/directChat.js';
@@ -30,10 +30,11 @@ export default (io: Server) => {
   // Create a new group chat
   router.post('/group', authenticateToken, validate({ body: createGroupSchema }), async (req: Request, res: Response) => {
     try {
-      const { name, participants: participantIds } = req.body;
+      // Shape guaranteed by createGroupSchema.
+      const { name, participants: participantIds } = req.body as { name: string; participants: string[] };
       const adminId = req.user!.id;
 
-      const allParticipantIds = new Set([adminId.toString(), ...participantIds.map((id: any) => id.toString())]);
+      const allParticipantIds = new Set([adminId.toString(), ...participantIds.map((id) => id.toString())]);
       const finalParticipantIds = Array.from(allParticipantIds);
 
       if (finalParticipantIds.length < 2) {
@@ -56,9 +57,9 @@ export default (io: Server) => {
         unreadCounts: finalParticipantIds.map(pId => ({ userId: pId, count: 0 })),
       });
 
-      let savedChat: any = await newGroupChat.save();
+      const created = await newGroupChat.save();
 
-      savedChat = await applyPopulate(Chat.findById(savedChat._id), [populateChatParticipants, populateChatAdmin]);
+      const savedChat = await findPopulatedChat(Chat.findById(created._id), [populateChatParticipants, populateChatAdmin]);
 
       if (!savedChat) {
         res.status(500).json({ message: 'Failed to save and populate the group chat.' });
@@ -73,7 +74,7 @@ export default (io: Server) => {
       });
 
       res.status(201).json(savedChat);
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error creating group chat:', error);
       res.status(500).json({ message: 'Server error' });
       return;
@@ -89,7 +90,7 @@ export default (io: Server) => {
         return;
       }
 
-      const chat: any = req.chat;
+      const chat = req.chat!;
 
       if (process.env.NODE_ENV !== 'production' && chat.groupAvatar && !chat.groupAvatar.includes('default-group-avatar')) {
         const oldAvatarPath = path.join(process.cwd(), chat.groupAvatar.replace('/uploads/', 'uploads/'));
@@ -103,15 +104,15 @@ export default (io: Server) => {
       chat.groupAvatar = avatarUrl;
       await chat.save();
 
-      const updatedChat: any = await applyPopulate(Chat.findById(chatId), GROUP_CHAT_POPULATE);
+      const updatedChat = await findPopulatedChat(Chat.findById(chatId), GROUP_CHAT_POPULATE);
 
-      updatedChat.participants.forEach((participant: any) => {
+      updatedChat?.participants.forEach((participant) => {
         io.to(participant._id.toString()).emit('chat_updated', updatedChat);
       });
 
       res.json(updatedChat);
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error updating group avatar:', error);
       res.status(500).json({ message: 'Server error while updating group avatar' });
     }
@@ -124,7 +125,7 @@ export default (io: Server) => {
 
     try {
 
-      const chat: any = req.chat;
+      const chat = req.chat!;
 
       // Verify all user IDs exist
       const usersToAdd = await User.find({ '_id': { $in: participantIds } });
@@ -134,7 +135,7 @@ export default (io: Server) => {
       }
 
       // Add new participants (avoiding duplicates)
-      const currentParticipantIds = chat.participants.map((p: any) => p.toString());
+      const currentParticipantIds = chat.participants.map((p) => p.toString());
       const newParticipantIds = participantIds.filter((id: string) => !currentParticipantIds.includes(id));
 
       if (newParticipantIds.length === 0) {
@@ -147,15 +148,15 @@ export default (io: Server) => {
       // Initialize unreadCount for new participants
       newParticipantIds.forEach((newId: string) => {
         if (chat.unreadCounts) {
-          chat.unreadCounts.push({ userId: newId, count: 0 });
+          chat.unreadCounts.push({ userId: new mongoose.Types.ObjectId(newId), count: 0 });
         }
       });
 
       await chat.save();
 
       // Add system message about added users
-      const addedUsers = usersToAdd.filter((u: any) => newParticipantIds.includes(u._id.toString()));
-      const usernames = addedUsers.map((u: any) => u.username).join(', ');
+      const addedUsers = usersToAdd.filter((u) => newParticipantIds.includes(u._id.toString()));
+      const usernames = addedUsers.map((u) => u.username).join(', ');
 
       const systemMessageContent = `${addedUsers.length > 1 ? `${usernames} were` : `${usernames} was`} added to the group.`;
 
@@ -176,10 +177,10 @@ export default (io: Server) => {
       chat.updatedAt = new Date();
       await chat.save();
 
-      const updatedChat: any = await applyPopulate(Chat.findById(chatId), GROUP_CHAT_POPULATE);
+      const updatedChat = await findPopulatedChat(Chat.findById(chatId), GROUP_CHAT_POPULATE);
 
       if (updatedChat) {
-        updatedChat.participants.forEach((participant: any) => {
+        updatedChat.participants.forEach((participant) => {
           io.to(participant._id.toString()).emit('chat_updated', updatedChat);
           io.to(participant._id.toString()).emit('receive_message', savedSystemMessage.toObject());
         });
@@ -191,7 +192,7 @@ export default (io: Server) => {
 
       res.json(updatedChat);
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error adding participants:', error);
       res.status(500).json({ message: 'Server error while adding participants' });
     }
@@ -203,9 +204,9 @@ export default (io: Server) => {
     const userId = req.user!.id;
 
     try {
-      const chat: any = req.chat;
+      const chat = req.chat!;
 
-      const participantIndex = chat.participants.findIndex((p: any) => p.toString() === participantId);
+      const participantIndex = chat.participants.findIndex((p) => p.toString() === participantId);
       if (participantIndex === -1) {
         res.status(400).json({ message: 'User is not a participant in this group.' });
         return;
@@ -228,7 +229,7 @@ export default (io: Server) => {
 
       // Remove from unreadCounts if exists
       if (chat.unreadCounts) {
-        chat.unreadCounts = chat.unreadCounts.filter((uc: any) => uc.userId.toString() !== participantId);
+        chat.unreadCounts = chat.unreadCounts.filter((uc) => uc.userId.toString() !== participantId);
       }
 
       await chat.save();
@@ -250,10 +251,10 @@ export default (io: Server) => {
       chat.updatedAt = new Date();
       await chat.save();
 
-      const updatedChat: any = await applyPopulate(Chat.findById(chatId), GROUP_CHAT_POPULATE);
+      const updatedChat = await findPopulatedChat(Chat.findById(chatId), GROUP_CHAT_POPULATE);
 
       if (updatedChat) {
-        updatedChat.participants.forEach((participant: any) => {
+        updatedChat.participants.forEach((participant) => {
           io.to(participant._id.toString()).emit('chat_updated', updatedChat);
           io.to(participant._id.toString()).emit('receive_message', savedSystemMessage.toObject());
         });
@@ -272,7 +273,7 @@ export default (io: Server) => {
 
       res.json(updatedChat);
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error removing participant:', error);
       res.status(500).json({ message: 'Server error while removing participant' });
     }
@@ -283,7 +284,7 @@ export default (io: Server) => {
     const userId = req.user!.id;
 
     try {
-      const chat: any = await Chat.findById(chatId);
+      const chat = await Chat.findById(chatId);
       if (!chat) {
         res.status(404).json({ message: 'Group chat not found.' });
         return;
@@ -293,7 +294,7 @@ export default (io: Server) => {
         return;
       }
 
-      const participantIndex = chat.participants.findIndex((pId: any) => pId.toString() === userId);
+      const participantIndex = chat.participants.findIndex((pId) => pId.toString() === userId);
       if (participantIndex === -1) {
         res.status(403).json({ message: 'You are not a member of this group.' });
         return;
@@ -305,11 +306,11 @@ export default (io: Server) => {
       chat.participants.splice(participantIndex, 1);
 
       if (chat.unreadCounts) {
-          chat.unreadCounts = chat.unreadCounts.filter((uc: any) => uc.userId.toString() !== userId);
+          chat.unreadCounts = chat.unreadCounts.filter((uc) => uc.userId.toString() !== userId);
       }
       let isAdmin = false;
       if (Array.isArray(chat.admin)) {
-        isAdmin = chat.admin.some((adminId: any) => adminId.toString() === userId);
+        isAdmin = chat.admin.some((adminId) => adminId.toString() === userId);
         if (isAdmin) {
           if (chat.participants.length === 0) {
             const messagesWithFiles = await Message.find({
@@ -318,10 +319,10 @@ export default (io: Server) => {
             }).select('filePath').lean();
 
             for (const message of messagesWithFiles) {
-              if ((message as any).filePath) {
-                const diskPath = resolveUploadPath((message as any).filePath);
+              if (message.filePath) {
+                const diskPath = resolveUploadPath(message.filePath);
                 if (!diskPath) {
-                  logger.warn(`Skipping filePath outside the uploads directory: ${(message as any).filePath}`);
+                  logger.warn(`Skipping filePath outside the uploads directory: ${message.filePath}`);
                   continue;
                 }
 
@@ -351,46 +352,6 @@ export default (io: Server) => {
             logger.info(`Admin ${userId} left group ${chatId}. New admin is ${newAdminId}.`);
           }
         }
-      } else if (chat.admin && chat.admin.toString() === userId) {
-        if (chat.participants.length === 0) {
-          const messagesWithFiles = await Message.find({
-            chatId: chat._id,
-            filePath: { $exists: true, $nin: [null, ''] }
-          }).select('filePath').lean();
-
-          for (const message of messagesWithFiles) {
-            if ((message as any).filePath) {
-              const diskPath = resolveUploadPath((message as any).filePath);
-              if (!diskPath) {
-                logger.warn(`Skipping filePath outside the uploads directory: ${(message as any).filePath}`);
-                continue;
-              }
-
-              try {
-                if (fs.existsSync(diskPath)) {
-                  fs.unlinkSync(diskPath);
-                  logger.info(`Deleted file on group dissolution: ${diskPath}`);
-                }
-              } catch (err) {
-                logger.error(`Failed to delete file on group dissolution ${diskPath}:`, err);
-              }
-            }
-          }
-
-          await Message.deleteMany({ chatId: chat._id });
-          await Chat.findByIdAndDelete(chatId);
-          logger.info(`Last participant (admin ${userId}) left group ${chatId}. Group and messages deleted.`);
-          io.to(userId.toString()).emit('chat_deleted_globally', {
-            chatId: chatId,
-            deletedBy: userId
-          });
-          res.json({ message: 'You have left the group, and the group has been deleted as you were the last participant.' });
-          return;
-        } else {
-          const newAdminId = chat.participants[0];
-          chat.admin = [newAdminId];
-          logger.info(`Admin ${userId} left group ${chatId}. New admin is ${newAdminId}.`);
-        }
       }
 
       await chat.save();
@@ -407,7 +368,7 @@ export default (io: Server) => {
       });
 
       const savedSystemMessage = await systemMessage.save();
-        const updatedChat: any = await applyPopulate(Chat.findByIdAndUpdate(
+        const updatedChat = await findPopulatedChat(Chat.findByIdAndUpdate(
         chatId,
         {
           lastMessage: savedSystemMessage._id,
@@ -417,7 +378,7 @@ export default (io: Server) => {
       ), GROUP_CHAT_POPULATE);
 
       if (updatedChat) {
-        updatedChat.participants.forEach((participant: any) => {
+        updatedChat.participants.forEach((participant) => {
           io.to(participant._id.toString()).emit('chat_updated', updatedChat);
           io.to(participant._id.toString()).emit('receive_message', savedSystemMessage.toObject());
         });
@@ -432,7 +393,7 @@ export default (io: Server) => {
 
       // res.json({ message: 'You have successfully left the group.' });
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error leaving group:', error);
       res.status(500).json({ message: 'Server error while leaving group.' });
     }
@@ -444,25 +405,25 @@ export default (io: Server) => {
 
     try {
 
-      const chat: any = req.chat;
+      const chat = req.chat!;
 
       chat.name = name.trim();
       chat.updatedAt = new Date();
       await chat.save();
 
-      const updatedChat: any = await applyPopulate(Chat.findById(chatId), GROUP_CHAT_POPULATE);
+      const updatedChat = await findPopulatedChat(Chat.findById(chatId), GROUP_CHAT_POPULATE);
 
       if (!updatedChat) {
         res.status(500).json({ message: 'Failed to retrieve updated chat details.' });
         return;
       }
 
-      updatedChat.participants.forEach((participant: any) => {
+      updatedChat?.participants.forEach((participant) => {
         io.to(participant._id.toString()).emit('chat_updated', updatedChat);
       });
 
       res.json(updatedChat);
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error updating group name:', error);
       res.status(500).json({ message: 'Server error while updating group name.' });
     }
@@ -473,21 +434,21 @@ export default (io: Server) => {
     const userId = req.user!.id;
 
     try {
-      const chat: any = req.chat;
+      const chat = req.chat!;
 
       if (chat.unreadCounts && chat.unreadCounts.length > 0) {
-        const userUnreadIndex = chat.unreadCounts.findIndex((uc: any) => uc.userId.toString() === userId);
+        const userUnreadIndex = chat.unreadCounts.findIndex((uc) => uc.userId.toString() === userId);
         if (userUnreadIndex !== -1) {
           if (chat.unreadCounts[userUnreadIndex].count > 0) {
             chat.unreadCounts[userUnreadIndex].count = 0;
             await chat.save();
           }
         } else {
-          chat.unreadCounts.push({ userId, count: 0 });
+          chat.unreadCounts.push({ userId: new mongoose.Types.ObjectId(userId), count: 0 });
           await chat.save();
         }
       } else {
-        chat.unreadCounts = [{ userId, count: 0 }];
+        chat.unreadCounts = [{ userId: new mongoose.Types.ObjectId(userId), count: 0 }];
         await chat.save();
       }
 
@@ -535,7 +496,7 @@ export default (io: Server) => {
 
       res.status(200).json({ message: 'Chat marked as read successfully' });
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`Error marking chat ${chatId} as read:`, error);
       res.status(500).json({ message: 'Server error' });
     }
@@ -550,7 +511,7 @@ export default (io: Server) => {
     const skip = (page - 1) * limit;
 
     try {
-      const queryConditions: any = {
+      const queryConditions: QueryFilter<IMessage> = {
         chatId: chatId,
         filePath: { $exists: true, $nin: [null, ''] }
       };
@@ -582,7 +543,7 @@ export default (io: Server) => {
         totalCount: totalMediaCount,
       });
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`Error fetching media for chat ${chatId}:`, error);
       res.status(500).json({ message: 'Server error while fetching media.' });
     }
@@ -599,7 +560,7 @@ export default (io: Server) => {
         ).limit(10);
 
         res.json(users);
-      } catch (error: any) {
+      } catch (error) {
         logger.error('Error in search:', error);
         res.status(500).json({ message: 'Error searching for users' });
       }
@@ -619,7 +580,7 @@ export default (io: Server) => {
         return;
       }
       res.json(await applyPopulate(Chat.findById(chat._id), CHAT_POPULATE));
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error looking up direct chat:', error);
       res.status(500).json({ message: 'Server error' });
     }
@@ -635,13 +596,13 @@ export default (io: Server) => {
       }
 
       const { chat: directChat, created: isNewChat } = await findOrCreateDirectChat(initiatorId, recipientId);
-      const chat: any = await applyPopulate(Chat.findById(directChat._id), CHAT_POPULATE);
+      const chat = await findPopulatedChat(Chat.findById(directChat._id), CHAT_POPULATE);
 
       // No new_chat_created here: an empty chat should not appear in anyone's
       // list. send_message announces the chat once it has a first message.
       res.status(isNewChat ? 201 : 200).json(chat);
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error('CRITICAL ERROR creating or getting direct chat:', error);
       res.status(500).json({ message: 'Server error' });
     }
@@ -654,7 +615,7 @@ export default (io: Server) => {
           .sort({ updatedAt: -1 });
 
           res.json(chats);
-      } catch (error: any) {
+      } catch (error) {
           logger.error('Error getting chats:', error);
           res.status(500).json({ message: 'Error getting chats' });
       }
@@ -665,7 +626,7 @@ export default (io: Server) => {
       const chat = await populateDoc(req.chat!, FULL_CHAT_POPULATE);
 
       res.json(chat);
-    } catch (err: any) {
+    } catch (err) {
       logger.error('Error getting chat details:', err);
       res.status(500).json({ message: 'Server error' });
     }
@@ -681,7 +642,7 @@ export default (io: Server) => {
         return;
       }
 
-      const chat: any = await Chat.findById(chatId);
+      const chat = await Chat.findById(chatId);
 
       if (!chat) {
         res.status(404).json({ message: 'Chat not found.' });
@@ -706,14 +667,14 @@ export default (io: Server) => {
           }
         }
       } else {
-        const isParticipant = chat.participants.some((participantId: any) => participantId.toString() === userId);
+        const isParticipant = chat.participants.some((participantId) => participantId.toString() === userId);
         if (!isParticipant) {
           res.status(403).json({ message: 'Forbidden: You are not a participant of this chat.' });
           return;
         }
       }
 
-      const participantIds = chat.participants.map((p: any) => p.toString());
+      const participantIds = chat.participants.map((p) => p.toString());
 
       const messagesWithFiles = await Message.find({
         chatId: chat._id,
@@ -721,13 +682,13 @@ export default (io: Server) => {
       }).select('filePath').lean();
 
       for (const message of messagesWithFiles) {
-        if ((message as any).filePath) {
+        if (message.filePath) {
           if (process.env.NODE_ENV === 'production') {
-            await deleteFileFromCloudinary((message as any).filePath);
+            await deleteFileFromCloudinary(message.filePath);
           } else {
-            const diskPath = resolveUploadPath((message as any).filePath);
+            const diskPath = resolveUploadPath(message.filePath);
             if (!diskPath) {
-              logger.warn(`Skipping filePath outside the uploads directory: ${(message as any).filePath}`);
+              logger.warn(`Skipping filePath outside the uploads directory: ${message.filePath}`);
               continue;
             }
 
@@ -759,7 +720,7 @@ export default (io: Server) => {
 
       res.status(200).json({ message: 'Chat and all associated messages have been deleted successfully.' });
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error deleting chat:', error);
       res.status(500).json({ message: 'Server error while deleting chat.' });
     }
@@ -770,7 +731,7 @@ export default (io: Server) => {
     try {
       const userId = req.user!.id;
 
-      let savedMessagesChat: any = await applyPopulate(Chat.findOne({
+      let savedMessagesChat = await findPopulatedChat(Chat.findOne({
         participants: { $eq: [new mongoose.Types.ObjectId(userId)], $size: 1 }
       }), CHAT_POPULATE);
 
@@ -782,8 +743,8 @@ export default (io: Server) => {
           type: 'self',
           unreadCounts: [{ userId: userId, count: 0 }],
         });
-        savedMessagesChat = await newChatDoc.save();
-        savedMessagesChat = await applyPopulate(Chat.findById(savedMessagesChat._id), CHAT_POPULATE);
+        const created = await newChatDoc.save();
+        savedMessagesChat = await findPopulatedChat(Chat.findById(created._id), CHAT_POPULATE);
       }
 
       if (isNewChat && savedMessagesChat) {
@@ -792,7 +753,7 @@ export default (io: Server) => {
 
       res.status(isNewChat ? 201 : 200).json(savedMessagesChat);
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error getting/creating saved messages chat:', error);
       res.status(500).json({ message: 'Server error' });
     }
@@ -802,7 +763,7 @@ export default (io: Server) => {
     const { chatId, messageId } = req.params;
 
     try {
-        const chat: any = req.chat;
+        const chat = req.chat!;
 
         const messageExists = await Message.findOne({ _id: messageId, chatId: chatId });
         if (!messageExists) {
@@ -810,10 +771,10 @@ export default (io: Server) => {
             return;
         }
 
-        chat.pinnedMessage = messageId;
+        chat.pinnedMessage = new mongoose.Types.ObjectId(messageId as string);
         await chat.save();
 
-        const updatedChat: any = await applyPopulate(Chat.findById(chatId), [populateChatParticipants, populateChatLastMessage, populateChatPinnedMessage]);
+        const updatedChat = await findPopulatedChat(Chat.findById(chatId), [populateChatParticipants, populateChatLastMessage, populateChatPinnedMessage]);
 
         if (updatedChat) {
             io.to(chatId.toString()).emit('chat_updated', updatedChat);
@@ -821,7 +782,7 @@ export default (io: Server) => {
 
         res.json(updatedChat);
 
-    } catch (error: any) {
+    } catch (error) {
         logger.error('Error pinning message:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
@@ -831,7 +792,7 @@ export default (io: Server) => {
       const { chatId } = req.params;
 
       try {
-          const chat: any = req.chat;
+          const chat = req.chat!;
 
           if (!chat.pinnedMessage) {
               res.status(400).json({ message: 'No message is currently pinned in this chat.' });
@@ -849,7 +810,7 @@ export default (io: Server) => {
 
           res.json(updatedChat);
 
-      } catch (error: any) {
+      } catch (error) {
           logger.error('Error unpinning message:', error);
           res.status(500).json({ message: 'Internal server error' });
     }
@@ -859,7 +820,7 @@ export default (io: Server) => {
     const { chatId } = req.params;
 
     try {
-      const chat: any = req.chat;
+      const chat = req.chat!;
 
       if (!chat.groupAvatar || chat.groupAvatar.includes('default-group-avatar')) {
         res.status(400).json({ message: 'No custom avatar to delete.' });
@@ -880,15 +841,15 @@ export default (io: Server) => {
         await deleteFileFromCloudinary(avatarToDelete);
       }
 
-      const updatedChat: any = await applyPopulate(Chat.findById(chatId), GROUP_CHAT_POPULATE);
+      const updatedChat = await findPopulatedChat(Chat.findById(chatId), GROUP_CHAT_POPULATE);
 
-      updatedChat.participants.forEach((participant: any) => {
+      updatedChat?.participants.forEach((participant) => {
         io.to(participant._id.toString()).emit('chat_updated', updatedChat);
       });
 
       res.json(updatedChat);
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error deleting group avatar:', error);
       res.status(500).json({ message: 'Server error while deleting group avatar' });
     }

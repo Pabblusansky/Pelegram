@@ -12,6 +12,7 @@ import {
 } from '../utils/tokenUtils.js';
 import logger from '../config/logger.js';
 import { validate } from '../middleware/validate.js';
+import { isDuplicateKeyError } from '../utils/errors.js';
 import { registerSchema, loginSchema, refreshSchema, logoutSchema } from '../schemas/auth.schema.js';
 
 const router = express.Router();
@@ -37,8 +38,8 @@ router.post('/register', validate({ body: registerSchema }), async (req: Request
 
     await newUser.save();
     res.status(201).json({ message: 'User registered successfully' });
-  } catch (error: any) {
-    if (error.code === 11000) {
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
       res.status(400).json({ message: 'Username or email already exists' });
       return;
     }

@@ -1,11 +1,8 @@
 import Chat, { IChat } from '../models/Chat.js';
+import { isDuplicateKeyError } from './errors.js';
 
 export function directChatKey(userA: string, userB: string): string {
   return [userA.toString(), userB.toString()].sort().join(':');
-}
-
-function isDuplicateKeyError(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && (error as { code?: number }).code === 11000;
 }
 
 /**
