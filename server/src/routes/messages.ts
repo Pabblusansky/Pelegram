@@ -297,7 +297,7 @@ export default (io: Server) => {
     res.json({ message: `${result.deletedCount} messages deleted.`, deletedCount: result.deletedCount });
   } catch (error: any) {
     logger.error('Error deleting multiple messages:', error);
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
   // Forward message
@@ -523,7 +523,7 @@ export default (io: Server) => {
         res.json(updatedMessage.toObject());
       } catch (err: any) {
         logger.error('Error editing message:', err);
-        res.status(500).json({ message: err.message });
+        res.status(500).json({ message: 'Internal server error' });
       }
     });
   router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
