@@ -18,17 +18,17 @@ import { TokenService } from '../../services/token.service';
           <h3>Forward Message</h3>
           <button class="close-button" (click)="onCancel()">×</button>
         </div>
-        
+    
         <div class="forward-dialog-content">
           <div class="forward-message-preview">
-          <p class="forward-label">
-            Forwarding message from: <strong>{{ message.senderName || 'Unknown User' }}</strong>
-          </p>
+            <p class="forward-label">
+              Forwarding message from: <strong>{{ message.senderName || 'Unknown User' }}</strong>
+            </p>
             <div class="message-content">
               {{ message.content }}
             </div>
           </div>
-
+    
           <div class="search-container">
             <input
               type="text"
@@ -36,62 +36,67 @@ import { TokenService } from '../../services/token.service';
               (input)="filterChats()"
               placeholder="Search chats..."
               class="search-input"
-            >
+              >
           </div>
-          
-          <div class="chats-list" role="listbox" aria-label="Chats" *ngIf="!loading; else loadingTemplate">
-            <div *ngIf="filteredChats.length === 0" class="no-chats">
-              No chats available
-            </div>
-            
-            <div
-              *ngFor="let chat of filteredChats"
-              class="chat-item"
-              role="option"
-              tabindex="0"
-              [attr.aria-selected]="selectedChatId === chat._id"
-              [class.selected]="selectedChatId === chat._id"
-              (click)="selectChat(chat._id)"
-              (keydown.enter)="selectChat(chat._id)"
-              (keydown.space)="$event.preventDefault(); selectChat(chat._id)"
-            >
-              <div class="chat-avatar">
-                <img 
-                  [src]="getChatAvatar(chat)" 
-                  alt="Chat avatar"
-                  (error)="handleAvatarError($event)"
-                >
-              </div>
-              <div class="chat-info">
-                <div class="chat-name">{{ getChatName(chat) }}</div>
-                <div class="chat-last-message" *ngIf="chat.lastMessage">
-                  {{ chat.lastMessage.content | slice:0:30 }}{{ chat.lastMessage.content.length > 30 ? '...' : '' }}
+    
+          @if (!loading) {
+            <div class="chats-list" role="listbox" aria-label="Chats">
+              @if (filteredChats.length === 0) {
+                <div class="no-chats">
+                  No chats available
                 </div>
-              </div>
+              }
+              @for (chat of filteredChats; track chat) {
+                <div
+                  class="chat-item"
+                  role="option"
+                  tabindex="0"
+                  [attr.aria-selected]="selectedChatId === chat._id"
+                  [class.selected]="selectedChatId === chat._id"
+                  (click)="selectChat(chat._id)"
+                  (keydown.enter)="selectChat(chat._id)"
+                  (keydown.space)="$event.preventDefault(); selectChat(chat._id)"
+                  >
+                  <div class="chat-avatar">
+                    <img
+                      [src]="getChatAvatar(chat)"
+                      alt="Chat avatar"
+                      (error)="handleAvatarError($event)"
+                      >
+                  </div>
+                  <div class="chat-info">
+                    <div class="chat-name">{{ getChatName(chat) }}</div>
+                    @if (chat.lastMessage) {
+                      <div class="chat-last-message">
+                        {{ chat.lastMessage.content | slice:0:30 }}{{ chat.lastMessage.content.length > 30 ? '...' : '' }}
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
             </div>
-          </div>
-          
-          <ng-template #loadingTemplate>
+          } @else {
             <div class="loading-container">
               <div class="spinner"></div>
               <p>Loading chats...</p>
             </div>
-          </ng-template>
+          }
+    
         </div>
-        
+    
         <div class="forward-dialog-footer">
           <button class="cancel-btn" (click)="onCancel()">Cancel</button>
-          <button 
-            class="forward-btn" 
-            [disabled]="!selectedChatId || loading" 
+          <button
+            class="forward-btn"
+            [disabled]="!selectedChatId || loading"
             (click)="onForward()"
-          >
+            >
             Forward
           </button>
         </div>
       </div>
     </div>
-  `,
+    `,
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .forward-dialog-backdrop {

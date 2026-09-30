@@ -1,6 +1,6 @@
 import { Component, ViewChild, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
-import { CommonModule } from '@angular/common';
+
 import { AuthService } from '../auth.service';
 import { Router } from '@angular/router';
 import { SocketService } from '../../chat/services/socket.service';
@@ -11,7 +11,7 @@ import { SocketService } from '../../chat/services/socket.service';
   styleUrls: ['./login.component.scss'], // Link the SCSS file  
   standalone: true,
   changeDetection: ChangeDetectionStrategy.Eager,
-  imports: [CommonModule, FormsModule]
+  imports: [FormsModule]
 })
 export class LoginComponent {
   private authService = inject(AuthService);

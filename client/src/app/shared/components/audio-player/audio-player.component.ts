@@ -1,13 +1,13 @@
 import { Component, Input, ViewChild, ElementRef, ChangeDetectorRef, NgZone, OnChanges, SimpleChanges, OnDestroy, AfterViewInit, Output, EventEmitter, inject, ChangeDetectionStrategy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { CommonModule } from '@angular/common';
+
 import { LoggerService } from '../../../services/logger.service';
 
 @Component({
   selector: 'app-audio-player',
   templateUrl: './audio-player.component.html',
   styleUrls: ['./audio-player.component.scss'],
-  imports: [CommonModule],
+  imports: [],
   changeDetection: ChangeDetectionStrategy.Eager,
   standalone: true
 })

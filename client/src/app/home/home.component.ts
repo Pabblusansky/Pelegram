@@ -3,7 +3,7 @@ import { ChatListComponent } from "../chat/chat-list/chat-list.component";
 import { ChatRoomComponent } from "../chat/chat-room/chat-room.component";
 import { DraftChatComponent } from "../chat/draft-chat/draft-chat.component";
 import { ActivatedRoute, NavigationEnd, Router, RouterModule } from '@angular/router';
-import { CommonModule } from '@angular/common';
+
 import { ProfileCardComponent } from "../profile/profile-card/profile-card.component";
 import { ProfileService } from "../profile/profile.service";
 import { UserProfile } from "../profile/profile.model";
@@ -19,13 +19,12 @@ import { LoggerService } from '../services/logger.service';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.Eager,
   imports: [
-    ChatListComponent, 
-    ChatRoomComponent, 
+    ChatListComponent,
+    ChatRoomComponent,
     DraftChatComponent,
-    CommonModule, 
-    RouterModule, 
+    RouterModule,
     ProfileCardComponent
-  ],
+],
 })
 export class HomeComponent implements OnInit, OnDestroy {
   private router = inject(Router);

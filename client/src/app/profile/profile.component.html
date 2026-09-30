@@ -1,112 +1,132 @@
 <div class="profile-container">
-    <div *ngIf="isLoading" class="loading-spinner">
+  @if (isLoading) {
+    <div class="loading-spinner">
       <div class="spinner"></div>
       <p>Loading profile...</p>
     </div>
-  
-    <div *ngIf="error" class="error-message">
+  }
+
+  @if (error) {
+    <div class="error-message">
       <p>{{ error }}</p>
       <button (click)="loadProfile()" class="retry-button">Retry</button>
     </div>
-  
-    <div *ngIf="!isLoading && !error" class="profile-content">
-      <div *ngIf="!isEditing; else editMode">
-        <div class="profile-header">
-          <h1>My Profile</h1>
-          <button (click)="startEditing()" class="edit-button">Edit Profile</button>
-        </div>
-        
-        <div class="profile-card" *ngIf="profile">
-          <div class="avatar-container">
-            <div class="avatar-wrapper">
-              <img 
-                [src]="avatarUrl" 
-                alt="Profile avatar" 
-                class="profile-avatar"
-                (error)="handleImageError($event)"
-              >
-              
-              <!-- Loading indicator -->
-              <div class="avatar-upload-progress" *ngIf="uploadProgress > 0 && uploadProgress < 100">
-                <div class="progress-bar">
-                  <div class="progress-fill" [style.width.%]="uploadProgress"></div>
+  }
+
+  @if (!isLoading && !error) {
+    <div class="profile-content">
+      @if (!isEditing) {
+        <div>
+          <div class="profile-header">
+            <h1>My Profile</h1>
+            <button (click)="startEditing()" class="edit-button">Edit Profile</button>
+          </div>
+          @if (profile) {
+            <div class="profile-card">
+              <div class="avatar-container">
+                <div class="avatar-wrapper">
+                  <img
+                    [src]="avatarUrl"
+                    alt="Profile avatar"
+                    class="profile-avatar"
+                    (error)="handleImageError($event)"
+                    >
+                  <!-- Loading indicator -->
+                  @if (uploadProgress > 0 && uploadProgress < 100) {
+                    <div class="avatar-upload-progress">
+                      <div class="progress-bar">
+                        <div class="progress-fill" [style.width.%]="uploadProgress"></div>
+                      </div>
+                      <div class="progress-text">{{ uploadProgress }}%</div>
+                    </div>
+                  }
                 </div>
-                <div class="progress-text">{{ uploadProgress }}%</div>
+              </div>
+              <div class="profile-details">
+                <h2>{{ profile.displayName || profile.username }}</h2>
+                <p class="username">{{'@'}}{{ profile.username }}</p>
+                @if (profile.bio) {
+                  <div class="bio-section">
+                    <h3>Bio</h3>
+                    <p>{{ profile.bio }}</p>
+                  </div>
+                }
+                @if (profile.email || profile.phoneNumber) {
+                  <div class="contact-section">
+                    <h3>Contact</h3>
+                    @if (profile.email) {
+                      <p>Email: {{ profile.email }}</p>
+                    }
+                    @if (profile.phoneNumber) {
+                      <p>Phone: {{ profile.phoneNumber }}</p>
+                    }
+                  </div>
+                }
+                @if (profile.settings) {
+                  <div class="settings-section">
+                    <h3>Settings</h3>
+                    <p>
+                      <strong>Theme:</strong>
+                      <span>
+                        @switch (profile.settings.theme) {
+                          @case ('light') {
+                            <span>☀️ Light</span>
+                          }
+                          @case ('dark') {
+                            <span>🌙 Dark</span>
+                          }
+                          @case ('system') {
+                            <span>⚙️ System ({{ themeService.getAppliedTheme() === 'dark' ? 'Dark' : 'Light' }})</span>
+                          }
+                          @default {
+                            <span>{{ profile.settings.theme || 'System' }}</span>
+                          }
+                        }
+                      </span>
+                    </p>
+                    <p>
+                      <strong>Notifications:</strong>
+                      <span [ngClass]="{'enabled': profile.settings.notifications !== false, 'disabled': profile.settings.notifications === false}">
+                        {{ profile.settings.notifications !== false ? '✅ Enabled' : '❌ Disabled' }}
+                      </span>
+                    </p>
+                    <p>
+                      <strong>Sound:</strong>
+                      <span [ngClass]="{'enabled': profile.settings.soundEnabled !== false, 'disabled': profile.settings.soundEnabled === false}">
+                        {{ profile.settings.soundEnabled !== false ? '✅ Enabled' : '❌ Disabled' }}
+                      </span>
+                    </p>
+                  </div>
+                }
+                <div class="account-info">
+                  <p>Account created: {{ profile.createdAt | date:'medium' }}</p>
+                  <p>Last updated: {{ profile.updatedAt | date:'medium' }}</p>
+                </div>
+                <div class="logout-section">
+                  <button (click)="onLogout()" class="logout-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                      <path fill-rule="evenodd" d="M7.5 3.75A1.5 1.5 0 0 0 6 5.25v13.5a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5V15a.75.75 0 0 1 1.5 0v3.75a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3V5.25a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3V9A.75.75 0 0 1 15 9V5.25a1.5 1.5 0 0 0-1.5-1.5h-6Zm10.72 4.72a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1 0 1.06l-3 3a.75.75 0 1 1-1.06-1.06l1.72-1.72H9a.75.75 0 0 1 0-1.5h10.94l-1.72-1.72a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+                    </svg>
+                    <span>Logout</span>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div class="profile-details">
-            <h2>{{ profile.displayName || profile.username }}</h2>
-            <p class="username">{{'@'}}{{ profile.username }}</p>
-            
-            <div class="bio-section" *ngIf="profile.bio">
-              <h3>Bio</h3>
-              <p>{{ profile.bio }}</p>
-            </div>
-            
-            <div class="contact-section" *ngIf="profile.email || profile.phoneNumber">
-              <h3>Contact</h3>
-              <p *ngIf="profile.email">Email: {{ profile.email }}</p>
-              <p *ngIf="profile.phoneNumber">Phone: {{ profile.phoneNumber }}</p>
-            </div>
-            
-            <div class="settings-section" *ngIf="profile.settings">
-              <h3>Settings</h3>
-              
-              <p>
-                <strong>Theme:</strong> 
-                <span [ngSwitch]="profile.settings.theme">
-                  <span *ngSwitchCase="'light'">☀️ Light</span>
-                  <span *ngSwitchCase="'dark'">🌙 Dark</span>
-                  <span *ngSwitchCase="'system'">⚙️ System ({{ themeService.getAppliedTheme() === 'dark' ? 'Dark' : 'Light' }})</span>
-                  <span *ngSwitchDefault>{{ profile.settings.theme || 'System' }}</span>
-                </span>
-              </p>
-              
-              <p>
-                <strong>Notifications:</strong> 
-                <span [ngClass]="{'enabled': profile.settings.notifications !== false, 'disabled': profile.settings.notifications === false}">
-                  {{ profile.settings.notifications !== false ? '✅ Enabled' : '❌ Disabled' }}
-                </span>
-              </p>
-              
-              <p>
-                <strong>Sound:</strong> 
-                <span [ngClass]="{'enabled': profile.settings.soundEnabled !== false, 'disabled': profile.settings.soundEnabled === false}">
-                  {{ profile.settings.soundEnabled !== false ? '✅ Enabled' : '❌ Disabled' }}
-                </span>
-              </p>
-            </div>
-            
-            <div class="account-info">
-              <p>Account created: {{ profile.createdAt | date:'medium' }}</p>
-              <p>Last updated: {{ profile.updatedAt | date:'medium' }}</p>
-            </div>
-
-            <div class="logout-section">
-            <button (click)="onLogout()" class="logout-button">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-                <path fill-rule="evenodd" d="M7.5 3.75A1.5 1.5 0 0 0 6 5.25v13.5a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5V15a.75.75 0 0 1 1.5 0v3.75a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3V5.25a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3V9A.75.75 0 0 1 15 9V5.25a1.5 1.5 0 0 0-1.5-1.5h-6Zm10.72 4.72a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1 0 1.06l-3 3a.75.75 0 1 1-1.06-1.06l1.72-1.72H9a.75.75 0 0 1 0-1.5h10.94l-1.72-1.72a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
-              </svg>
-              <span>Logout</span>
-            </button>
-          </div>
-          </div>
+          }
         </div>
-    </div>
-    <ng-template #editMode>
+      } @else {
         <div class="profile-header">
           <h1>Edit Profile</h1>
           <button (click)="cancelEditing()" class="cancel-button">Back</button>
         </div>
-        <app-profile-edit 
+        <app-profile-edit
           [profile]="profile"
           (save)="saveProfile($event)"
           (profileUpdated)="handleProfileUpdateFromEdit($event)"
           (cancel)="cancelEditing()"
           (avatarUpload)="uploadAvatar($event)"
         ></app-profile-edit>
-      </ng-template>
+      }
     </div>
-  </div>
+  }
+</div>

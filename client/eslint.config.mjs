@@ -52,9 +52,6 @@ export default tseslint.config(
       '@angular-eslint/template/interactive-supports-focus': 'warn',
       '@angular-eslint/template/no-autofocus': 'warn',
       '@angular-eslint/template/label-has-associated-control': 'warn',
-      // New in angular-eslint 22's recommended set; converting the *ngIf /
-      // *ngFor templates to @if / @for is a separate refactor.
-      '@angular-eslint/template/prefer-control-flow': 'warn',
     },
   },
 );

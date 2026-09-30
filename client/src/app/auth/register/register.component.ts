@@ -1,6 +1,6 @@
 import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';
+
 import { AuthService } from '../auth.service';
 import { Router } from '@angular/router';
 import { LoggerService } from '../../services/logger.service';
@@ -10,7 +10,7 @@ import { LoggerService } from '../../services/logger.service';
   styleUrls: ['./register.component.scss'],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.Eager,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
 })
 export class RegisterComponent {
   private authService = inject(AuthService);

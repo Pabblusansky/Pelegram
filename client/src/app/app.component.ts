@@ -1,6 +1,6 @@
 // src/app/app.component.ts
 
-import { CommonModule } from '@angular/common';
+
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 
@@ -8,9 +8,8 @@ import { RouterModule } from '@angular/router';
   selector: 'app-root', 
   standalone: true,
   imports: [
-    RouterModule,
-    CommonModule
-  ],
+    RouterModule
+],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <router-outlet></router-outlet>

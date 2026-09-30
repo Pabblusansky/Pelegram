@@ -1,5 +1,5 @@
 import { Component, Input, OnChanges, OnDestroy, SimpleChanges, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { MessageInputComponent } from '../message-input/message-input.component';
@@ -18,7 +18,7 @@ import { environment } from '../../../environments/environment';
 @Component({
   selector: 'app-draft-chat',
   standalone: true,
-  imports: [CommonModule, MessageInputComponent],
+  imports: [MessageInputComponent],
   templateUrl: './draft-chat.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./draft-chat.component.scss'],

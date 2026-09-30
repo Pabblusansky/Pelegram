@@ -1,5 +1,5 @@
 import { Component, Input, OnDestroy, OnInit, ChangeDetectorRef, OnChanges, SimpleChanges, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { UserProfile } from '../profile.model';
 import { RouterModule } from '@angular/router';
 import { ProfileService } from '../profile.service';
@@ -13,7 +13,7 @@ import { environment } from '../../../environments/environment';
   styleUrls: ['./profile-card.component.scss'],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.Eager,
-  imports: [CommonModule, RouterModule]
+  imports: [RouterModule]
 })
 export class ProfileCardComponent implements OnInit, OnChanges, OnDestroy {
   private profileService = inject(ProfileService);

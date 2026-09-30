@@ -1,5 +1,5 @@
 import { Component, Input, Output, EventEmitter, HostListener, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 
 @Component({
   selector: 'app-lightbox',
@@ -141,7 +141,7 @@ import { CommonModule } from '@angular/common';
   `],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.Eager,
-  imports: [CommonModule]
+  imports: []
 })
 export class LightboxComponent {
   @Input() src: string = '';

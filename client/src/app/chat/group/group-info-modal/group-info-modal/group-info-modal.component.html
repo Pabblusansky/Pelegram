@@ -2,50 +2,52 @@
   <div class="modal-content" (click)="$event.stopPropagation()">
     <button class="modal-close-button" (click)="closeModal()" title="Close">×</button>
 
-    <ng-container *ngIf="chatDetails">
+    @if (chatDetails) {
       <div class="modal-header">
         <div class="group-avatar-large-container">
           <img [src]="getGroupAvatarUrl()" alt="Group Avatar" class="group-avatar-large">
-          <div *ngIf="isAdmin" class="avatar-actions">
-            <button 
-              class="edit-avatar-button" 
-              (click)="changeGroupAvatar()" 
-              title="Change group avatar"
-              [disabled]="isUploadingAvatar || isDeletingAvatar"
-            >
-              {{ isUploadingAvatar ? '⏳' : '✏️' }}
-            </button>
-            <button 
-              *ngIf="hasCustomAvatar()"
-              class="delete-avatar-button" 
-              (click)="deleteGroupAvatar()" 
-              title="Delete group avatar"
-              [disabled]="isUploadingAvatar || isDeletingAvatar"
-            >
-              {{ isDeletingAvatar ? '⏳' : '🗑️' }}
-            </button>
-          </div>
+          @if (isAdmin) {
+            <div class="avatar-actions">
+              <button
+                class="edit-avatar-button"
+                (click)="changeGroupAvatar()"
+                title="Change group avatar"
+                [disabled]="isUploadingAvatar || isDeletingAvatar"
+                >
+                {{ isUploadingAvatar ? '⏳' : '✏️' }}
+              </button>
+              @if (hasCustomAvatar()) {
+                <button
+                  class="delete-avatar-button"
+                  (click)="deleteGroupAvatar()"
+                  title="Delete group avatar"
+                  [disabled]="isUploadingAvatar || isDeletingAvatar"
+                  >
+                  {{ isDeletingAvatar ? '⏳' : '🗑️' }}
+                </button>
+              }
+            </div>
+          }
         </div>
         <div class="group-name-header">
-          <ng-container *ngIf="!isEditingName; else nameEditMode">
+          @if (!isEditingName) {
             <h2 class="group-name">{{ chatDetails.name || 'Group Chat' }}</h2>
-            <button *ngIf="isAdmin" class="edit-name-button" (click)="editGroupName()" title="Edit group name">
-              ✏️
-            </button>
-          </ng-container>
-          
-          <ng-template #nameEditMode>
+            @if (isAdmin) {
+              <button class="edit-name-button" (click)="editGroupName()" title="Edit group name">
+                ✏️
+              </button>
+            }
+          } @else {
             <div class="name-edit-container">
-              <input 
-                type="text" 
-                [(ngModel)]="newGroupName" 
+              <input
+                type="text"
+                [(ngModel)]="newGroupName"
                 class="name-edit-input"
                 placeholder="Enter group name"
                 (keydown.enter)="saveGroupName()"
                 (keydown.escape)="cancelEditName()"
                 [disabled]="isSavingName"
-               
-              >
+                >
               <div class="edit-actions">
                 <button class="action-button save-button" (click)="saveGroupName()" [disabled]="isSavingName || !newGroupName.trim()">
                   {{ isSavingName ? 'Saving...' : 'Save' }}
@@ -55,144 +57,155 @@
                 </button>
               </div>
             </div>
-          </ng-template>
+          }
         </div>
         <p class="participants-count">
-          {{ chatDetails.participants.length || 0 }} 
+          {{ chatDetails.participants.length || 0 }}
           {{ chatDetails.participants.length === 1 ? 'participant' : 'participants' }}
         </p>
       </div>
-
       <div class="modal-body">
         <div class="section">
           <h3>Participants</h3>
-          <ul class="participants-list" *ngIf="chatDetails.participants && chatDetails.participants.length > 0">
-            <li *ngFor="let participant of chatDetails.participants" class="participant-item">
-              <div class="participant-info" role="button" tabindex="0" (click)="navigateToUserProfile(participant._id, $event)" (keydown.enter)="navigateToUserProfile(participant._id, $event)" (keydown.space)="$event.preventDefault(); navigateToUserProfile(participant._id, $event)">
-                <img [src]="getUserAvatarUrl(participant)" [alt]="participant.username" class="participant-avatar-small">
-                <span class="participant-name">{{ participant.username }}</span>
-                <span 
-                *ngIf="getIsParticipantAdmin(participant._id)" 
-                class="admin-badge">
-                Admin
-                </span>
-              </div>
-              <button 
-                *ngIf="isAdmin && participant._id !== currentUserId" 
-                class="action-button remove-participant-button" 
-                (click)="removeParticipant(participant._id)"
-                [disabled]="isRemovingParticipant"
-                title="Remove participant"
-              >
-                {{ isRemovingParticipant ? '⏳' : '−' }}
-              </button>
-            </li>
-          </ul>
-          <button *ngIf="isAdmin" class="action-button add-participant-button" (click)="addParticipants()">
-            + Add Participant
-          </button>
+          @if (chatDetails.participants && chatDetails.participants.length > 0) {
+            <ul class="participants-list">
+              @for (participant of chatDetails.participants; track participant) {
+                <li class="participant-item">
+                  <div class="participant-info" role="button" tabindex="0" (click)="navigateToUserProfile(participant._id, $event)" (keydown.enter)="navigateToUserProfile(participant._id, $event)" (keydown.space)="$event.preventDefault(); navigateToUserProfile(participant._id, $event)">
+                    <img [src]="getUserAvatarUrl(participant)" [alt]="participant.username" class="participant-avatar-small">
+                    <span class="participant-name">{{ participant.username }}</span>
+                    @if (getIsParticipantAdmin(participant._id)) {
+                      <span
+                        class="admin-badge">
+                        Admin
+                      </span>
+                    }
+                  </div>
+                  @if (isAdmin && participant._id !== currentUserId) {
+                    <button
+                      class="action-button remove-participant-button"
+                      (click)="removeParticipant(participant._id)"
+                      [disabled]="isRemovingParticipant"
+                      title="Remove participant"
+                      >
+                      {{ isRemovingParticipant ? '⏳' : '−' }}
+                    </button>
+                  }
+                </li>
+              }
+            </ul>
+          }
+          @if (isAdmin) {
+            <button class="action-button add-participant-button" (click)="addParticipants()">
+              + Add Participant
+            </button>
+          }
         </div>
-        
         <!-- Other sections like shared media, notification settings for this chat, etc.(Not doing for now) -->
-
       </div>
-
       <div class="modal-footer">
         <button class="action-button leave-group-button" (click)="leaveGroup()">
           Leave Group
         </button>
-        <button 
-          *ngIf="isAdmin" 
-          class="action-button delete-group-button" 
-          (click)="deleteGroup()"
-          [disabled]="isDeletingGroup"
-        >
-          {{ isDeletingGroup ? 'Deleting...' : 'Delete Group' }}
-        </button>
+        @if (isAdmin) {
+          <button
+            class="action-button delete-group-button"
+            (click)="deleteGroup()"
+            [disabled]="isDeletingGroup"
+            >
+            {{ isDeletingGroup ? 'Deleting...' : 'Delete Group' }}
+          </button>
+        }
       </div>
+    }
 
-    </ng-container>
-
-    <div *ngIf="!chatDetails" class="loading-group-info">
-      <p>Loading group information...</p>
-    </div>
+    @if (!chatDetails) {
+      <div class="loading-group-info">
+        <p>Loading group information...</p>
+      </div>
+    }
   </div>
 </div>
 
-<input 
+<input
   #avatarFileInput
   type="file"
   accept="image/jpeg,image/png,image/gif,image/webp"
   style="display:none"
   (change)="onAvatarFileSelected($event)"
-/>
+  />
 
-<div *ngIf="showAddParticipantsModal" class="add-participants-modal">
-  <div class="modal-overlay" (click)="closeAddParticipantsModal()">
-    <div class="modal-content smaller-modal" (click)="$event.stopPropagation()">
-      <button class="modal-close-button" (click)="closeAddParticipantsModal()" title="Close">×</button>
-      
-      <div class="modal-header">
-        <h2>Add Participants</h2>
-      </div>
-      
-      <div class="modal-body">
-        <div class="search-container">
-          <input
-            type="text"
-            [(ngModel)]="searchQuery"
-            (input)="onSearchChange($event)"
-            placeholder="Search users to add..."
-            class="search-input"
-           
-          />
+@if (showAddParticipantsModal) {
+  <div class="add-participants-modal">
+    <div class="modal-overlay" (click)="closeAddParticipantsModal()">
+      <div class="modal-content smaller-modal" (click)="$event.stopPropagation()">
+        <button class="modal-close-button" (click)="closeAddParticipantsModal()" title="Close">×</button>
+        <div class="modal-header">
+          <h2>Add Participants</h2>
         </div>
-        
-        <div class="search-results">
-          <div *ngIf="isSearching" class="loading-indicator">
-            Searching users...
+        <div class="modal-body">
+          <div class="search-container">
+            <input
+              type="text"
+              [(ngModel)]="searchQuery"
+              (input)="onSearchChange($event)"
+              placeholder="Search users to add..."
+              class="search-input"
+              />
           </div>
-          
-          <div *ngIf="!isSearching && searchResults.length === 0 && searchQuery.trim()" class="no-results">
-            No users found matching "{{ searchQuery }}"
-          </div>
-          
-          <ul *ngIf="!isSearching && searchResults.length > 0" class="user-list" role="listbox" aria-multiselectable="true" aria-label="Search results">
-            <li *ngFor="let user of searchResults"
-              class="user-item"
-              role="option"
-              tabindex="0"
-              [attr.aria-selected]="isUserSelected(user._id)"
-              [class.selected]="isUserSelected(user._id)"
-              (click)="toggleUserSelection(user)"
-              (keydown.enter)="toggleUserSelection(user)"
-              (keydown.space)="$event.preventDefault(); toggleUserSelection(user)"
-            >
-              <div class="user-info">
-                <img [src]="getUserAvatarUrl(user)" [alt]="user.username" class="user-avatar">
-                <span class="user-name">{{ user.username }}</span>
+          <div class="search-results">
+            @if (isSearching) {
+              <div class="loading-indicator">
+                Searching users...
               </div>
-              <span *ngIf="isUserSelected(user._id)" class="selected-indicator">✓</span>
-            </li>
-          </ul>
+            }
+            @if (!isSearching && searchResults.length === 0 && searchQuery.trim()) {
+              <div class="no-results">
+                No users found matching "{{ searchQuery }}"
+              </div>
+            }
+            @if (!isSearching && searchResults.length > 0) {
+              <ul class="user-list" role="listbox" aria-multiselectable="true" aria-label="Search results">
+                @for (user of searchResults; track user) {
+                  <li
+                    class="user-item"
+                    role="option"
+                    tabindex="0"
+                    [attr.aria-selected]="isUserSelected(user._id)"
+                    [class.selected]="isUserSelected(user._id)"
+                    (click)="toggleUserSelection(user)"
+                    (keydown.enter)="toggleUserSelection(user)"
+                    (keydown.space)="$event.preventDefault(); toggleUserSelection(user)"
+                    >
+                    <div class="user-info">
+                      <img [src]="getUserAvatarUrl(user)" [alt]="user.username" class="user-avatar">
+                      <span class="user-name">{{ user.username }}</span>
+                    </div>
+                    @if (isUserSelected(user._id)) {
+                      <span class="selected-indicator">✓</span>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          </div>
         </div>
-      </div>
-      
-      <div class="modal-footer">
-        <button 
-          class="action-button cancel-button" 
-          (click)="closeAddParticipantsModal()"
-        >
-          Cancel
-        </button>
-        <button 
-          class="action-button add-button" 
-          [disabled]="selectedUsers.length === 0"
-          (click)="confirmAddParticipants()"
-        >
-          Add {{ selectedUsers.length }} Users
-        </button>
+        <div class="modal-footer">
+          <button
+            class="action-button cancel-button"
+            (click)="closeAddParticipantsModal()"
+            >
+            Cancel
+          </button>
+          <button
+            class="action-button add-button"
+            [disabled]="selectedUsers.length === 0"
+            (click)="confirmAddParticipants()"
+            >
+            Add {{ selectedUsers.length }} Users
+          </button>
+        </div>
       </div>
     </div>
   </div>
-</div>
+}
