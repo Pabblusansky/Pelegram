@@ -158,6 +158,27 @@ describe('forward-multiple happy path', () => {
   });
 });
 
+describe('single-message forward happy path', () => {
+  test('a participant can forward a message into another of their chats', async () => {
+    const secret = await Message.findOne({ content: 'meet me at the usual place' });
+    const ownChat = await Chat.create({ participants: [insider._id], type: 'self' });
+
+    const res = await request(app)
+      .post(`/messages/${secret._id}/forward`)
+      .set('Authorization', `Bearer ${generateAccessToken(insider._id.toString())}`)
+      .send({ targetChatId: ownChat._id.toString() });
+
+    assert.ok(
+      res.status === 200 || res.status === 201,
+      `a participant should be able to forward, got ${res.status} ${JSON.stringify(res.body).slice(0, 120)}`
+    );
+    assert.ok(
+      await Message.findOne({ chatId: ownChat._id, forwarded: true }),
+      'the forwarded copy should be stored in the target chat'
+    );
+  });
+});
+
 describe('malformed chat ids are denied, not crashed', () => {
   test('GET /messages/:chatId with a non-ObjectId is denied', async () => {
     const res = await request(app)

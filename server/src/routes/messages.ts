@@ -316,7 +316,9 @@ export default (io: Server) => {
         return;
       }
 
-      const sourceChat = await findMemberChat(originalMessage.chatId, userId);
+      // findMemberChat only accepts string ids; passing the ObjectId made this
+      // check fail for every caller, so single-message forwarding always 403'd.
+      const sourceChat = await findMemberChat(originalMessage.chatId.toString(), userId);
       if (!sourceChat) {
         res.status(403).json({ message: 'Access denied to the original message' });
         return;
