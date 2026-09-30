@@ -1,5 +1,5 @@
 import { Component, EventEmitter, HostListener, Input, OnInit, Output, OnChanges, SimpleChanges, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { Chat, User } from '../../../chat.model';
 import { ChatApiService } from '../../../services/chat-api.service';
 import { Router } from '@angular/router';
@@ -13,7 +13,7 @@ import { TokenService } from '../../../../services/token.service';
 @Component({
   selector: 'app-group-info-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './group-info-modal.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./group-info-modal.component.scss']

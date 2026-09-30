@@ -8,20 +8,24 @@
     (keydown.enter)="nextResult()"
     (keydown)="onKeydown($event)"
     #searchInputEl
-  >
-  <div class="search-results-info" *ngIf="searchQuery && searchResults.length > 0">
-    <span>{{ currentSearchResultIndex + 1 }} of {{ searchResults.length }}</span>
-  </div>
-  <div class="search-results-info" *ngIf="searchQuery && !isSearching && searchResults.length === 0">
-    <span>No results</span>
-  </div>
+    >
+  @if (searchQuery && searchResults.length > 0) {
+    <div class="search-results-info">
+      <span>{{ currentSearchResultIndex + 1 }} of {{ searchResults.length }}</span>
+    </div>
+  }
+  @if (searchQuery && !isSearching && searchResults.length === 0) {
+    <div class="search-results-info">
+      <span>No results</span>
+    </div>
+  }
   <div class="search-navigation">
     <button
       class="nav-button"
       (click)="prevResult()"
       [disabled]="searchResults.length === 0 || currentSearchResultIndex === 0"
       title="Previous result"
-    >
+      >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
         <path fill-rule="evenodd" d="M14.77 12.79a.75.75 0 0 1-1.06-.02L10 8.832 6.29 12.77a.75.75 0 0 1-1.08-1.04l4.25-4.5a.75.75 0 0 1 1.08 0l4.25 4.5a.75.75 0 0 1-.02 1.06Z" clip-rule="evenodd" />
       </svg>
@@ -31,7 +35,7 @@
       (click)="nextResult()"
       [disabled]="searchResults.length === 0 || currentSearchResultIndex === searchResults.length - 1"
       title="Next result"
-    >
+      >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
         <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" />
       </svg>

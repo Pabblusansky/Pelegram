@@ -1,21 +1,27 @@
 <div class="profile-card" [class.compact]="compact">
   <div class="avatar-container">
-    <img 
-      [src]="avatarUrl" 
-      alt="Profile avatar" 
+    <img
+      [src]="avatarUrl"
+      alt="Profile avatar"
       class="profile-avatar"
       (error)="handleAvatarError($event)"
-    >
+      >
   </div>
-  
+
   <div class="profile-info">
     <h3 class="display-name">{{ displayName }}</h3>
-    
-    <p class="username" *ngIf="displayableProfile">{{'@' + displayableProfile.username }}</p>
-    
-    <p class="bio" *ngIf="displayableProfile?.bio && !compact">{{ displayableProfile?.bio }}</p>
-    <div class="actions" *ngIf="isCurrentUser && !compact">
-      <a [routerLink]="['/profile']" class="view-profile-link">View Full Profile</a>
-    </div>
+
+    @if (displayableProfile) {
+      <p class="username">{{'@' + displayableProfile.username }}</p>
+    }
+
+    @if (displayableProfile?.bio && !compact) {
+      <p class="bio">{{ displayableProfile?.bio }}</p>
+    }
+    @if (isCurrentUser && !compact) {
+      <div class="actions">
+        <a [routerLink]="['/profile']" class="view-profile-link">View Full Profile</a>
+      </div>
+    }
   </div>
 </div>

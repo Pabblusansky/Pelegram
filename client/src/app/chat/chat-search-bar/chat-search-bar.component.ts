@@ -1,5 +1,5 @@
 import { Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil, debounceTime } from 'rxjs';
 import { ChatApiService } from '../services/chat-api.service';
@@ -9,7 +9,7 @@ import { LoggerService } from '../../services/logger.service';
 @Component({
   selector: 'app-chat-search-bar',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './chat-search-bar.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './chat-search-bar.component.scss'

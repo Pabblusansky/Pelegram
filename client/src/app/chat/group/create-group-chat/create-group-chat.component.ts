@@ -1,5 +1,5 @@
 import { Component, ElementRef, EventEmitter, HostListener, OnInit, Output, ViewChild, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, filter, switchMap, takeUntil, tap, map } from 'rxjs/operators';
 import { Subject, timer, of } from 'rxjs';
@@ -15,10 +15,9 @@ import { TokenService } from '../../../services/token.service';
   selector: 'app-create-group-chat',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     ReactiveFormsModule
-  ],
+],
   templateUrl: './create-group-chat.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./create-group-chat.component.scss']

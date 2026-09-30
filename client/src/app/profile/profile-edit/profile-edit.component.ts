@@ -1,5 +1,5 @@
 import { Component, OnInit, Input, Output, EventEmitter, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { UserProfile, ProfileUpdateDto } from '../profile.model';
 import { ThemeService } from '../../services/theme.service';
@@ -16,7 +16,7 @@ import { LoggerService } from '../../services/logger.service';
   styleUrls: ['./profile-edit.component.scss'],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.Eager,
-  imports: [CommonModule, FormsModule]
+  imports: [FormsModule]
 })
 export class ProfileEditComponent implements OnInit {
   private themeService = inject(ThemeService);

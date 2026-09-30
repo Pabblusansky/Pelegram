@@ -3,13 +3,13 @@
   <div class="sidebar">
     <!-- Profile Card -->
     <div class="profile-section">
-      <app-profile-card 
-        [compact]="true" 
-        [profile]="userProfile" 
+      <app-profile-card
+        [compact]="true"
+        [profile]="userProfile"
         (click)="navigateToProfile()"
       ></app-profile-card>
     </div>
-    
+
     <!-- Chat List -->
     <div class="chat-list-container">
       <app-chat-list (chatSelected)="onChatSelect($event)"></app-chat-list>
@@ -19,27 +19,28 @@
   <!-- Main Content Area -->
   <div class="main-content">
     <!-- Router Outlet for Profile and Other Routes -->
-    <router-outlet *ngIf="isProfileRoute; else chatContent"></router-outlet>
-    
-    <!-- Chat Content -->
-    <ng-template #chatContent>
+    @if (isProfileRoute) {
+      <router-outlet></router-outlet>
+    } @else {
       <div class="chat-room-container">
-        <app-chat-room 
-          *ngIf="selectedChatId; else draftOrEmpty" 
-          [selectedChatId]="selectedChatId"
-        ></app-chat-room>
-        <ng-template #draftOrEmpty>
-          <app-draft-chat
-            *ngIf="draftRecipientId; else emptyChat"
-            [recipientId]="draftRecipientId"
-          ></app-draft-chat>
-        </ng-template>
-        <ng-template #emptyChat>
-          <div class="empty-chat-room">
-            <p>Select a chat room to start chatting</p>
-          </div>
-        </ng-template>
+        @if (selectedChatId) {
+          <app-chat-room
+            [selectedChatId]="selectedChatId"
+          ></app-chat-room>
+        } @else {
+          @if (draftRecipientId) {
+            <app-draft-chat
+              [recipientId]="draftRecipientId"
+            ></app-draft-chat>
+          } @else {
+            <div class="empty-chat-room">
+              <p>Select a chat room to start chatting</p>
+            </div>
+          }
+        }
       </div>
-    </ng-template>
+    }
+
+    <!-- Chat Content -->
   </div>
 </div>

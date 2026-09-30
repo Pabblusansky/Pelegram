@@ -1,110 +1,125 @@
 <div class="chat-room-wrapper">
-  <div *ngIf="isChatEffectivelyDeleted" class="chat-deleted-message">
-    <h2>This chat has been deleted.</h2>
-    <p>You can no longer send or receive messages in this chat. Redirecting in 5 seconds...</p>
-    <p>If you are not redirected, please click the button below.</p>
-    <button (click)="goBack()">Return to home</button>
-  </div>
-
-<ng-container *ngIf="!isChatEffectivelyDeleted">
-<div class="chat-room">
-  <!-- Header -->
-  <app-chat-header
-    [isSelectionModeActive]="isSelectionModeActive"
-    [isGroupChat]="isGroupChat"
-    [getAvatarUrl]="getAvatarUrl"
-    [getChatName]="getChatName()"
-    [chatDetails]="chatDetails"
-    [otherParticipant]="otherParticipant"
-    [showKeyboardHelp]="showKeyboardHelp"
-    [showMediaGallery]="showMediaGallery"
-    [selectedMessagesCount]="selectedMessagesMap.size"
-    [canDeleteSelected]="canDeleteSelectedMessages()"
-    [isOtherParticipantOnline$]="isOtherParticipantOnline$"
-    [otherParticipantStatus$]="otherParticipantStatus$"
-    (backClick)="onBackClick()"
-    (chatNameClick)="onChatNameClick($event)"
-    (keyboardHelpClick)="toggleKeyboardHelp()"
-    (mediaGalleryClick)="showMediaGallery = !showMediaGallery"
-    (searchClick)="toggleSearch()"
-    (cancelSelectionClick)="cancelSelectionMode()"
-    (copySelectedClick)="copySelectedMessages()"
-    (forwardSelectedClick)="forwardSelectedMessages()"
-    (deleteSelectedClick)="deleteSelectedMessages()"
-    (avatarError)="handleAvatarError($event)"
-  ></app-chat-header>
-  <!-- Message Search Bar -->
-  <app-chat-search-bar
-    *ngIf="isSearchActive"
-    [chatId]="chatId"
-    (resultsChanged)="onSearchResultsChanged($event)"
-    (resultsCleared)="onSearchResultsCleared()"
-    (resultNavigated)="onSearchResultNavigated($event)"
-    (closed)="onSearchClosed()"
-  ></app-chat-search-bar>
-
-  <!-- Pinned Message Bar -->
-  <div class="pinned-message-bar" *ngIf="pinnedMessageDetails" role="button" tabindex="0" (click)="scrollToPinnedMessage()" (keydown.enter)="scrollToPinnedMessage()" (keydown.space)="$event.preventDefault(); scrollToPinnedMessage()">
-    <div class="pinned-accent-line"></div>
-    <div class="pinned-icon">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <path fill-rule="evenodd" clip-rule="evenodd" d="M17.1218 1.87023C15.7573 0.505682 13.4779 0.76575 12.4558 2.40261L9.61062 6.95916C9.61033 6.95965 9.60913 6.96167 9.6038 6.96549C9.59728 6.97016 9.58336 6.97822 9.56001 6.9848C9.50899 6.99916 9.44234 6.99805 9.38281 6.97599C8.41173 6.61599 6.74483 6.22052 5.01389 6.87251C4.08132 7.22378 3.61596 8.03222 3.56525 8.85243C3.51687 9.63502 3.83293 10.4395 4.41425 11.0208L7.94975 14.5563L1.26973 21.2363C0.879206 21.6269 0.879206 22.26 1.26973 22.6506C1.66025 23.0411 2.29342 23.0411 2.68394 22.6506L9.36397 15.9705L12.8995 19.5061C13.4808 20.0874 14.2853 20.4035 15.0679 20.3551C15.8881 20.3044 16.6966 19.839 17.0478 18.9065C17.6998 17.1755 17.3043 15.5086 16.9444 14.5375C16.9223 14.478 16.9212 14.4114 16.9355 14.3603C16.9421 14.337 16.9502 14.3231 16.9549 14.3165C16.9587 14.3112 16.9606 14.31 16.9611 14.3098L21.5177 11.4645C23.1546 10.4424 23.4147 8.16307 22.0501 6.79853L17.1218 1.87023Z"/>
-      </svg>
+  @if (isChatEffectivelyDeleted) {
+    <div class="chat-deleted-message">
+      <h2>This chat has been deleted.</h2>
+      <p>You can no longer send or receive messages in this chat. Redirecting in 5 seconds...</p>
+      <p>If you are not redirected, please click the button below.</p>
+      <button (click)="goBack()">Return to home</button>
     </div>
-    <div class="pinned-content">
-      <div class="pinned-label">Pinned Message</div>
-      <div class="pinned-preview">
-        <span class="pinned-sender">{{ pinnedMessageDetails.senderName }}:</span>
-        <span *ngIf="pinnedMessageDetails.messageType === 'image'" class="pinned-media-type">Photo</span>
-        <span *ngIf="pinnedMessageDetails.messageType === 'video'" class="pinned-media-type">Video</span>
-        <span *ngIf="pinnedMessageDetails.messageType === 'audio'" class="pinned-media-type">Voice message</span>
-        <span *ngIf="pinnedMessageDetails.messageType === 'file'" class="pinned-media-type">{{ pinnedMessageDetails.originalFileName || 'File' }}</span>
-        <span
-          *ngIf="pinnedMessageDetails.content"
-          class="pinned-text"
-          [innerHTML]="getHighlightedText(pinnedMessageDetails.content.slice(0, 70), isSearchActive ? searchQuery : '')"
-        ></span>
-      </div>
-    </div>
-    <button
-      *ngIf="canUnpin()"
-      class="unpin-button"
-      (click)="unpinCurrentMessage(); $event.stopPropagation();"
-      title="Unpin message"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-        <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-      </svg>
-    </button>
-  </div>
+  }
 
-  <!-- Messages -->
-  <div class="messages-container-wrapper">
-    <cdk-virtual-scroll-viewport 
-      #scrollViewport 
-      class="messages"
-      [itemSize]="80"
-      [minBufferPx]="800"
-      [maxBufferPx]="1200"
-      (scrolledIndexChange)="onVirtualScrollIndexChange()"
-      (mousemove)="onMessagesContainerMouseMove($event)" 
-      (mouseup)="onMessagesContainerMouseUp()" 
-      (mouseleave)="onMessagesContainerMouseUp()"
-    >
-      <div *ngIf="messagesWithDividers.length === 0" class="no-messages">
-        No messages yet. Start the conversation!
-      </div>
-
-      <ng-container *cdkVirtualFor="let item of messagesWithDividers; trackBy: trackByMessageId; templateCacheSize: 50" class="virtual-scroll-item-wrapper" appObserveContentSize>
-        <!-- Date Divider -->
-        <div *ngIf="item.type === 'divider'" class="date-divider">
-          <span>{{ item.date }}</span>
+  @if (!isChatEffectivelyDeleted) {
+    <div class="chat-room">
+      <!-- Header -->
+      <app-chat-header
+        [isSelectionModeActive]="isSelectionModeActive"
+        [isGroupChat]="isGroupChat"
+        [getAvatarUrl]="getAvatarUrl"
+        [getChatName]="getChatName()"
+        [chatDetails]="chatDetails"
+        [otherParticipant]="otherParticipant"
+        [showKeyboardHelp]="showKeyboardHelp"
+        [showMediaGallery]="showMediaGallery"
+        [selectedMessagesCount]="selectedMessagesMap.size"
+        [canDeleteSelected]="canDeleteSelectedMessages()"
+        [isOtherParticipantOnline$]="isOtherParticipantOnline$"
+        [otherParticipantStatus$]="otherParticipantStatus$"
+        (backClick)="onBackClick()"
+        (chatNameClick)="onChatNameClick($event)"
+        (keyboardHelpClick)="toggleKeyboardHelp()"
+        (mediaGalleryClick)="showMediaGallery = !showMediaGallery"
+        (searchClick)="toggleSearch()"
+        (cancelSelectionClick)="cancelSelectionMode()"
+        (copySelectedClick)="copySelectedMessages()"
+        (forwardSelectedClick)="forwardSelectedMessages()"
+        (deleteSelectedClick)="deleteSelectedMessages()"
+        (avatarError)="handleAvatarError($event)"
+      ></app-chat-header>
+      <!-- Message Search Bar -->
+      @if (isSearchActive) {
+        <app-chat-search-bar
+          [chatId]="chatId"
+          (resultsChanged)="onSearchResultsChanged($event)"
+          (resultsCleared)="onSearchResultsCleared()"
+          (resultNavigated)="onSearchResultNavigated($event)"
+          (closed)="onSearchClosed()"
+        ></app-chat-search-bar>
+      }
+      <!-- Pinned Message Bar -->
+      @if (pinnedMessageDetails) {
+        <div class="pinned-message-bar" role="button" tabindex="0" (click)="scrollToPinnedMessage()" (keydown.enter)="scrollToPinnedMessage()" (keydown.space)="$event.preventDefault(); scrollToPinnedMessage()">
+          <div class="pinned-accent-line"></div>
+          <div class="pinned-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M17.1218 1.87023C15.7573 0.505682 13.4779 0.76575 12.4558 2.40261L9.61062 6.95916C9.61033 6.95965 9.60913 6.96167 9.6038 6.96549C9.59728 6.97016 9.58336 6.97822 9.56001 6.9848C9.50899 6.99916 9.44234 6.99805 9.38281 6.97599C8.41173 6.61599 6.74483 6.22052 5.01389 6.87251C4.08132 7.22378 3.61596 8.03222 3.56525 8.85243C3.51687 9.63502 3.83293 10.4395 4.41425 11.0208L7.94975 14.5563L1.26973 21.2363C0.879206 21.6269 0.879206 22.26 1.26973 22.6506C1.66025 23.0411 2.29342 23.0411 2.68394 22.6506L9.36397 15.9705L12.8995 19.5061C13.4808 20.0874 14.2853 20.4035 15.0679 20.3551C15.8881 20.3044 16.6966 19.839 17.0478 18.9065C17.6998 17.1755 17.3043 15.5086 16.9444 14.5375C16.9223 14.478 16.9212 14.4114 16.9355 14.3603C16.9421 14.337 16.9502 14.3231 16.9549 14.3165C16.9587 14.3112 16.9606 14.31 16.9611 14.3098L21.5177 11.4645C23.1546 10.4424 23.4147 8.16307 22.0501 6.79853L17.1218 1.87023Z"/>
+            </svg>
+          </div>
+          <div class="pinned-content">
+            <div class="pinned-label">Pinned Message</div>
+            <div class="pinned-preview">
+              <span class="pinned-sender">{{ pinnedMessageDetails.senderName }}:</span>
+              @if (pinnedMessageDetails.messageType === 'image') {
+                <span class="pinned-media-type">Photo</span>
+              }
+              @if (pinnedMessageDetails.messageType === 'video') {
+                <span class="pinned-media-type">Video</span>
+              }
+              @if (pinnedMessageDetails.messageType === 'audio') {
+                <span class="pinned-media-type">Voice message</span>
+              }
+              @if (pinnedMessageDetails.messageType === 'file') {
+                <span class="pinned-media-type">{{ pinnedMessageDetails.originalFileName || 'File' }}</span>
+              }
+              @if (pinnedMessageDetails.content) {
+                <span
+                  class="pinned-text"
+                  [innerHTML]="getHighlightedText(pinnedMessageDetails.content.slice(0, 70), isSearchActive ? searchQuery : '')"
+                ></span>
+              }
+            </div>
+          </div>
+          @if (canUnpin()) {
+            <button
+              class="unpin-button"
+              (click)="unpinCurrentMessage(); $event.stopPropagation();"
+              title="Unpin message"
+              >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+              </svg>
+            </button>
+          }
         </div>
-
-        <!-- Message -->
-        <div
-          *ngIf="item.type === 'message'"
-          [id]="'message-' + item._id"
+      }
+      <!-- Messages -->
+      <div class="messages-container-wrapper">
+        <cdk-virtual-scroll-viewport
+          #scrollViewport
+          class="messages"
+          [itemSize]="80"
+          [minBufferPx]="800"
+          [maxBufferPx]="1200"
+          (scrolledIndexChange)="onVirtualScrollIndexChange()"
+          (mousemove)="onMessagesContainerMouseMove($event)"
+          (mouseup)="onMessagesContainerMouseUp()"
+          (mouseleave)="onMessagesContainerMouseUp()"
+          >
+          @if (messagesWithDividers.length === 0) {
+            <div class="no-messages">
+              No messages yet. Start the conversation!
+            </div>
+          }
+          <ng-container *cdkVirtualFor="let item of messagesWithDividers; trackBy: trackByMessageId; templateCacheSize: 50" class="virtual-scroll-item-wrapper" appObserveContentSize>
+            <!-- Date Divider -->
+            @if (item.type === 'divider') {
+              <div class="date-divider">
+                <span>{{ item.date }}</span>
+              </div>
+            }
+            <!-- Message -->
+            @if (item.type === 'message') {
+              <div
+                [id]="'message-' + item._id"
           [ngClass]="{
             'message': true,
             'my-message': item.ismyMessage,
@@ -119,478 +134,530 @@
             'selection-mode-active': isSelectionModeActive,
             'current-search-result': item.isCurrentSearchResult
           }"
-          [attr.role]="isSelectionModeActive ? 'button' : null"
-          [attr.tabindex]="isSelectionModeActive ? 0 : null"
-          [attr.aria-pressed]="isSelectionModeActive ? !!item.isSelected : null"
-          (contextmenu)="showContextMenu($event, item)"
-          (mousedown)="onMessageMouseDown($event, item)"
-          (touchstart)="startLongPress($event, item)"
-          (touchend)="endLongPress()"
-          (touchmove)="endLongPress()"
-          (touchcancel)="endLongPress()"
-          (click)="onMessageClick(item, $event)"
-          (keydown.enter)="isSelectionModeActive && onMessageClick(item)"
-          (keydown.space)="$event.preventDefault(); isSelectionModeActive && onMessageClick(item)"
-        >
-
-          <!-- Pin badge -->
-          <span *ngIf="pinnedMessageDetails?._id === item._id" class="pin-badge" title="Pinned message">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17.1218 1.87023C15.7573 0.505682 13.4779 0.76575 12.4558 2.40261L9.61062 6.95916C9.61033 6.95965 9.60913 6.96167 9.6038 6.96549C9.59728 6.97016 9.58336 6.97822 9.56001 6.9848C9.50899 6.99916 9.44234 6.99805 9.38281 6.97599C8.41173 6.61599 6.74483 6.22052 5.01389 6.87251C4.08132 7.22378 3.61596 8.03222 3.56525 8.85243C3.51687 9.63502 3.83293 10.4395 4.41425 11.0208L7.94975 14.5563L1.26973 21.2363C0.879206 21.6269 0.879206 22.26 1.26973 22.6506C1.66025 23.0411 2.29342 23.0411 2.68394 22.6506L9.36397 15.9705L12.8995 19.5061C13.4808 20.0874 14.2853 20.4035 15.0679 20.3551C15.8881 20.3044 16.6966 19.839 17.0478 18.9065C17.6998 17.1755 17.3043 15.5086 16.9444 14.5375C16.9223 14.478 16.9212 14.4114 16.9355 14.3603C16.9421 14.337 16.9502 14.3231 16.9549 14.3165C16.9587 14.3112 16.9606 14.31 16.9611 14.3098L21.5177 11.4645C23.1546 10.4424 23.4147 8.16307 22.0501 6.79853L17.1218 1.87023Z"/></svg>
-          </span>
-          <!-- Menu icon -->
-          <button
-            *ngIf="item.senderId === userId"
-            class="message-menu-icon"
-            type="button"
-            (click)="showContextMenu($event, item)"
-          >⋮</button>
-          <span
-            class="sender"
-            *ngIf="item.category !== 'system_event' || item.senderName === 'System'"
-            [class.clickable]="item.senderId && !isSelectionModeActive"
-            [attr.role]="item.senderId && !isSelectionModeActive ? 'button' : null"
-            [attr.tabindex]="item.senderId && !isSelectionModeActive ? 0 : null"
-            (click)="item.senderId &&  !isSelectionModeActive && navigateToUserProfile(item.senderId, $event)"
-            (keydown.enter)="item.senderId && !isSelectionModeActive && navigateToUserProfile(item.senderId, $event)"
-            (keydown.space)="$event.preventDefault(); item.senderId && !isSelectionModeActive && navigateToUserProfile(item.senderId, $event)"
-            [title]="item.senderId &&  !isSelectionModeActive ? 'View profile' : ''"
-          >
-            {{ item.senderName }}
-          </span>
-          <div *ngIf="item.forwarded && item.originalSenderName" class="forwarded-info">
-            <span class="forwarded-icon">↪️</span>
-            <span class="forwarded-text">
-              Forwarded from 
-              <strong
-                class="clickable-sender-name"
-                role="button"
-                tabindex="0"
-                (click)="navigateToUserProfile(item.originalSenderId, $event)"
-                (keydown.enter)="navigateToUserProfile(item.originalSenderId, $event)"
-                (keydown.space)="$event.preventDefault(); navigateToUserProfile(item.originalSenderId, $event)"
-                [title]="'View ' + item.originalSenderName + '\'s profile'"
-                *ngIf="item.originalSenderId"
-              >
-                {{ item.originalSenderName }}
-              </strong>
-              <span *ngIf="!item.originalSenderId">
-                {{ item.originalSenderName }}
-              </span>
-            </span>
-          </div>
-          <ng-container *ngIf="item.replyTo && item.replyTo._id">
-            
-            <ng-container *ngIf="getRepliedMessage(item.replyTo._id) as repliedMessage; else deletedMessageTemplate">
-              
-              <div class="reply-quote-block" role="button" tabindex="0" (click)="onQuoteClick(item.replyTo._id, item._id)" (keydown.enter)="onQuoteClick(item.replyTo._id, item._id)" (keydown.space)="$event.preventDefault(); onQuoteClick(item.replyTo._id, item._id)">
-                <div class="reply-quote-sender">{{ repliedMessage.senderName }}</div>
-                
-                <div class="reply-quote-content">
-                  <ng-container [ngSwitch]="repliedMessage.messageType">
-                    <ng-container *ngSwitchCase="'image'">
-                      <span class="media-indicator">🖼️ Photo </span>
-                    </ng-container>
-                    <ng-container *ngSwitchCase="'video'">
-                      <span class="media-indicator">🎬 Video </span>
-                    </ng-container>
-                    <ng-container *ngSwitchCase="'audio'">
-                      <span class="media-indicator">🎵 Audio </span>
-                    </ng-container>
-                    <ng-container *ngSwitchCase="'file'">
-                      <span class="media-indicator">📄 </span>
-                      <span *ngIf="repliedMessage.content">{{ repliedMessage.content }}</span>
-                    </ng-container>
-                    <ng-container *ngSwitchDefault>
-                      {{ repliedMessage.content | slice:0:70 }}{{ repliedMessage.content.length > 70 ? '...' : '' }}
-                    </ng-container>
-                  </ng-container>
+                [attr.role]="isSelectionModeActive ? 'button' : null"
+                [attr.tabindex]="isSelectionModeActive ? 0 : null"
+                [attr.aria-pressed]="isSelectionModeActive ? !!item.isSelected : null"
+                (contextmenu)="showContextMenu($event, item)"
+                (mousedown)="onMessageMouseDown($event, item)"
+                (touchstart)="startLongPress($event, item)"
+                (touchend)="endLongPress()"
+                (touchmove)="endLongPress()"
+                (touchcancel)="endLongPress()"
+                (click)="onMessageClick(item, $event)"
+                (keydown.enter)="isSelectionModeActive && onMessageClick(item)"
+                (keydown.space)="$event.preventDefault(); isSelectionModeActive && onMessageClick(item)"
+                >
+                <!-- Pin badge -->
+                @if (pinnedMessageDetails?._id === item._id) {
+                  <span class="pin-badge" title="Pinned message">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17.1218 1.87023C15.7573 0.505682 13.4779 0.76575 12.4558 2.40261L9.61062 6.95916C9.61033 6.95965 9.60913 6.96167 9.6038 6.96549C9.59728 6.97016 9.58336 6.97822 9.56001 6.9848C9.50899 6.99916 9.44234 6.99805 9.38281 6.97599C8.41173 6.61599 6.74483 6.22052 5.01389 6.87251C4.08132 7.22378 3.61596 8.03222 3.56525 8.85243C3.51687 9.63502 3.83293 10.4395 4.41425 11.0208L7.94975 14.5563L1.26973 21.2363C0.879206 21.6269 0.879206 22.26 1.26973 22.6506C1.66025 23.0411 2.29342 23.0411 2.68394 22.6506L9.36397 15.9705L12.8995 19.5061C13.4808 20.0874 14.2853 20.4035 15.0679 20.3551C15.8881 20.3044 16.6966 19.839 17.0478 18.9065C17.6998 17.1755 17.3043 15.5086 16.9444 14.5375C16.9223 14.478 16.9212 14.4114 16.9355 14.3603C16.9421 14.337 16.9502 14.3231 16.9549 14.3165C16.9587 14.3112 16.9606 14.31 16.9611 14.3098L21.5177 11.4645C23.1546 10.4424 23.4147 8.16307 22.0501 6.79853L17.1218 1.87023Z"/></svg>
+                  </span>
+                }
+                <!-- Menu icon -->
+                @if (item.senderId === userId) {
+                  <button
+                    class="message-menu-icon"
+                    type="button"
+                    (click)="showContextMenu($event, item)"
+                  >⋮</button>
+                }
+                @if (item.category !== 'system_event' || item.senderName === 'System') {
+                  <span
+                    class="sender"
+                    [class.clickable]="item.senderId && !isSelectionModeActive"
+                    [attr.role]="item.senderId && !isSelectionModeActive ? 'button' : null"
+                    [attr.tabindex]="item.senderId && !isSelectionModeActive ? 0 : null"
+                    (click)="item.senderId &&  !isSelectionModeActive && navigateToUserProfile(item.senderId, $event)"
+                    (keydown.enter)="item.senderId && !isSelectionModeActive && navigateToUserProfile(item.senderId, $event)"
+                    (keydown.space)="$event.preventDefault(); item.senderId && !isSelectionModeActive && navigateToUserProfile(item.senderId, $event)"
+                    [title]="item.senderId &&  !isSelectionModeActive ? 'View profile' : ''"
+                    >
+                    {{ item.senderName }}
+                  </span>
+                }
+                @if (item.forwarded && item.originalSenderName) {
+                  <div class="forwarded-info">
+                    <span class="forwarded-icon">↪️</span>
+                    <span class="forwarded-text">
+                      Forwarded from
+                      @if (item.originalSenderId) {
+                        <strong
+                          class="clickable-sender-name"
+                          role="button"
+                          tabindex="0"
+                          (click)="navigateToUserProfile(item.originalSenderId, $event)"
+                          (keydown.enter)="navigateToUserProfile(item.originalSenderId, $event)"
+                          (keydown.space)="$event.preventDefault(); navigateToUserProfile(item.originalSenderId, $event)"
+                          [title]="'View ' + item.originalSenderName + '\'s profile'"
+                          >
+                          {{ item.originalSenderName }}
+                        </strong>
+                      }
+                      @if (!item.originalSenderId) {
+                        <span>
+                          {{ item.originalSenderName }}
+                        </span>
+                      }
+                    </span>
+                  </div>
+                }
+                @if (item.replyTo && item.replyTo._id) {
+                  @if (getRepliedMessage(item.replyTo._id); as repliedMessage) {
+                    <div class="reply-quote-block" role="button" tabindex="0" (click)="onQuoteClick(item.replyTo._id, item._id)" (keydown.enter)="onQuoteClick(item.replyTo._id, item._id)" (keydown.space)="$event.preventDefault(); onQuoteClick(item.replyTo._id, item._id)">
+                      <div class="reply-quote-sender">{{ repliedMessage.senderName }}</div>
+                      <div class="reply-quote-content">
+                        @switch (repliedMessage.messageType) {
+                          @case ('image') {
+                            <span class="media-indicator">🖼️ Photo </span>
+                          }
+                          @case ('video') {
+                            <span class="media-indicator">🎬 Video </span>
+                          }
+                          @case ('audio') {
+                            <span class="media-indicator">🎵 Audio </span>
+                          }
+                          @case ('file') {
+                            <span class="media-indicator">📄 </span>
+                            @if (repliedMessage.content) {
+                              <span>{{ repliedMessage.content }}</span>
+                            }
+                          }
+                          @default {
+                            {{ repliedMessage.content | slice:0:70 }}{{ repliedMessage.content.length > 70 ? '...' : '' }}
+                          }
+                        }
+                      </div>
+                    </div>
+                  } @else {
+                    <div class="reply-quote-block deleted">
+                      <div class="reply-quote-content">Original message deleted</div>
+                    </div>
+                  }
+                }
+                <div class="message-body-container">
+                  @switch (item.messageType) {
+                    @case ('image') {
+                      <div class="media-content image-attachment">
+                        @if (item.filePath) {
+                          <div class="media-lazy-container" [class.media-loaded]="item.mediaLoaded">
+                            @if (getThumbnailUrl(item.filePath); as thumbUrl) {
+                              <img
+                                [src]="thumbUrl"
+                                class="media-thumbnail"
+                                alt=""
+                                aria-hidden="true"
+                                >
+                            }
+                            @if (!getThumbnailUrl(item.filePath)) {
+                              <div class="media-skeleton"></div>
+                            }
+                            <img
+                              [src]="getMediaUrl(item.filePath)"
+                              [alt]="item.originalFileName || 'Image attachment'"
+                              role="button"
+                              tabindex="0"
+                              (load)="onMediaLoad(item, $event)"
+                              (error)="onMediaError(item, $event)"
+                              (click)="openMediaModal(item)"
+                              (keydown.enter)="openMediaModal(item)"
+                              (keydown.space)="$event.preventDefault(); openMediaModal(item)"
+                              loading="lazy"
+                              class="media-full"
+                              >
+                          </div>
+                        }
+                        @if (item.mediaLoadError) {
+                          <div class="media-error-placeholder">
+                            <span>Failed to load image</span>
+                            <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>
+                          </div>
+                        }
+                      </div>
+                    }
+                    <!-- VIDEO -->
+                    @case ('video') {
+                      <div class="media-content video-attachment">
+                        @if (item.filePath) {
+                          <div class="media-lazy-container" [class.media-loaded]="item.mediaLoaded">
+                            @if (!getVideoPosterUrl(item.filePath)) {
+                              <div class="media-skeleton video-skeleton"></div>
+                            }
+                            <video
+                              controls
+                              [src]="getMediaUrl(item.filePath)"
+                              [poster]="getVideoPosterUrl(item.filePath)"
+                              (loadedmetadata)="onMediaLoad(item, $event)"
+                              (error)="onMediaError(item, $event)"
+                              preload="metadata"
+                              loading="lazy"
+                              class="media-full"
+                            > Your browser does not support the video tag. </video>
+                          </div>
+                        }
+                        @if (item.mediaLoadError) {
+                          <div class="media-error-placeholder">
+                            <span>Failed to load video</span>
+                            <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>
+                          </div>
+                        }
+                      </div>
+                    }
+                    <!-- AUDIO -->
+                    @case ('audio') {
+                      <div class="media-content audio-attachment">
+                        @if (item.filePath) {
+                          <app-audio-player
+                            [src]="getMediaUrl(item.filePath)"
+                            (error)="onMediaError(item, $event)"
+                            [preloadedDuration]="item.duration"
+                            (loadSuccess)="onMediaLoad(item, $event)"
+                            (loadError)="onMediaError(item, $event)"
+                          ></app-audio-player>
+                        }
+                        @if (item.mediaLoadError) {
+                          <div class="media-error-placeholder">
+                            <span>Failed to load audio</span>
+                            <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>
+                          </div>
+                        }
+                      </div>
+                    }
+                    @case ('file') {
+                      <div class="media-content file-attachment">
+                        @if (item.filePath) {
+                          <a [href]="getMediaUrl(item.filePath)" target="_blank" download="{{ item.originalFileName }}">
+                            <div class="file-icon-wrapper">
+                              @if (item.fileMimeType === 'application/pdf') {
+                                <svg class="file-type-icon pdf" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                                  <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v7h6v9H6zm2-4h2.5c.83 0 1.5-.67 1.5-1.5S11.33 13 10.5 13H8v4h1v-1.5h1.5c.28 0 .5-.22.5-.5s-.22-.5-.5-.5H9V14zm5 0h1.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5H13v-3zm1 2h.5c.28 0 .5-.22.5-.5s-.22-.5-.5-.5H14v1zm3-2h2v1h-1v.5h1v1h-1V18h-1v-4z"/>
+                                </svg>
+                              }
+                              @if (item.fileMimeType?.startsWith('text/')) {
+                                <svg class="file-type-icon text" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                                  <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v7h6v9H6zm2-6h8v1H8v-1zm0 2h8v1H8v-1zm0 2h5v1H8v-1z"/>
+                                </svg>
+                              }
+                              @if (item.fileMimeType?.includes('word') || item.fileMimeType?.includes('document')) {
+                                <svg class="file-type-icon doc" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                                  <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v7h6v9H6zm2-6h8v1H8v-1zm0 2h8v1H8v-1zm0 2h5v1H8v-1z"/>
+                                </svg>
+                              }
+                              @if (!item.fileMimeType || (!item.fileMimeType.startsWith('text/') && item.fileMimeType !== 'application/pdf' && !item.fileMimeType.includes('word') && !item.fileMimeType.includes('document'))) {
+                                <svg class="file-type-icon generic" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                                  <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v7h6v9H6z"/>
+                                </svg>
+                              }
+                            </div>
+                            <div class="file-details">
+                              <span class="file-name-link">{{ item.originalFileName || 'Download file' }}</span>
+                              @if (item.fileSize) {
+                                <span class="file-meta">{{ item.fileSize | fileSize }}</span>
+                              }
+                              @if (item.fileMimeType && !item.fileSize) {
+                                <span class="file-meta">{{ item.fileMimeType }}</span>
+                              }
+                              @if (item.fileMimeType && item.fileSize) {
+                                <span class="file-meta"> - {{ item.fileMimeType }}</span>
+                              }
+                            </div>
+                          </a>
+                        }
+                        @if (item.mediaLoadError) {
+                          <div class="media-error-placeholder">
+                            <span>Failed to load file link</span>
+                            <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>
+                          </div>
+                        }
+                      </div>
+                    }
+                    @default {
+                      <div class="content text-content"
+                        [ngClass]="{'highlight-edit': item.editedRecently}"
+                        [innerHTML]="isSearchActive && item.isSearchResult ? getHighlightedText(item.content, searchQuery) : formatMessageContent(item.content)"
+                        [style.display]="item.isEditing ? 'none' : 'block'"
+                        >
+                      </div>
+                    }
+                  }
+                  @if (item.messageType && item.messageType !== 'text' && item.category!== 'system_event' && item.content && item.content !== item.originalFileName) {
+                    <div
+                      class="caption-text content"
+                      [innerHTML]="isSearchActive && item.isSearchResult ? getHighlightedText(item.content, searchQuery) : formatMessageContent(item.content)"
+                      >
+                    </div>
+                  }
+                </div>
+                <!-- Edit mode -->
+                @if (item.isEditing) {
+                  <div class="edit-container">
+                    <textarea
+                      class="edit-textarea"
+                      [(ngModel)]="item.editedContent"
+                      #editTextarea
+                      (keydown)="onEditTextareaKeydown($event, item)"
+                    ></textarea>
+                    <div class="edit-actions">
+                      <div class="edit-keyboard-hints">
+                        Press <kbd>Enter</kbd> to save, <kbd>Shift</kbd>+<kbd>Enter</kbd> for new line, <kbd>Esc</kbd> to cancel
+                      </div>
+                      <button class="edit-btn cancel" (click)="cancelEdit(item)">Cancel</button>
+                      <button class="edit-btn save" (click)="saveMessageEdit(item)">Save</button>
+                    </div>
+                  </div>
+                }
+                <div class="message-footer">
+                  <div class="message-reactions-wrapper">
+                    @if (item.type === 'message' && item.reactions && item.reactions.length > 0) {
+                      <div class="message-reactions">
+                        @for (group of (item.reactions | groupReactions : userId); track trackByReactionType($index, group)) {
+                          <span
+                            class="reaction-tag"
+                            role="button"
+                            tabindex="0"
+                            [attr.aria-pressed]="group.reactedByMe"
+                            [class.reacted-by-me]="group.reactedByMe"
+                            (click)="onReactionClick(item._id, group.type)"
+                            (keydown.enter)="onReactionClick(item._id, group.type)"
+                            (keydown.space)="$event.preventDefault(); onReactionClick(item._id, group.type)"
+                            title="{{ group.reactedByMe ? 'Remove Reaction' : 'Put Reaction ' + group.type }}">
+                            {{ group.type }}<span class="reaction-count">{{ group.count }}</span>
+                          </span>
+                        }
+                      </div>
+                    }
+                  </div>
+                  <div class="message-info">
+                    <span class="timestamp">{{ formatTimestamp(item.timestamp) }}</span>
+                    <!-- Edited indicator -->
+                    @if (item.edited) {
+                      <span
+                        class="edited-indicator"
+                        [title]="'Edited: ' + formatEditedTime(item.editedAt)"
+                        >
+                        <span class="edited-icon">✎</span>
+                        <span class="edited-text">edited</span>
+                      </span>
+                    }
+                  </div>
+                  <!-- Message status -->
+                  @if (item.ismyMessage) {
+                    <span
+                      class="status"
+                      role="button"
+                      tabindex="0"
+                      aria-label="Show read receipts"
+                      [class.has-read-receipts]="item.readBy?.length > 0"
+                      (click)="toggleReadReceipts(item, $event)"
+                      (keydown.enter)="toggleReadReceipts(item, $event)"
+                      (keydown.space)="$event.preventDefault(); toggleReadReceipts(item, $event)"
+                      >
+                      <img
+                        [src]="getMessageStatusIcon(item.status ?? 'sent')"
+                        [alt]="item.status || 'Sent'"
+                        class="status-icon"
+                        />
+                      @if (isGroupChat && item.readBy?.length > 0) {
+                        <span class="read-count">{{ item.readBy.length }}</span>
+                      }
+                    </span>
+                  }
+                  <!-- Read receipts tooltip -->
+                  @if (readReceiptsMessageId === item._id && item.readBy?.length > 0) {
+                    <div
+                      class="read-receipts-panel"
+                      >
+                      <div class="read-receipts-header">
+                        Read by {{ item.readBy.length }}
+                        <span class="read-receipts-close" role="button" tabindex="0" aria-label="Close read receipts" (click)="readReceiptsMessageId = null; $event.stopPropagation()" (keydown.enter)="readReceiptsMessageId = null; $event.stopPropagation()" (keydown.space)="$event.preventDefault(); readReceiptsMessageId = null; $event.stopPropagation()">×</span>
+                      </div>
+                      <div class="read-receipts-list">
+                        @for (receipt of item.readBy; track trackByReceiptUserId($index, receipt)) {
+                          <div class="read-receipt-item">
+                            <img [src]="getUserAvatar(receipt.userId)" [alt]="getUserName(receipt.userId)" class="read-receipt-avatar" />
+                            <span class="read-receipt-name">{{ getUserName(receipt.userId) }}</span>
+                            <span class="read-receipt-time">{{ formatTimestamp(receipt.readAt) }}</span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
                 </div>
               </div>
-            
-            </ng-container>
-
-            <ng-template #deletedMessageTemplate>
-              <div class="reply-quote-block deleted">
-                <div class="reply-quote-content">Original message deleted</div>
-              </div>
-            </ng-template>
-
+            }
           </ng-container>
-          
-          <div class="message-body-container">
-            <ng-container [ngSwitch]="item.messageType">
-              <div *ngSwitchCase="'image'" class="media-content image-attachment">
-                <div *ngIf="item.filePath" class="media-lazy-container" [class.media-loaded]="item.mediaLoaded">
-                  <img
-                    *ngIf="getThumbnailUrl(item.filePath) as thumbUrl"
-                    [src]="thumbUrl"
-                    class="media-thumbnail"
-                    alt=""
-                    aria-hidden="true"
-                  >
-                  <div *ngIf="!getThumbnailUrl(item.filePath)" class="media-skeleton"></div>
-                  <img
-                    [src]="getMediaUrl(item.filePath)"
-                    [alt]="item.originalFileName || 'Image attachment'"
-                    role="button"
-                    tabindex="0"
-                    (load)="onMediaLoad(item, $event)"
-                    (error)="onMediaError(item, $event)"
-                    (click)="openMediaModal(item)"
-                    (keydown.enter)="openMediaModal(item)"
-                    (keydown.space)="$event.preventDefault(); openMediaModal(item)"
-                    loading="lazy"
-                    class="media-full"
-                  >
-                </div>
-                <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
-                  <span>Failed to load image</span>
-                  <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>
-                </div>
-              </div>
-
-              <!-- VIDEO -->
-              <div *ngSwitchCase="'video'" class="media-content video-attachment">
-                <div *ngIf="item.filePath" class="media-lazy-container" [class.media-loaded]="item.mediaLoaded">
-                  <div *ngIf="!getVideoPosterUrl(item.filePath)" class="media-skeleton video-skeleton"></div>
-                  <video
-                    controls
-                    [src]="getMediaUrl(item.filePath)"
-                    [poster]="getVideoPosterUrl(item.filePath)"
-                    (loadedmetadata)="onMediaLoad(item, $event)"
-                    (error)="onMediaError(item, $event)"
-                    preload="metadata"
-                    loading="lazy"
-                    class="media-full"
-                  > Your browser does not support the video tag. </video>
-                </div>
-                <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
-                  <span>Failed to load video</span>
-                  <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>
-                </div>
-              </div>
-
-              <!-- AUDIO -->
-              <div *ngSwitchCase="'audio'" class="media-content audio-attachment">
-                <app-audio-player 
-                  *ngIf="item.filePath"
-                  [src]="getMediaUrl(item.filePath)" 
-                  (error)="onMediaError(item, $event)"
-                  [preloadedDuration]="item.duration"
-                  (loadSuccess)="onMediaLoad(item, $event)" 
-                  (loadError)="onMediaError(item, $event)"
-                ></app-audio-player>
-                <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
-                  <span>Failed to load audio</span>
-                  <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>
-                </div>
-              </div>
-
-              <div *ngSwitchCase="'file'" class="media-content file-attachment">
-                <a *ngIf="item.filePath" [href]="getMediaUrl(item.filePath)" target="_blank" download="{{ item.originalFileName }}">
-                  <div class="file-icon-wrapper">
-                    <svg *ngIf="item.fileMimeType === 'application/pdf'" class="file-type-icon pdf" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
-                      <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v7h6v9H6zm2-4h2.5c.83 0 1.5-.67 1.5-1.5S11.33 13 10.5 13H8v4h1v-1.5h1.5c.28 0 .5-.22.5-.5s-.22-.5-.5-.5H9V14zm5 0h1.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5H13v-3zm1 2h.5c.28 0 .5-.22.5-.5s-.22-.5-.5-.5H14v1zm3-2h2v1h-1v.5h1v1h-1V18h-1v-4z"/>
-                    </svg>
-                    <svg *ngIf="item.fileMimeType?.startsWith('text/')" class="file-type-icon text" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
-                      <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v7h6v9H6zm2-6h8v1H8v-1zm0 2h8v1H8v-1zm0 2h5v1H8v-1z"/>
-                    </svg>
-                    <svg *ngIf="item.fileMimeType?.includes('word') || item.fileMimeType?.includes('document')" class="file-type-icon doc" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
-                      <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v7h6v9H6zm2-6h8v1H8v-1zm0 2h8v1H8v-1zm0 2h5v1H8v-1z"/>
-                    </svg>
-                    <svg *ngIf="!item.fileMimeType || (!item.fileMimeType.startsWith('text/') && item.fileMimeType !== 'application/pdf' && !item.fileMimeType.includes('word') && !item.fileMimeType.includes('document'))" class="file-type-icon generic" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
-                      <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v7h6v9H6z"/>
-                    </svg>
-                  </div>
-                  <div class="file-details">
-                    <span class="file-name-link">{{ item.originalFileName || 'Download file' }}</span>
-                    <span class="file-meta" *ngIf="item.fileSize">{{ item.fileSize | fileSize }}</span>
-                    <span class="file-meta" *ngIf="item.fileMimeType && !item.fileSize">{{ item.fileMimeType }}</span>
-                    <span class="file-meta" *ngIf="item.fileMimeType && item.fileSize"> - {{ item.fileMimeType }}</span>
-                  </div>
-                </a>
-                <div *ngIf="item.mediaLoadError" class="media-error-placeholder">
-                  <span>Failed to load file link</span>
-                  <button (click)="retryLoadMedia(item)" class="retry-btn">Retry</button>
-                </div>
-              </div>
-
-              <div *ngSwitchDefault class="content text-content"
-                [ngClass]="{'highlight-edit': item.editedRecently}"
-                [innerHTML]="isSearchActive && item.isSearchResult ? getHighlightedText(item.content, searchQuery) : formatMessageContent(item.content)"
-                [style.display]="item.isEditing ? 'none' : 'block'"
-              >
-              </div>
-            </ng-container>
-            <div 
-              class="caption-text content" 
-              *ngIf="item.messageType && item.messageType !== 'text' && item.category!== 'system_event' && item.content && item.content !== item.originalFileName"
-              [innerHTML]="isSearchActive && item.isSearchResult ? getHighlightedText(item.content, searchQuery) : formatMessageContent(item.content)"
-              >
-             </div>
+        </cdk-virtual-scroll-viewport>
+        <!-- Loading indicator for initial load (center) -->
+        @if (isLoadingMore && messages.length === 0) {
+          <div class="loading-indicator initial-loading">
+            <div class="spinner"></div>
+            <span>Loading messages...</span>
           </div>
-          
-          <!-- Edit mode -->
-          <div class="edit-container" *ngIf="item.isEditing">
-            <textarea 
-              class="edit-textarea"
-              [(ngModel)]="item.editedContent"
-              #editTextarea
-              (keydown)="onEditTextareaKeydown($event, item)"
-             
-            ></textarea>
-            <div class="edit-actions">
-              <div class="edit-keyboard-hints">
-                Press <kbd>Enter</kbd> to save, <kbd>Shift</kbd>+<kbd>Enter</kbd> for new line, <kbd>Esc</kbd> to cancel
-              </div>
-              <button class="edit-btn cancel" (click)="cancelEdit(item)">Cancel</button>
-              <button class="edit-btn save" (click)="saveMessageEdit(item)">Save</button>
-            </div>
+        }
+        <!-- Loading indicator for loading older messages (top) -->
+        @if (isLoadingMore && messages.length > 0) {
+          <div class="loading-indicator top-indicator">
+            <div class="spinner"></div>
+            <span>Loading older messages...</span>
           </div>
-        
-          <div class="message-footer">
-            <div class="message-reactions-wrapper">
-              <div class="message-reactions" *ngIf="item.type === 'message' && item.reactions && item.reactions.length > 0">
-                <span
-                  *ngFor="let group of (item.reactions | groupReactions : userId); trackBy: trackByReactionType"
-                  class="reaction-tag"
-                  role="button"
-                  tabindex="0"
-                  [attr.aria-pressed]="group.reactedByMe"
-                  [class.reacted-by-me]="group.reactedByMe"
-                  (click)="onReactionClick(item._id, group.type)"
-                  (keydown.enter)="onReactionClick(item._id, group.type)"
-                  (keydown.space)="$event.preventDefault(); onReactionClick(item._id, group.type)"
-                  title="{{ group.reactedByMe ? 'Remove Reaction' : 'Put Reaction ' + group.type }}">
-                  {{ group.type }}<span class="reaction-count">{{ group.count }}</span>
-                </span>
-              </div>
-            </div>
-            <div class="message-info">
-              <span class="timestamp">{{ formatTimestamp(item.timestamp) }}</span>
-              
-              <!-- Edited indicator -->
-              <span 
-                *ngIf="item.edited" 
-                class="edited-indicator"
-                [title]="'Edited: ' + formatEditedTime(item.editedAt)"
-              >
-                <span class="edited-icon">✎</span>
-                <span class="edited-text">edited</span>
+        }
+        @if (noMoreMessages && isAtTop && messages.length > 0) {
+          <div class="no-more-messages top-indicator">
+            <span>Beginning of conversation</span>
+          </div>
+        }
+        @if ((!isAtBottom && messages.length > 0) || returnToMessageIdAfterQuoteJump) {
+          <button
+            class="scroll-to-bottom-button"
+            (click)="scrollToBottom(true)"
+            [title]="returnToMessageIdAfterQuoteJump ? 'Return to original message' : 'Scroll to bottom'"
+            @scrollToBottomButtonAnimation
+            >
+            @if (!returnToMessageIdAfterQuoteJump) {
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+                <path fill-rule="evenodd" d="M5.22 14.77a.75.75 0 0 1 1.06 0L10 18.44l3.72-3.67a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 15.83a.75.75 0 0 1 0-1.06ZM5.22 8.77a.75.75 0 0 1 1.06 0L10 12.44l3.72-3.67a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.83a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+              </svg>
+            }
+            @if (returnToMessageIdAfterQuoteJump) {
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+                <path fill-rule="evenodd" d="M12.78 5.22a.75.75 0 010 1.06L9.56 9.5h5.69a.75.75 0 010 1.5H9.56l3.22 3.22a.75.75 0 11-1.06 1.06L7.22 10.53a.75.75 0 010-1.06l4.5-4.5a.75.75 0 011.06 0z" clip-rule="evenodd" />
+              </svg>
+            }
+            @if (!returnToMessageIdAfterQuoteJump && unreadMessagesCount > 0) {
+              <span class="unread-badge">
+                {{ unreadMessagesCount > 99 ? '99+' : unreadMessagesCount }}
               </span>
-            </div>
-            
-            <!-- Message status -->
-            <span
-              *ngIf="item.ismyMessage"
-              class="status"
-              role="button"
-              tabindex="0"
-              aria-label="Show read receipts"
-              [class.has-read-receipts]="item.readBy?.length > 0"
-              (click)="toggleReadReceipts(item, $event)"
-              (keydown.enter)="toggleReadReceipts(item, $event)"
-              (keydown.space)="$event.preventDefault(); toggleReadReceipts(item, $event)"
-            >
-              <img
-                [src]="getMessageStatusIcon(item.status ?? 'sent')"
-                [alt]="item.status || 'Sent'"
-                class="status-icon"
-              />
-              <span *ngIf="isGroupChat && item.readBy?.length > 0" class="read-count">{{ item.readBy.length }}</span>
-            </span>
-            <!-- Read receipts tooltip -->
-            <div
-              *ngIf="readReceiptsMessageId === item._id && item.readBy?.length > 0"
-              class="read-receipts-panel"
-            >
-              <div class="read-receipts-header">
-                Read by {{ item.readBy.length }}
-                <span class="read-receipts-close" role="button" tabindex="0" aria-label="Close read receipts" (click)="readReceiptsMessageId = null; $event.stopPropagation()" (keydown.enter)="readReceiptsMessageId = null; $event.stopPropagation()" (keydown.space)="$event.preventDefault(); readReceiptsMessageId = null; $event.stopPropagation()">×</span>
+            }
+          </button>
+        }
+      </div>
+      <!-- Typing Indicator -->
+      @if (typingIndicatorText) {
+        <div class="typing-indicator">
+          <span>{{ typingIndicatorText }}</span>
+        </div>
+      }
+      <!-- Reply Box -->
+      @if (replyingToMessage) {
+        <div class="reply-preview-container">
+          <div class="reply-indicator">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+              <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 0 1-.025 1.06L3.622 7.25h6.128a5.5 5.5 0 1 1 0 11H2.75a.75.75 0 0 1 0-1.5h7a4 4 0 1 0 0-8H3.622l4.146 3.957a.75.75 0 0 1-1.036 1.085l-5.5-5.25a.75.75 0 0 1 0-1.085l5.5-5.25a.75.75 0 0 1 1.06.025Z" clip-rule="evenodd" />
+            </svg>
+            <span>Reply to message:</span>
+          </div>
+          <div class="reply-preview-content">
+            <strong class="reply-sender">{{ replyingToMessage.senderName }}</strong>
+            <p class="reply-text">{{ replyingToMessage.content | slice:0:100 }}{{ replyingToMessage.content.length > 100 ? '...' : '' }}</p>
+          </div>
+          <button (click)="cancelReply()" class="cancel-reply-btn" title="Cancel reply">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+              <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+            </svg>
+          </button>
+        </div>
+      }
+      <!-- Input  -->
+      <div class="message-input-container">
+        <app-message-input
+          [chatId]="chatId"
+          (sendMessageEvent)="onMessageSend($event)"
+          (inputChange)="onInputChange($event)"
+          (editLastMessageRequest)="onEditLastMessageRequested()"
+        ></app-message-input>
+      </div>
+    </div>
+    <!-- Forward Dialog -->
+    @if (showForwardDialogue && messagetoForward) {
+      <app-forward-dialog
+        [message]="messagetoForward"
+        (cancel)="cancelForward()"
+        (forward)="confirmForward($event)"
+      ></app-forward-dialog>
+    }
+    <!-- Group info modal -->
+    @if (showGroupInfoModal && chatDetails) {
+      <app-group-info-modal
+        [chatDetails]="chatDetails"
+        (close)="onCloseGroupInfoModal()">
+      </app-group-info-modal>
+    }
+    <!-- Keyboard Help Modal -->
+    @if (showKeyboardHelp) {
+      <div
+        class="keyboard-help-overlay"
+        (click)="closeKeyboardHelp()"
+        @fadeInOut
+        >
+        <div class="keyboard-help-modal" (click)="$event.stopPropagation()" @scaleIn>
+          <div class="help-header">
+            <h3>⌨️ Keyboard Shortcuts</h3>
+            <button class="close-help" (click)="closeKeyboardHelp()">×</button>
+          </div>
+          <div class="shortcuts-grid">
+            <div class="shortcut-category">
+              <h4>🔍 Search & Navigation</h4>
+              <div class="shortcut-item">
+                <kbd>Ctrl</kbd> + <kbd>K</kbd>
+                <span>Search messages</span>
               </div>
-              <div class="read-receipts-list">
-                <div *ngFor="let receipt of item.readBy; trackBy: trackByReceiptUserId" class="read-receipt-item">
-                  <img [src]="getUserAvatar(receipt.userId)" [alt]="getUserName(receipt.userId)" class="read-receipt-avatar" />
-                  <span class="read-receipt-name">{{ getUserName(receipt.userId) }}</span>
-                  <span class="read-receipt-time">{{ formatTimestamp(receipt.readAt) }}</span>
-                </div>
+              <div class="shortcut-item">
+                <kbd>F3</kbd> / <kbd>↓</kbd>
+                <span>Next search result</span>
+              </div>
+              <div class="shortcut-item">
+                <kbd>Shift</kbd> + <kbd>F3</kbd> / <kbd>↑</kbd>
+                <span>Previous search result</span>
+              </div>
+              <div class="shortcut-item">
+                <kbd>Esc</kbd>
+                <span>Close search/Cancel</span>
+              </div>
+            </div>
+            <div class="shortcut-category">
+              <h4>📝 Message Actions</h4>
+              <div class="shortcut-item">
+                <kbd>Ctrl</kbd> + <kbd>A</kbd>
+                <span>Select all messages</span>
+              </div>
+              <div class="shortcut-item">
+                <kbd>Ctrl</kbd> + <kbd>C</kbd>
+                <span>Copy selected</span>
+              </div>
+              <div class="shortcut-item">
+                <kbd>Del</kbd> / <kbd>Backspace</kbd>
+                <span>Delete selected</span>
+              </div>
+              <div class="shortcut-item">
+                <kbd>Ctrl</kbd> + <kbd>Enter</kbd>
+                <span>Save edited message</span>
+              </div>
+            </div>
+            <div class="shortcut-category">
+              <h4>📜 Scrolling</h4>
+              <div class="shortcut-item">
+                <kbd>Home</kbd>
+                <span>Scroll to first loaded message</span>
+              </div>
+              <div class="shortcut-item">
+                <kbd>End</kbd>
+                <span>Scroll to bottom</span>
               </div>
             </div>
           </div>
-        </div>
-      </ng-container>
-    </cdk-virtual-scroll-viewport>
-
-    <!-- Loading indicator for initial load (center) -->
-    <div *ngIf="isLoadingMore && messages.length === 0" class="loading-indicator initial-loading">
-      <div class="spinner"></div>
-      <span>Loading messages...</span>
-    </div>
-
-    <!-- Loading indicator for loading older messages (top) -->
-    <div *ngIf="isLoadingMore && messages.length > 0" class="loading-indicator top-indicator">
-      <div class="spinner"></div>
-      <span>Loading older messages...</span>
-    </div>
-
-    <div *ngIf="noMoreMessages && isAtTop && messages.length > 0" class="no-more-messages top-indicator">
-      <span>Beginning of conversation</span>
-    </div>
-
-    <button
-      *ngIf="(!isAtBottom && messages.length > 0) || returnToMessageIdAfterQuoteJump"
-      class="scroll-to-bottom-button"
-      (click)="scrollToBottom(true)"
-      [title]="returnToMessageIdAfterQuoteJump ? 'Return to original message' : 'Scroll to bottom'"
-      @scrollToBottomButtonAnimation 
-    >
-      <ng-container *ngIf="!returnToMessageIdAfterQuoteJump">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-          <path fill-rule="evenodd" d="M5.22 14.77a.75.75 0 0 1 1.06 0L10 18.44l3.72-3.67a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 15.83a.75.75 0 0 1 0-1.06ZM5.22 8.77a.75.75 0 0 1 1.06 0L10 12.44l3.72-3.67a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.83a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
-        </svg>
-      </ng-container>
-      <ng-container *ngIf="returnToMessageIdAfterQuoteJump">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-          <path fill-rule="evenodd" d="M12.78 5.22a.75.75 0 010 1.06L9.56 9.5h5.69a.75.75 0 010 1.5H9.56l3.22 3.22a.75.75 0 11-1.06 1.06L7.22 10.53a.75.75 0 010-1.06l4.5-4.5a.75.75 0 011.06 0z" clip-rule="evenodd" />
-        </svg>
-      </ng-container>
-      <span *ngIf="!returnToMessageIdAfterQuoteJump && unreadMessagesCount > 0" class="unread-badge">
-        {{ unreadMessagesCount > 99 ? '99+' : unreadMessagesCount }}
-      </span>
-    </button>
-  </div>
-
-  <!-- Typing Indicator -->
-  <div *ngIf="typingIndicatorText" class="typing-indicator">
-    <span>{{ typingIndicatorText }}</span>
-  </div>
-
-
-  <!-- Reply Box -->
-  <div *ngIf="replyingToMessage" class="reply-preview-container">
-    <div class="reply-indicator">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-        <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 0 1-.025 1.06L3.622 7.25h6.128a5.5 5.5 0 1 1 0 11H2.75a.75.75 0 0 1 0-1.5h7a4 4 0 1 0 0-8H3.622l4.146 3.957a.75.75 0 0 1-1.036 1.085l-5.5-5.25a.75.75 0 0 1 0-1.085l5.5-5.25a.75.75 0 0 1 1.06.025Z" clip-rule="evenodd" />
-      </svg>
-      <span>Reply to message:</span>
-    </div>
-    <div class="reply-preview-content">
-      <strong class="reply-sender">{{ replyingToMessage.senderName }}</strong>
-      <p class="reply-text">{{ replyingToMessage.content | slice:0:100 }}{{ replyingToMessage.content.length > 100 ? '...' : '' }}</p>
-    </div>
-    <button (click)="cancelReply()" class="cancel-reply-btn" title="Cancel reply">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-        <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-      </svg>
-    </button>
-  </div>
-
-  <!-- Input  -->
-  <div class="message-input-container">
-    <app-message-input
-      [chatId]="chatId"
-      (sendMessageEvent)="onMessageSend($event)"
-      (inputChange)="onInputChange($event)"
-      (editLastMessageRequest)="onEditLastMessageRequested()"
-    ></app-message-input>
-  </div>
-</div>
-
-<!-- Forward Dialog -->
-<app-forward-dialog
-  *ngIf="showForwardDialogue && messagetoForward"
-  [message]="messagetoForward"
-  (cancel)="cancelForward()"
-  (forward)="confirmForward($event)"
-></app-forward-dialog>
-
-<!-- Group info modal -->
-<app-group-info-modal 
-  *ngIf="showGroupInfoModal && chatDetails" 
-  [chatDetails]="chatDetails"
-  (close)="onCloseGroupInfoModal()">
-</app-group-info-modal>
-
-<!-- Keyboard Help Modal -->
-<div 
-  *ngIf="showKeyboardHelp" 
-  class="keyboard-help-overlay" 
-  (click)="closeKeyboardHelp()"
-  @fadeInOut
->
-  <div class="keyboard-help-modal" (click)="$event.stopPropagation()" @scaleIn>
-    <div class="help-header">
-      <h3>⌨️ Keyboard Shortcuts</h3>
-      <button class="close-help" (click)="closeKeyboardHelp()">×</button>
-    </div>
-    
-    <div class="shortcuts-grid">
-      <div class="shortcut-category">
-        <h4>🔍 Search & Navigation</h4>
-        <div class="shortcut-item">
-          <kbd>Ctrl</kbd> + <kbd>K</kbd>
-          <span>Search messages</span>
-        </div>
-        <div class="shortcut-item">
-          <kbd>F3</kbd> / <kbd>↓</kbd>
-          <span>Next search result</span>
-        </div>
-        <div class="shortcut-item">
-          <kbd>Shift</kbd> + <kbd>F3</kbd> / <kbd>↑</kbd>
-          <span>Previous search result</span>
-        </div>
-        <div class="shortcut-item">
-          <kbd>Esc</kbd>
-          <span>Close search/Cancel</span>
+          <div class="help-footer">
+            <small>Press <kbd>?</kbd> anytime to show this help</small>
+          </div>
         </div>
       </div>
-
-      <div class="shortcut-category">
-        <h4>📝 Message Actions</h4>
-        <div class="shortcut-item">
-          <kbd>Ctrl</kbd> + <kbd>A</kbd>
-          <span>Select all messages</span>
-        </div>
-        <div class="shortcut-item">
-          <kbd>Ctrl</kbd> + <kbd>C</kbd>
-          <span>Copy selected</span>
-        </div>
-        <div class="shortcut-item">
-          <kbd>Del</kbd> / <kbd>Backspace</kbd>
-          <span>Delete selected</span>
-        </div>
-        <div class="shortcut-item">
-          <kbd>Ctrl</kbd> + <kbd>Enter</kbd>
-          <span>Save edited message</span>
-        </div>
-      </div>
-
-      <div class="shortcut-category">
-        <h4>📜 Scrolling</h4>
-        <div class="shortcut-item">
-          <kbd>Home</kbd>
-          <span>Scroll to first loaded message</span>
-        </div>
-        <div class="shortcut-item">
-          <kbd>End</kbd>
-          <span>Scroll to bottom</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="help-footer">
-      <small>Press <kbd>?</kbd> anytime to show this help</small>
-    </div>
-  </div>
-</div>
-</ng-container>
+    }
+  }
 </div>
 
-<div 
-  class="media-gallery-overlay" 
-  [class.visible]="showMediaGallery" 
+<div
+  class="media-gallery-overlay"
+  [class.visible]="showMediaGallery"
   (click)="closeMediaGallery()"
->
+  >
   <div class="media-gallery-panel" (click)="$event.stopPropagation()">
     <div class="panel-header">
       <h3>Shared Media</h3>
@@ -601,21 +668,23 @@
       </button>
     </div>
 
-    <app-shared-media-gallery 
-      *ngIf="showMediaGallery && chatId"
-      [chatId]="chatId"
-      (imageSelected)="openLightboxFromGallery($event)"
-    ></app-shared-media-gallery>
+    @if (showMediaGallery && chatId) {
+      <app-shared-media-gallery
+        [chatId]="chatId"
+        (imageSelected)="openLightboxFromGallery($event)"
+      ></app-shared-media-gallery>
+    }
   </div>
-  <app-lightbox 
-    *ngIf="showLightbox && lightboxItems.length > 0"
-    [src]="getMediaUrl(lightboxItems[lightboxStartIndex].filePath)"
-    [alt]="lightboxItems[lightboxStartIndex].originalFileName || 'Shared media'"
-    (close)="closeLightbox()"
-    (prev)="lightboxStartIndex = (lightboxStartIndex - 1 + lightboxItems.length) % lightboxItems.length"
-    (next)="lightboxStartIndex = (lightboxStartIndex + 1) % lightboxItems.length"
-    (goToMessage)="onGoToMessage()"
-  ></app-lightbox>
+  @if (showLightbox && lightboxItems.length > 0) {
+    <app-lightbox
+      [src]="getMediaUrl(lightboxItems[lightboxStartIndex].filePath)"
+      [alt]="lightboxItems[lightboxStartIndex].originalFileName || 'Shared media'"
+      (close)="closeLightbox()"
+      (prev)="lightboxStartIndex = (lightboxStartIndex - 1 + lightboxItems.length) % lightboxItems.length"
+      (next)="lightboxStartIndex = (lightboxStartIndex + 1) % lightboxItems.length"
+      (goToMessage)="onGoToMessage()"
+    ></app-lightbox>
+  }
 </div>
 
 <app-message-context-menu

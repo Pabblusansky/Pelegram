@@ -1,105 +1,121 @@
-<div 
+<div
   class="message-input-droppable-area"
   [class.drag-over]="isDragOver"
   (dragover)="onDragOver($event)"
   (dragleave)="onDragLeave($event)"
   (drop)="onDrop($event)"
->
+  >
   <div class="message-input-wrapper">
-    <div class="file-preview-container" *ngIf="selectedFile">
-      <div class="preview-thumbnail-wrapper">
-        <img *ngIf="filePreviewUrl && selectedFile.type.startsWith('image/')" [src]="filePreviewUrl" alt="Image preview" class="image-preview-thumb">
-        <div *ngIf="!filePreviewUrl && selectedFile?.type?.startsWith('image/') && isPreviewLoading" class="preview-loader-thumb">
-          <div class="spinner-small"></div>
+    @if (selectedFile) {
+      <div class="file-preview-container">
+        <div class="preview-thumbnail-wrapper">
+          @if (filePreviewUrl && selectedFile.type.startsWith('image/')) {
+            <img [src]="filePreviewUrl" alt="Image preview" class="image-preview-thumb">
+          }
+          @if (!filePreviewUrl && selectedFile?.type?.startsWith('image/') && isPreviewLoading) {
+            <div class="preview-loader-thumb">
+              <div class="spinner-small"></div>
+            </div>
+          }
+          @if (!selectedFile.type.startsWith('image/')) {
+            <div class="file-icon-thumb">
+              <svg width="800px" height="800px" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 0H2V16H14V7H7V0Z" fill="#000000"/>
+                <path d="M9 0V5H14L9 0Z" fill="#000000"/>
+              </svg>
+            </div>
+          }
         </div>
-        <div *ngIf="!selectedFile.type.startsWith('image/')" class="file-icon-thumb">
-          <svg width="800px" height="800px" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M7 0H2V16H14V7H7V0Z" fill="#000000"/>
-          <path d="M9 0V5H14L9 0Z" fill="#000000"/>
+        <div class="file-details">
+          <div class="file-primary-info">
+            <span class="file-name-preview">{{ selectedFile.name }}</span>
+            @if (selectedFile && selectedFile.size !== null) {
+              <span class="file-size-preview">
+                ({{ selectedFile.size | fileSize }})
+              </span>
+            }
+          </div>
+        </div>
+        <button class="remove-file-button-preview" (click)="removeSelectedFile()" title="Remove file">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
+            <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
           </svg>
-        </div>
+        </button>
       </div>
-      <div class="file-details">
-        <div class="file-primary-info">
-          <span class="file-name-preview">{{ selectedFile.name }}</span>
-          <span class="file-size-preview" *ngIf="selectedFile && selectedFile.size !== null">
-            ({{ selectedFile.size | fileSize }})
-          </span>
-        </div>
-      </div>
-      <button class="remove-file-button-preview" (click)="removeSelectedFile()" title="Remove file">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
-          <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-        </svg>
-      </button>
-    </div>
-    
+    }
+
     <div class="main-input-area">
-      <button
-      *ngIf="!isRecording"
-      class="attach-file-button"
-      (click)="fileInput.click()"
-      title="Attach file">
-        <svg width="800px" height="800px" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-          <path d="M24,48A15,15,0,0,1,9,33V11a11,11,0,0,1,22,0V31c-0.06,4.42-3.24,8-7.09,8a6.45,6.45,0,0,1-4.61-2A8.43,8.43,0,0,1,17,31V16.87a2,2,0,0,1,2-2h0a2,2,0,0,1,2,2V31a4.44,4.44,0,0,0,1.16,3.19,2.48,2.48,0,0,0,1.76.79C25.55,35,27,33.16,27,31V11a7,7,0,0,0-14,0V33a11,11,0,0,0,22,0V16.6a2,2,0,0,1,4,0V33A15,15,0,0,1,24,48Z" fill="#876cb7"/>
-        </svg>
-      </button>
-      <button
-        *ngIf="!isRecording"
-        class="emoji-button"
-        (click)="toggleEmojiPicker()"
-        title="Emoji"
-        [class.active]="isEmojiPickerOpen">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-4-8c.78 0 1.41-.63 1.41-1.41S8.78 9.18 8 9.18s-1.41.63-1.41 1.41S7.22 12 8 12zm8 0c.78 0 1.41-.63 1.41-1.41S16.78 9.18 16 9.18s-1.41.63-1.41 1.41S15.22 12 16 12zm-4 5.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
-        </svg>
-      </button>
-      <div class="emoji-picker-container" *ngIf="isEmojiPickerOpen">
-        <emoji-picker (emoji-click)="onEmojiClick($event)"></emoji-picker>
-      </div>
+      @if (!isRecording) {
+        <button
+          class="attach-file-button"
+          (click)="fileInput.click()"
+          title="Attach file">
+          <svg width="800px" height="800px" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <path d="M24,48A15,15,0,0,1,9,33V11a11,11,0,0,1,22,0V31c-0.06,4.42-3.24,8-7.09,8a6.45,6.45,0,0,1-4.61-2A8.43,8.43,0,0,1,17,31V16.87a2,2,0,0,1,2-2h0a2,2,0,0,1,2,2V31a4.44,4.44,0,0,0,1.16,3.19,2.48,2.48,0,0,0,1.76.79C25.55,35,27,33.16,27,31V11a7,7,0,0,0-14,0V33a11,11,0,0,0,22,0V16.6a2,2,0,0,1,4,0V33A15,15,0,0,1,24,48Z" fill="#876cb7"/>
+          </svg>
+        </button>
+      }
+      @if (!isRecording) {
+        <button
+          class="emoji-button"
+          (click)="toggleEmojiPicker()"
+          title="Emoji"
+          [class.active]="isEmojiPickerOpen">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-4-8c.78 0 1.41-.63 1.41-1.41S8.78 9.18 8 9.18s-1.41.63-1.41 1.41S7.22 12 8 12zm8 0c.78 0 1.41-.63 1.41-1.41S16.78 9.18 16 9.18s-1.41.63-1.41 1.41S15.22 12 16 12zm-4 5.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
+          </svg>
+        </button>
+      }
+      @if (isEmojiPickerOpen) {
+        <div class="emoji-picker-container">
+          <emoji-picker (emoji-click)="onEmojiClick($event)"></emoji-picker>
+        </div>
+      }
       <input type="file" #fileInput hidden (change)="onFileSelected($event)">
 
       <div class="input-field-wrapper">
-        <textarea 
-          #messageTextarea 
+        <textarea
+          #messageTextarea
           class="message-textarea"
           [class.hidden]="isRecording"
-          [(ngModel)]="newMessage" 
-          (input)="onInput()" 
-          (keydown.enter)="onEnterPress($event)" 
+          [(ngModel)]="newMessage"
+          (input)="onInput()"
+          (keydown.enter)="onEnterPress($event)"
           placeholder="Write a message..."
           rows="1"
         ></textarea>
 
-        <div class="recording-ui" *ngIf="isRecording">
-          <div class="recording-indicator"></div>
-          <span class="recording-timer">{{ formatRecordingTime(recordingTime) }}</span>
-          <canvas #waveformCanvas 
-            class="equalizer-canvas" 
-            width="200" 
-            height="40">
-          </canvas>
-          <span class="recording-info-text">Release to send or slide away to cancel</span>
-        </div>
+        @if (isRecording) {
+          <div class="recording-ui">
+            <div class="recording-indicator"></div>
+            <span class="recording-timer">{{ formatRecordingTime(recordingTime) }}</span>
+            <canvas #waveformCanvas
+              class="equalizer-canvas"
+              width="200"
+              height="40">
+            </canvas>
+            <span class="recording-info-text">Release to send or slide away to cancel</span>
+          </div>
+        }
 
         <div class="action-buttons-container">
           <button
-            [ngClass]="{'visible': !isRecording && (newMessage.trim() || selectedFile)}" 
-            class="send-button" 
-            (click)="send()" 
+            [ngClass]="{'visible': !isRecording && (newMessage.trim() || selectedFile)}"
+            class="send-button"
+            (click)="send()"
             title="Send message"
-          >
+            >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
               <path d="M3.478 2.405a.75.75 0 0 0-.926.94l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.405Z" />
             </svg>
           </button>
           <button
-            [ngClass]="{'visible': !isRecording && (!newMessage.trim() && !selectedFile)}" 
+            [ngClass]="{'visible': !isRecording && (!newMessage.trim() && !selectedFile)}"
             class="mic-button"
             (mousedown)="startRecording($event)"
             (touchstart)="startRecording($event)"
             title="Record voice message"
-          >
+            >
             <svg width="800" height="800" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
               <rect x="20" y="8" width="8" height="18" rx="4" fill="#876cb7"/>
               <path d="M14 22v2c0 5.5 4.5 10 10 10s10-4.5 10-10v-2" stroke="#876cb7" stroke-width="2.5" stroke-linecap="round" fill="none"/>
@@ -110,14 +126,15 @@
         </div>
       </div>
 
-      <button 
-        *ngIf="isRecording"
-        class="cancel-recording-button"
-        (click)="cancelRecording()"
-        title="Cancel recording"
-      >
-        Cancel
-      </button>
+      @if (isRecording) {
+        <button
+          class="cancel-recording-button"
+          (click)="cancelRecording()"
+          title="Cancel recording"
+          >
+          Cancel
+        </button>
+      }
     </div>
   </div>
 </div>

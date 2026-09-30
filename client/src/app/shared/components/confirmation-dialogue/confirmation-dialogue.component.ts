@@ -1,11 +1,11 @@
 import { Component, EventEmitter, HostListener, Input, Output, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { trigger, transition, style, animate } from '@angular/animations';
 
 @Component({
   selector: 'app-confirmation-dialog',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './confirmation-dialogue.component.html',
   styleUrls: ['./confirmation-dialogue.component.scss'],
   changeDetection: ChangeDetectionStrategy.Eager,
