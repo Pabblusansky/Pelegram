@@ -1,7 +1,17 @@
 <div class="draft-chat">
   <header class="draft-header">
-    <img class="draft-avatar" [src]="avatarUrl" alt="" />
-    <div class="draft-name">{{ recipientName }}</div>
+    <div class="draft-avatar-wrapper">
+      <img class="draft-avatar" [src]="avatarUrl" alt="" />
+      @if (isOnline$ | async) {
+        <div class="online-indicator" aria-label="Online"></div>
+      }
+    </div>
+    <div class="draft-header-info">
+      <div class="draft-name">{{ recipientName }}</div>
+      @if (statusText$ | async; as status) {
+        <div class="draft-status">{{ status }}</div>
+      }
+    </div>
   </header>
 
   <div class="draft-body">

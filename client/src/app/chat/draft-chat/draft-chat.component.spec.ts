@@ -18,7 +18,9 @@ describe('DraftChatComponent', () => {
   let router: Router;
 
   beforeEach(async () => {
-    socket = jasmine.createSpyObj<SocketService>('SocketService', ['sendFirstMessage']);
+    socket = jasmine.createSpyObj<SocketService>('SocketService', ['sendFirstMessage', 'getUserStatusText', 'isUserOnline']);
+    socket.getUserStatusText.and.returnValue(of('last seen 5 minutes ago'));
+    socket.isUserOnline.and.returnValue(of(false));
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['showToast']);
 
     await TestBed.configureTestingModule({
@@ -42,6 +44,24 @@ describe('DraftChatComponent', () => {
 
   it('shows the recipient it will start a chat with', () => {
     expect(component.recipientName).toBe('bob');
+  });
+
+  it('shows the recipient\'s presence like the chat header does', () => {
+    const el: HTMLElement = fixture.nativeElement;
+    expect(socket.getUserStatusText).toHaveBeenCalledWith('u2');
+    expect(el.querySelector('.draft-status')?.textContent?.trim()).toBe('last seen 5 minutes ago');
+    expect(el.querySelector('.online-indicator')).toBeNull();
+  });
+
+  it('marks an online recipient with the presence dot', () => {
+    socket.isUserOnline.and.returnValue(of(true));
+    socket.getUserStatusText.and.returnValue(of('online'));
+    fixture.componentRef.setInput('recipientId', 'u3');
+    fixture.detectChanges();
+
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.online-indicator')).not.toBeNull();
+    expect(el.querySelector('.draft-status')?.textContent?.trim()).toBe('online');
   });
 
   it('sends the first message and moves to the chat the server created', () => {
