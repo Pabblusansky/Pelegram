@@ -51,6 +51,6 @@ describe('ChatApiService.directChatRoute', () => {
     http.expectOne(req => req.url.endsWith('/chats/direct/u2'))
       .flush({}, { status: 500, statusText: 'Server Error' });
 
-    expect(failed).toBeTrue();
+    expect(failed).toBe(true);
   });
 });

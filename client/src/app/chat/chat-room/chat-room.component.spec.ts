@@ -1,6 +1,10 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
+
+// With no token in tests the component redirects to /auth/login; accept any
+// URL so the navigation resolves instead of rejecting.
+const ACCEPT_ANY_ROUTE = [{ path: '**', children: [] }];
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
@@ -16,7 +20,7 @@ describe('ChatRoomComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ChatRoomComponent],
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]), provideNoopAnimations()],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter(ACCEPT_ANY_ROUTE), provideNoopAnimations()],
     })
     .compileComponents();
 
@@ -57,8 +61,8 @@ describe('ChatRoomComponent', () => {
       (component as any).showMessageContext(range(1, 30));
 
       expect(component.messages.map(m => m._id)).toEqual(range(1, 30).map(m => m._id));
-      expect(component.hasNewerMessages).toBeTrue();
-      expect(component.isAtBottom).toBeFalse();
+      expect(component.hasNewerMessages).toBe(true);
+      expect(component.isAtBottom).toBe(false);
     });
 
     it('merges context that touches the loaded window', () => {
@@ -68,28 +72,28 @@ describe('ChatRoomComponent', () => {
 
       expect(component.messages.length).toBe(66);
       expect(component.messages[0]._id).toBe('m35');
-      expect(component.hasNewerMessages).toBeFalse();
+      expect(component.hasNewerMessages).toBe(false);
     });
 
     it('pages forwards until it reaches the live end', () => {
       const api = TestBed.inject(ChatApiService);
-      const after = spyOn(api, 'getMessagesAfter').and.returnValues(of(range(31, 60)), of(range(61, 70)));
+      const after = vi.spyOn(api, 'getMessagesAfter').mockReturnValueOnce(of(range(31, 60))).mockReturnValueOnce(of(range(61, 70)));
       component.messages = range(1, 30);
       component.hasNewerMessages = true;
 
       (component as any).loadNewerMessages();
       expect(after).toHaveBeenCalledWith('chat1', 'm30', 30);
-      expect(component.hasNewerMessages).toBeTrue();
+      expect(component.hasNewerMessages).toBe(true);
 
       (component as any).loadNewerMessages();
       expect(after).toHaveBeenCalledWith('chat1', 'm60', 30);
       expect(component.messages.length).toBe(70);
-      expect(component.hasNewerMessages).toBeFalse();
+      expect(component.hasNewerMessages).toBe(false);
     });
 
     it('drops a forward page if the window was replaced meanwhile', () => {
       const api = TestBed.inject(ChatApiService);
-      spyOn(api, 'getMessagesAfter').and.callFake(() => {
+      vi.spyOn(api, 'getMessagesAfter').mockImplementation(() => {
         component.messages = range(90, 100);
         return of(range(31, 40));
       });
@@ -113,7 +117,7 @@ describe('ChatRoomComponent', () => {
     });
 
     it('jumps to the latest messages when the user sends one across a gap', () => {
-      const load = spyOn(component, 'loadMessages');
+      const load = vi.spyOn(component, 'loadMessages').mockReturnValue(undefined);
       component.messages = range(1, 30);
       component.hasNewerMessages = true;
 
@@ -124,7 +128,7 @@ describe('ChatRoomComponent', () => {
     });
 
     it('scroll to bottom reloads the latest page when there is a gap', () => {
-      const load = spyOn(component, 'loadMessages');
+      const load = vi.spyOn(component, 'loadMessages').mockReturnValue(undefined);
       component.hasNewerMessages = true;
 
       component.scrollToBottom(true);

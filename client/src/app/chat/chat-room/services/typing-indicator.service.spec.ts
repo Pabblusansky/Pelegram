@@ -1,7 +1,13 @@
-import { TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { TypingIndicatorService, TYPING_TIMEOUT_MS } from './typing-indicator.service';
 
 describe('TypingIndicatorService', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   let service: TypingIndicatorService;
 
   beforeEach(() => {
@@ -32,42 +38,42 @@ describe('TypingIndicatorService', () => {
       expect(service.typingUserIds.size).toBe(2);
     });
 
-    it('auto-expires a user who never sends a stop event', fakeAsync(() => {
+    it('auto-expires a user who never sends a stop event', async () => {
       service.track('u1', true);
       expect(service.isAnyoneTyping).toBe(true);
 
-      tick(TYPING_TIMEOUT_MS);
+      await vi.advanceTimersByTimeAsync(TYPING_TIMEOUT_MS);
       expect(service.isAnyoneTyping).toBe(false);
-    }));
+    });
 
-    it('notifies on expiry so the view can refresh', fakeAsync(() => {
+    it('notifies on expiry so the view can refresh', async () => {
       let notified = false;
       service.track('u1', true, () => { notified = true; });
 
-      tick(TYPING_TIMEOUT_MS);
+      await vi.advanceTimersByTimeAsync(TYPING_TIMEOUT_MS);
       expect(notified).toBe(true);
-    }));
+    });
 
-    it('restarts the expiry window on a repeated typing event', fakeAsync(() => {
+    it('restarts the expiry window on a repeated typing event', async () => {
       service.track('u1', true);
-      tick(TYPING_TIMEOUT_MS - 1000);
+      await vi.advanceTimersByTimeAsync(TYPING_TIMEOUT_MS - 1000);
       service.track('u1', true);
 
-      tick(TYPING_TIMEOUT_MS - 1000);
+      await vi.advanceTimersByTimeAsync(TYPING_TIMEOUT_MS - 1000);
       expect(service.isAnyoneTyping).toBe(true);
 
-      tick(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       expect(service.isAnyoneTyping).toBe(false);
-    }));
+    });
 
-    it('does not leave a timer running after a stop event', fakeAsync(() => {
+    it('does not leave a timer running after a stop event', async () => {
       let notified = false;
       service.track('u1', true, () => { notified = true; });
       service.track('u1', false);
 
-      tick(TYPING_TIMEOUT_MS);
+      await vi.advanceTimersByTimeAsync(TYPING_TIMEOUT_MS);
       expect(notified).toBe(false);
-    }));
+    });
   });
 
   describe('describe', () => {
@@ -90,7 +96,7 @@ describe('TypingIndicatorService', () => {
   });
 
   describe('clear', () => {
-    it('drops all state and pending timers', fakeAsync(() => {
+    it('drops all state and pending timers', async () => {
       let notified = false;
       service.track('u1', true, () => { notified = true; });
       service.track('u2', true);
@@ -98,8 +104,8 @@ describe('TypingIndicatorService', () => {
       service.clear();
       expect(service.isAnyoneTyping).toBe(false);
 
-      tick(TYPING_TIMEOUT_MS);
+      await vi.advanceTimersByTimeAsync(TYPING_TIMEOUT_MS);
       expect(notified).toBe(false);
-    }));
+    });
   });
 });

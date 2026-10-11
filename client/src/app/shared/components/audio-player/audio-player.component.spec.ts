@@ -107,7 +107,7 @@ describe('AudioPlayerComponent seeking', () => {
 
     it('ignores unrelated keys and leaves them to the page', () => {
       const event = pressKey('a');
-      spyOn(event, 'preventDefault');
+      vi.spyOn(event, 'preventDefault').mockReturnValue(undefined);
 
       component.onSeekKeydown(event);
 
@@ -117,7 +117,7 @@ describe('AudioPlayerComponent seeking', () => {
 
     it('prevents the default page scroll for handled keys', () => {
       const event = pressKey('ArrowRight');
-      spyOn(event, 'preventDefault');
+      vi.spyOn(event, 'preventDefault').mockReturnValue(undefined);
 
       component.onSeekKeydown(event);
 

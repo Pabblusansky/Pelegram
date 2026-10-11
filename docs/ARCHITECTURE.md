@@ -149,7 +149,7 @@ manually in places because socket events arrive outside Angular's awareness.
 | | Runner | Location |
 | :-- | :-- | :-- |
 | Server | `node:test` against in-memory MongoDB | `server/tests/` |
-| Client | Karma and Jasmine, headless Chrome | `*.spec.ts` beside the code |
+| Client | Vitest with jsdom (setup in `src/test-setup.ts`) | `*.spec.ts` beside the code |
 
 Server tests run against the built output in `server/dist/`, so `npm test` builds
 first. They start a real MongoDB in memory, so no local database is needed.
