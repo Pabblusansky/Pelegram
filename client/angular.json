@@ -5,7 +5,11 @@
   "projects": {
     "Pelegram": {
       "projectType": "application",
-      "schematics": { "@schematics/angular:component": { "style": "scss" } },
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss"
+        }
+      },
       "root": "",
       "sourceRoot": "src",
       "prefix": "app",
@@ -16,51 +20,77 @@
             "outputPath": "dist/pelegram",
             "index": "src/index.html",
             "browser": "src/main.ts",
-            "polyfills": [ "zone.js" ],
+            "polyfills": [
+              "zone.js"
+            ],
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
-            "assets": [ 
-              "src/favicon.ico", 
-              "src/assets", 
-              { "glob": "**/*", "input": "public" }
-            ], "styles": [ "src/styles.scss", "src/styles/themes.scss" ],
-            "scripts": [  ]
+            "assets": [
+              "src/favicon.ico",
+              "src/assets",
+              {
+                "glob": "**/*",
+                "input": "public"
+              }
+            ],
+            "styles": [
+              "src/styles.scss",
+              "src/styles/themes.scss"
+            ],
+            "scripts": []
           },
           "configurations": {
             "production": {
-            "fileReplacements": [
-              {
-                "replace": "src/environments/environment.ts",
-                "with": "src/environments/environment.prod.ts"
-              }
-            ],
-            "budgets": [
-              { "type": "initial", "maximumWarning": "1MB", "maximumError": "2.5MB" },
-              { "type": "anyComponentStyle", "maximumWarning": "30kB", "maximumError": "50kB" }
-            ],
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ],
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1MB",
+                  "maximumError": "2.5MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "30kB",
+                  "maximumError": "50kB"
+                }
+              ],
               "outputHashing": "all"
             },
-            "development": { "optimization": false, "extractLicenses": false, "sourceMap": true }
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
           },
           "defaultConfiguration": "production"
         },
         "serve": {
           "builder": "@angular/build:dev-server",
           "configurations": {
-            "production": { "buildTarget": "Pelegram:build:production" },
-            "development": { "buildTarget": "Pelegram:build:development" }
+            "production": {
+              "buildTarget": "Pelegram:build:production"
+            },
+            "development": {
+              "buildTarget": "Pelegram:build:development"
+            }
           },
           "defaultConfiguration": "development"
         },
-        "extract-i18n": { "builder": "@angular/build:extract-i18n" },
+        "extract-i18n": {
+          "builder": "@angular/build:extract-i18n"
+        },
         "test": {
-          "builder": "@angular/build:karma",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "polyfills": [ "zone.js", "zone.js/testing" ],
             "tsConfig": "tsconfig.spec.json",
-            "inlineStyleLanguage": "scss",
-            "assets": [ { "glob": "**/*", "input": "public" } ],
-            "scripts": [  ]
+            "setupFiles": [
+              "src/test-setup.ts"
+            ]
           }
         }
       }

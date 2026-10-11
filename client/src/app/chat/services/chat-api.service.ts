@@ -26,7 +26,7 @@ export class ChatApiService {
   private getHeaders(): HttpHeaders | undefined {
     const token = this.tokenService.getToken();
     if (!token) {
-      this.router.navigate(['/login']);
+      this.router.navigate(['/auth/login']);
       return undefined;
     }
     return new HttpHeaders().set('Authorization', `Bearer ${token}`);
@@ -264,7 +264,7 @@ export class ChatApiService {
   deleteChat(chatId: string): Observable<{ message: string }> {
     const headers = this.getHeaders();
     if (!headers) {
-      this.router.navigate(['/login']);
+      this.router.navigate(['/auth/login']);
       return throwError(() => new Error('Not authorized for deleteChat'));
     }
     return this.http.delete<{ message: string }>(`${this.apiUrl}/chats/${chatId}`, { headers });
@@ -332,7 +332,7 @@ export class ChatApiService {
   updateGroupAvatar(chatId: string, file: File): Observable<Chat> {
     const token = this.tokenService.getToken();
     if (!token) {
-      this.router.navigate(['/login']);
+      this.router.navigate(['/auth/login']);
       return throwError(() => new Error('Not authorized for group avatar update'));
     }
     const formData = new FormData();
@@ -387,7 +387,7 @@ export class ChatApiService {
   deleteGroupAvatar(chatId: string): Observable<Chat> {
     const token = this.tokenService.getToken();
     if (!token) {
-      this.router.navigate(['/login']);
+      this.router.navigate(['/auth/login']);
       return throwError(() => new Error('Not authorized for group avatar deletion'));
     }
     const headers = new HttpHeaders({ 'Authorization': `Bearer ${token}` });

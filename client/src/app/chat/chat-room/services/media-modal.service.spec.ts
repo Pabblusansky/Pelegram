@@ -52,25 +52,25 @@ describe('MediaModalService', () => {
   });
 
   it('removes the key listener when closed by click, not just by Escape', () => {
-    const removeSpy = spyOn(document, 'removeEventListener').and.callThrough();
+    const removeSpy = vi.spyOn(document, 'removeEventListener');
 
     service.open('http://example.com/a.png');
     (overlays()[0] as HTMLElement).click();
 
-    expect(removeSpy).toHaveBeenCalledWith('keydown', jasmine.any(Function));
+    expect(removeSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
   });
 
   it('does not leave listeners behind across repeated open and click-close cycles', () => {
-    const addSpy = spyOn(document, 'addEventListener').and.callThrough();
-    const removeSpy = spyOn(document, 'removeEventListener').and.callThrough();
+    const addSpy = vi.spyOn(document, 'addEventListener');
+    const removeSpy = vi.spyOn(document, 'removeEventListener');
 
     for (let i = 0; i < 5; i++) {
       service.open(`http://example.com/${i}.png`);
       (overlays()[0] as HTMLElement).click();
     }
 
-    const added = addSpy.calls.allArgs().filter(a => a[0] === 'keydown').length;
-    const removed = removeSpy.calls.allArgs().filter(a => a[0] === 'keydown').length;
+    const added = addSpy.mock.calls.filter(a => a[0] === 'keydown').length;
+    const removed = removeSpy.mock.calls.filter(a => a[0] === 'keydown').length;
 
     expect(added).toBe(5);
     expect(removed).toBe(5);

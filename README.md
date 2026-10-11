@@ -78,7 +78,7 @@ Node.js, Express 5, Socket.IO, MongoDB with Mongoose, Zod for request and enviro
 validation, JWT authentication
 
 **Tooling**
-ESLint, Karma and Jasmine, `node:test` with an in-memory MongoDB, GitHub Actions
+ESLint, Vitest, `node:test` with an in-memory MongoDB, GitHub Actions
 
 ## 🚀 Getting started
 

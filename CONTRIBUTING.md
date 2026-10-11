@@ -35,6 +35,9 @@ npm run dev
 - API: http://localhost:3000
 - Client: http://localhost:4200
 
+To have the API rebuild and restart whenever you save a file in `server/src`,
+run `npm run dev:watch` from `server/` instead.
+
 ## Checks to run before opening a pull request
 
 From the repository root:

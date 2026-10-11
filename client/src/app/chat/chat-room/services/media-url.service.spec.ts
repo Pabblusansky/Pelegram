@@ -17,7 +17,7 @@ describe('MediaUrlService', () => {
       ],
     });
     const api = TestBed.inject(ChatApiService);
-    spyOn(api, 'getApiUrl').and.returnValue(base);
+    vi.spyOn(api, 'getApiUrl').mockReturnValue(base);
     service = TestBed.inject(MediaUrlService);
   });
 
