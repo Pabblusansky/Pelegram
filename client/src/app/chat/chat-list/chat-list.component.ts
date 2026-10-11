@@ -188,7 +188,7 @@ loadRegularChats(): void {
         this.logger.error('Failed to load regular chats:', error);
         this.loadingChats = false;
         if (error.status === 401 || error.status === 403) {
-          this.router.navigate(['/login']);
+          this.router.navigate(['/auth/login']);
         }
       }
     });
